@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Helper - AI Stop-Loss Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-white border border-gray-200 rounded-lg p-8 w-full max-w-md shadow-lg">
+            <h1 class="text-2xl font-bold text-gray-900 mb-6 text-center">AI Stop-Loss Engine</h1>
+
+            <div class="mb-6">
+                <h2 class="text-sm font-semibold text-gray-700 mb-2">Demo Account</h2>
+                <div class="bg-gray-50 border border-gray-200 rounded p-3 space-y-1">
+                    <p class="text-sm"><span class="font-semibold">Email:</span> demo@example.com</p>
+                    <p class="text-sm"><span class="font-semibold">Password:</span> demo123</p>
+                </div>
+            </div>
+
+            <button
+                onclick="login()"
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors"
+            >
+                Login & Set Token
+            </button>
+
+            <div id="result" class="mt-4 hidden">
+                <div class="bg-green-50 border border-green-200 rounded p-3">
+                    <p class="text-sm text-green-800 font-semibold">Login successful!</p>
+                    <p class="text-xs text-green-700 mt-1">Token saved to localStorage</p>
+                    <a href="/" class="text-sm text-blue-600 underline mt-2 inline-block">Go to Dashboard →</a>
+                </div>
+            </div>
+
+            <div id="error" class="mt-4 hidden">
+                <div class="bg-red-50 border border-red-200 rounded p-3">
+                    <p class="text-sm text-red-800 font-semibold">Login failed</p>
+                    <p class="text-xs text-red-700 mt-1" id="error-message"></p>
+                </div>
+            </div>
+
+            <div class="mt-6 pt-6 border-t border-gray-200">
+                <h3 class="text-sm font-semibold text-gray-700 mb-2">Manual API Test</h3>
+                <p class="text-xs text-gray-600 mb-2">Login via cURL:</p>
+                <pre class="bg-gray-900 text-gray-100 text-xs p-3 rounded overflow-x-auto"><code>curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"demo@example.com","password":"demo123"}'</code></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function login() {
+            const resultEl = document.getElementById('result');
+            const errorEl = document.getElementById('error');
+
+            resultEl.classList.add('hidden');
+            errorEl.classList.add('hidden');
+
+            try {
+                const response = await fetch('http://localhost:3000/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'demo@example.com',
+                        password: 'demo123'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.data.token) {
+                    // Save token to localStorage
+                    localStorage.setItem('auth_token', data.data.token);
+
+                    // Show success
+                    resultEl.classList.remove('hidden');
+
+                    console.log('Token saved:', data.data.token);
+                } else {
+                    throw new Error(data.message || 'Login failed');
+                }
+
+            } catch (error) {
+                errorEl.classList.remove('hidden');
+                document.getElementById('error-message').textContent = error.message;
+                console.error('Login error:', error);
+            }
+        }
+    </script>
+</body>
+</html>

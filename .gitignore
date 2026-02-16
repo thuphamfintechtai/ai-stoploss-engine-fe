@@ -26,3 +26,10 @@ Thumbs.db
 
 # Vite
 *.local
+.vite/
+
+# Backup
+*.bak
+*.bak2
+*.bak3
+*.bak4
