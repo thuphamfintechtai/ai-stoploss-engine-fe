@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { marketApi } from '../services/api';
-import { MARKET_INDEX_CODES } from '../constants';
+import { MARKET_INDEX_CODES, formatNumberVI } from '../constants';
 
 interface Props {
   totalBalance: number;
@@ -55,13 +55,28 @@ interface NewsArticle {
   description?: string;
 }
 
+const MARKET_INDEX_DETAIL_CODES = 'VNINDEX,VN30,VNXALL,HNX30,HNXINDEX,HNXUPCOMINDI';
+
+interface MarketIndexDetailRow {
+  indexCode: string;
+  indexValue: number | null;
+  indexChange: number | null;
+  sumVolume: number | null;
+  sumValue: number | null;
+  advances: number;
+  declines: number;
+  noChange: number;
+}
+
 export const HomeView: React.FC<Props> = ({ onNavigate, totalBalance, riskUsed, maxRisk, marketDataContent }) => {
   const [cardCodes, setCardCodes] = useState<string[]>(defaultIndices);
   const [indexData, setIndexData] = useState<Record<string, ReturnType<typeof normalizeIndexData>>>({});
+  const [marketIndexDetailList, setMarketIndexDetailList] = useState<MarketIndexDetailRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [news, setNews] = useState<NewsArticle[]>([]);
   const [newsLoading, setNewsLoading] = useState(false);
+  const [newsError, setNewsError] = useState<string | null>(null);
 
   const fetchIndices = useCallback(async (codes: string[]) => {
     if (!codes.length) return;
@@ -91,17 +106,73 @@ export const HomeView: React.FC<Props> = ({ onNavigate, totalBalance, riskUsed, 
   }, [cardCodes.join(','), fetchIndices]);
 
   useEffect(() => {
-    setNewsLoading(true);
-    marketApi.getNews({ limit: 5, format: 'json' })
+    marketApi.getMarketIndexDetail({ indexCode: MARKET_INDEX_DETAIL_CODES })
       .then((res) => {
-        const data = (res.data as any);
-        if (data?.success && Array.isArray(data?.articles)) {
-          setNews(data.articles);
+        const raw = (res.data as any)?.data;
+        if (Array.isArray(raw)) {
+          setMarketIndexDetailList(raw.map((d: any) => ({
+            indexCode: (d.indexCode ?? d.code ?? '').toString().trim(),
+            indexValue: d.indexValue != null ? Number(d.indexValue) : null,
+            indexChange: d.indexChange != null ? Number(d.indexChange) : null,
+            sumVolume: d.sumVolume != null ? Number(d.sumVolume) : null,
+            sumValue: d.sumValue != null ? Number(d.sumValue) : null,
+            advances: Number(d.advances) || 0,
+            declines: Number(d.declines) || 0,
+            noChange: Number(d.noChange) || 0,
+          })));
         }
       })
-      .catch(() => setNews([]))
+      .catch(() => setMarketIndexDetailList([]));
+    const t = setInterval(() => {
+      marketApi.getMarketIndexDetail({ indexCode: MARKET_INDEX_DETAIL_CODES })
+        .then((res) => {
+          const raw = (res.data as any)?.data;
+          if (Array.isArray(raw)) {
+            setMarketIndexDetailList(raw.map((d: any) => ({
+              indexCode: (d.indexCode ?? d.code ?? '').toString().trim(),
+              indexValue: d.indexValue != null ? Number(d.indexValue) : null,
+              indexChange: d.indexChange != null ? Number(d.indexChange) : null,
+              sumVolume: d.sumVolume != null ? Number(d.sumVolume) : null,
+              sumValue: d.sumValue != null ? Number(d.sumValue) : null,
+              advances: Number(d.advances) || 0,
+              declines: Number(d.declines) || 0,
+              noChange: Number(d.noChange) || 0,
+            })));
+          }
+        })
+        .catch(() => {});
+    }, 60000);
+    return () => clearInterval(t);
+  }, []);
+
+  const fetchNews = useCallback(() => {
+    setNewsLoading(true);
+    setNewsError(null);
+    marketApi.getNews({ limit: 10, format: 'json' })
+      .then((res) => {
+        const data = (res.data as any) ?? {};
+        const list = Array.isArray(data?.articles) ? data.articles : Array.isArray((data as any)?.data?.articles) ? (data as any).data.articles : [];
+        setNews(
+          list
+            .map((a: any) => ({
+              title: (a?.title ?? '').trim(),
+              url: typeof a?.url === 'string' ? a.url.trim() : '#',
+              date: (a?.date ?? '').trim(),
+              description: (a?.description ?? '').trim(),
+            }))
+            .filter((a) => a.title.length > 0)
+        );
+      })
+      .catch((err) => {
+        setNews([]);
+        setNewsError(err?.message ?? 'Không tải được tin tức');
+      })
       .finally(() => setNewsLoading(false));
   }, []);
+
+  useEffect(() => {
+    fetchNews();
+  }, [fetchNews]);
 
   const setCardCode = (cardIndex: number, newCode: string) => {
     setCardCodes((prev) => {
@@ -111,188 +182,281 @@ export const HomeView: React.FC<Props> = ({ onNavigate, totalBalance, riskUsed, 
     });
   };
 
-  const formatVolume = (v: number) => {
-    if (v >= 1e9) return (v / 1e9).toFixed(2) + ' Tỷ';
-    if (v >= 1e6) return (v / 1e6).toFixed(0) + ' Tr';
-    return v?.toLocaleString('vi-VN') ?? '0';
+  // Giá trị giao dịch: hiển thị theo tỷ, dạng 11,787.10 Tỷ (dấu phẩy nghìn, chấm thập phân)
+  const formatTotalValueTyr = (v: number) => {
+    if (v >= 1e9) {
+      const n = v / 1e9;
+      return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Tỷ';
+    }
+    if (v >= 1e6) return (v / 1e6).toLocaleString('en-US', { maximumFractionDigits: 0 }) + ' Tr Tỷ';
+    return (v ?? 0).toLocaleString('en-US') + ' Tỷ';
   };
 
+  const formatVolumeMillion = (v: number | null) =>
+    v != null && Number.isFinite(v) ? (v / 1e6).toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 3 }) : '—';
+  const formatValueBillion = (v: number | null) =>
+    v != null && Number.isFinite(v) ? (v / 1e9).toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 3 }) : '—';
+
   return (
-    <div className="max-w-screen-2xl mx-auto space-y-6">
-      {/* Chỉ số trong ngày - gọn, ít khung bo */}
-      <section className="bg-[#FAFAFA] border-b border-[#E5E7EB]">
-        <div className="px-4 py-3">
-          <h2 className="text-sm font-semibold text-[#111827]">Chỉ số trong ngày</h2>
-          <p className="text-[#6B7280] text-xs mt-0.5">Cập nhật theo phiên giao dịch</p>
-        </div>
-        {error && (
-          <div className="mx-4 mb-3 py-2 px-3 bg-amber-50 text-amber-800 text-xs border-l-4 border-amber-400">
-            {error}
-          </div>
-        )}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-0 md:gap-px md:bg-[#E5E7EB]">
-          {[0, 1, 2].map((i) => {
-            const code = cardCodes[i] ?? defaultIndices[i];
-            const data = indexData[code];
-            const isUp = data ? data.change >= 0 : true;
-            const chartPoints = data?.chartData?.length ? data.chartData : [];
-            const refValue = chartPoints.length ? chartPoints[0]?.value : data?.value;
-
-            return (
-              <div
-                key={i}
-                className="bg-[#FAFAFA] md:bg-white p-4 flex flex-col min-h-[220px]"
-              >
-                <div className="flex justify-between items-center gap-2">
-                  <div className="relative inline-block">
-                    <select
-                      value={code}
-                      onChange={(e) => setCardCode(i, e.target.value)}
-                      className="appearance-none bg-transparent text-[#111827] text-sm font-semibold border-none py-1 pr-6 cursor-pointer focus:ring-0 focus:outline-none w-full min-w-[90px] text-[#1E3A5F]"
-                    >
-                      {MARKET_INDEX_CODES.map((opt) => (
-                        <option key={opt.code} value={opt.code}>
-                          {opt.name}
-                        </option>
-                      ))}
-                    </select>
-                    <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#64748B] pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                  {loading && !data && (
-                    <span className="text-[#64748B] text-xs font-medium">Đang tải...</span>
-                  )}
-                </div>
-
-                {data ? (
-                  <>
-                    <div className="mt-4">
-                      <p className={`text-3xl font-bold tabular-nums tracking-tight ${isUp ? 'text-[#0B6E4B]' : 'text-[#A63D3D]'}`}>
-                        {Number(data.value).toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </p>
-                      <div className={`inline-flex items-center gap-1.5 mt-1.5 text-sm font-medium ${isUp ? 'text-[#0B6E4B]' : 'text-[#A63D3D]'}`}>
-                        {isUp ? (
-                          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
-                        ) : (
-                          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
-                        )}
-                        <span>
-                          {data.change >= 0 ? '+' : ''}{Number(data.change).toFixed(2)} <span className="text-[#64748B] font-normal">({data.changePercent >= 0 ? '+' : ''}{Number(data.changePercent).toFixed(2)}%)</span>
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 h-12 min-h-[48px] bg-[#F5F5F5] overflow-hidden flex-shrink-0">
-                      {chartPoints.length > 0 ? (
-                        <ResponsiveContainer width="100%" height={48}>
-                          <LineChart data={chartPoints} margin={{ top: 6, right: 6, left: 6, bottom: 6 }}>
-                            <ReferenceLine y={refValue} stroke="#94A3B8" strokeDasharray="3 3" strokeOpacity={0.8} />
-                            <XAxis dataKey="time" hide />
-                            <YAxis hide domain={['auto', 'auto']} />
-                            <Line
-                              type="monotone"
-                              dataKey="value"
-                              stroke={isUp ? '#0B6E4B' : '#A63D3D'}
-                              strokeWidth={2}
-                              dot={false}
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex items-center justify-center text-[#94A3B8] text-sm">Chưa có dữ liệu biểu đồ</div>
-                      )}
-                    </div>
-
-                    <div className="mt-3 pt-2 border-t border-[#E5E7EB] space-y-1 text-sm">
-                      {data.volume > 0 && (
-                        <p className="text-[#64748B] text-sm">
-                          <span className="font-medium text-[#475569]">KL:</span>{' '}
-                          {Number(data.volume).toLocaleString('vi-VN')} CP
-                        </p>
-                      )}
-                      {data.totalValue > 0 && (
-                        <p className="text-[#64748B] text-sm">
-                          <span className="font-medium text-[#475569]">Giá trị:</span>{' '}
-                          {formatVolume(data.totalValue)} <span className="text-[#94A3B8]">Đóng cửa</span>
-                        </p>
-                      )}
-                      {(data.advancing > 0 || data.unchanged > 0 || data.declining > 0) && (
-                        <div className="flex items-center gap-4 pt-1.5">
-                          <span className="inline-flex items-center gap-1 text-[#0B6E4B] text-sm font-medium">
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
-                            {data.advancing} tăng
-                          </span>
-                          <span className="text-[#64748B] text-sm">{data.unchanged} đứng giá</span>
-                          <span className="inline-flex items-center gap-1 text-[#A63D3D] text-sm font-medium">
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
-                            {data.declining} giảm
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  !loading && (
-                    <div className="flex-1 flex items-center justify-center text-[#94A3B8] text-sm py-8">
-                      Chọn mã chỉ số ở trên
-                    </div>
-                  )
-                )}
+    <div className="w-full max-w-[1920px] mx-auto px-3 sm:px-4 lg:px-6 pb-6 sm:pb-8 pt-2 bg-gradient-to-b from-slate-50/80 to-white min-h-full overflow-x-hidden">
+      {/* Hàng đầu: Chỉ số trong ngày (trái, scroll ngang như VPBS) + Tóm tắt chỉ số (phải), chiều cao cố định tránh bảng bị kéo dãn */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 mb-4 sm:mb-6 items-stretch min-h-[220px] lg:h-[260px] xl:h-[280px]">
+        {/* Chỉ số trong ngày – bên trái: thanh kéo ngang, chart theo chiều rộng (rộng-thấp) */}
+        <div className="lg:col-span-8 xl:col-span-9 min-w-0 flex min-h-[240px] lg:min-h-0">
+          <section className="bg-white rounded-xl sm:rounded-2xl border border-slate-200/80 shadow-md sm:shadow-lg shadow-slate-200/50 overflow-hidden flex flex-col w-full min-h-0">
+            <div className="px-3 sm:px-4 py-2 border-b border-slate-200 bg-slate-50/50 shrink-0">
+              <h2 className="text-sm font-semibold text-slate-800">Chỉ số trong ngày</h2>
+              <p className="text-slate-500 text-[10px] sm:text-xs mt-0.5 hidden sm:block">Cập nhật theo phiên · Kéo ngang xem thêm</p>
+            </div>
+            {error && (
+              <div className="mx-3 sm:mx-4 mt-2 py-2 px-3 bg-amber-50 text-amber-800 text-xs border-l-4 border-amber-400 rounded-r shrink-0">
+                {error}
               </div>
-            );
-          })}
-        </div>
-      </section>
+            )}
+            {/* Một component gồm nhiều chỉ số: nền chung, chỉ phân cách bằng đường kẻ dọc */}
+            <div
+              className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden mx-3 sm:mx-4 mb-2 rounded-lg border border-slate-200/80 bg-slate-50/50 flex flex-nowrap"
+              style={{ WebkitOverflowScrolling: 'touch', scrollbarGutter: 'stable' }}
+            >
+              {[0, 1, 2].map((i) => {
+                const code = cardCodes[i] ?? defaultIndices[i];
+                const data = indexData[code];
+                const isUp = data ? data.change >= 0 : true;
+                const chartPoints = data?.chartData?.length ? data.chartData : [];
+                const refValue = chartPoints.length ? chartPoints[0]?.value : data?.value;
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Cột trái: Tất cả mã chứng khoán (Dữ liệu thị trường) - từ App */}
-        {marketDataContent && (
-          <div className="lg:col-span-2 space-y-4">
-            {marketDataContent}
-          </div>
-        )}
-        {/* Cột phải: Tin tức */}
-        <div className={marketDataContent ? 'space-y-6' : 'lg:col-span-3 space-y-6'}>
-          <div className="card-flat p-4 rounded-lg space-y-4">
-            <h3 className="text-sm font-semibold text-[#111827] border-b border-[#E5E7EB] pb-3 flex items-center gap-2">
-              <svg className="w-4 h-4 text-[#6B7280]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125v18.75c0 .621-.504 1.125-1.125 1.125h-3.375m0-3H21m-3.75 3H21m-3.75 3h-3.375m0-3H21" /></svg>
-              Tin Tức Mới
-            </h3>
-            <div className="space-y-4">
-              {newsLoading ? (
-                <p className="text-xs text-[#6B7280]">Đang tải tin...</p>
-              ) : news.length === 0 ? (
-                <p className="text-xs text-[#6B7280]">Chưa có tin mới.</p>
-              ) : (
-                news.slice(0, 5).map((article, idx) => (
-                  <a
-                    key={idx}
-                    href={typeof article.url === 'string' ? article.url.split(/\s|"/)[0].trim() : '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group block"
+                return (
+                  <div
+                    key={i}
+                    className={`flex-shrink-0 w-[280px] sm:w-[300px] p-2 flex flex-col h-full min-h-[160px] ${i < 2 ? 'border-r border-slate-200/70' : ''}`}
                   >
-                    <div className="flex justify-between text-[10px] text-[#6B7280] mb-1 font-semibold uppercase tracking-wide">
-                      <span className="text-[#1E3A5F]">CafeF</span>
-                      <span>{article.date || '—'}</span>
+                    <div className="flex justify-between items-center gap-2 shrink-0">
+                      <div className="relative inline-block">
+                        <select
+                          value={code}
+                          onChange={(e) => setCardCode(i, e.target.value)}
+                          className="appearance-none bg-transparent text-slate-800 text-sm font-semibold border-none py-0.5 pr-6 cursor-pointer focus:ring-0 focus:outline-none w-full min-w-[80px] text-[#1E3A5F]"
+                        >
+                          {MARKET_INDEX_CODES.map((opt) => (
+                            <option key={opt.code} value={opt.code}>
+                              {opt.name}
+                            </option>
+                          ))}
+                        </select>
+                        <svg className="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                      {loading && !data && (
+                        <span className="text-slate-500 text-xs font-medium">Đang tải...</span>
+                      )}
                     </div>
-                    <p className="text-xs text-[#374151] group-hover:text-[#111827] leading-relaxed font-medium transition-colors line-clamp-2">
-                      {article.title}
-                    </p>
-                  </a>
-                ))
-              )}
+
+                    {data ? (
+                      <>
+                        <div className="mt-1.5 shrink-0">
+                          <p className={`text-xl font-bold tabular-nums tracking-tight ${isUp ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            {formatNumberVI(Number(data.value), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            <span className="text-sm font-semibold text-slate-500 ml-1">điểm</span>
+                          </p>
+                          <div className={`inline-flex items-center gap-1 mt-0.5 text-xs font-medium ${isUp ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            {isUp ? (
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
+                            ) : (
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+                            )}
+                            <span>
+                              {data.change >= 0 ? '+' : ''}{Number(data.change).toFixed(2)} <span className="text-slate-500 font-normal">({data.changePercent >= 0 ? '+' : ''}{Number(data.changePercent).toFixed(2)}%)</span>
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Chart theo chiều rộng: rộng, thấp (không kéo dài theo chiều dọc) */}
+                        <div className="mt-1.5 w-full h-9 flex-shrink-0 bg-white/80 rounded border border-slate-200/60 overflow-hidden">
+                          {chartPoints.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={36}>
+                              <LineChart data={chartPoints} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+                                <ReferenceLine y={refValue} stroke="#94A3B8" strokeDasharray="3 3" strokeOpacity={0.8} />
+                                <XAxis dataKey="time" hide />
+                                <YAxis hide domain={['auto', 'auto']} />
+                                <Line
+                                  type="monotone"
+                                  dataKey="value"
+                                  stroke={isUp ? '#059669' : '#dc2626'}
+                                  strokeWidth={1.5}
+                                  dot={false}
+                                />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          ) : (
+                            <div className="h-full flex items-center justify-center text-slate-400 text-xs">Chưa có dữ liệu</div>
+                          )}
+                        </div>
+
+                        <div className="mt-1.5 pt-1 border-t border-slate-200/80 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] shrink-0">
+                          {data.volume > 0 && (
+                            <span className="text-slate-500">
+                              <span className="font-medium text-slate-600">KL:</span> {formatNumberVI(Number(data.volume))} CP
+                            </span>
+                          )}
+                          {data.totalValue > 0 && (
+                            <span className="text-slate-500">
+                              <span className="font-medium text-slate-600">Giá trị:</span> {formatTotalValueTyr(data.totalValue)}
+                            </span>
+                          )}
+                          {(data.advancing > 0 || data.unchanged > 0 || data.declining > 0) && (
+                            <span className="flex items-center gap-1.5 mt-0.5 w-full">
+                              <span className="text-emerald-600 font-medium">↑{data.advancing}</span>
+                              <span className="text-slate-500">{data.unchanged} đứng giá</span>
+                              <span className="text-rose-600 font-medium">↓{data.declining}</span>
+                            </span>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      !loading && (
+                        <div className="flex-1 flex items-center justify-center text-slate-400 text-xs py-4">
+                          Chọn mã chỉ số
+                        </div>
+                      )
+                )}
+                  </div>
+                );
+              })}
             </div>
-            <div className="pt-2 border-t border-[#E5E7EB]">
-              <button
-                type="button"
-                onClick={() => onNavigate('market')}
-                className="w-full py-2 text-xs font-semibold text-[#6B7280] hover:text-[#1E3A5F] hover:bg-[#F3F4F6] rounded-lg transition-colors duration-150"
-              >
-                Xem tất cả tin tức
-              </button>
+          </section>
+        </div>
+
+        {/* Tóm tắt chỉ số – bên phải, bảng tóm tắt */}
+        <div className="lg:col-span-4 xl:col-span-3 min-w-0 flex">
+          <section className="bg-white rounded-xl sm:rounded-2xl border border-slate-200/80 shadow-md sm:shadow-lg shadow-slate-200/50 overflow-hidden flex flex-col w-full min-h-0">
+            <div className="px-3 sm:px-4 py-2 border-b border-slate-200 bg-slate-50/50 shrink-0">
+              <h2 className="text-sm font-semibold text-slate-800">Tóm tắt chỉ số</h2>
+              <p className="text-slate-500 text-[10px] mt-0.5 hidden sm:block">Điểm · KLGD · GTGD · CK ↑/↓</p>
             </div>
+            <div className="overflow-auto -mx-px flex-1 min-h-0">
+              <table className="w-full min-w-[260px] text-left border-collapse text-[11px]">
+                <thead>
+                  <tr className="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wide text-[10px]">
+                    <th className="px-1.5 sm:px-2 py-1.5 whitespace-nowrap">Chỉ số</th>
+                    <th className="px-1.5 py-1.5 text-right whitespace-nowrap">Điểm</th>
+                    <th className="px-1.5 py-1.5 text-right whitespace-nowrap">+/-</th>
+                    <th className="px-1.5 py-1.5 text-right whitespace-nowrap">KLGD</th>
+                    <th className="px-1.5 py-1.5 text-right whitespace-nowrap">GTGD</th>
+                    <th className="px-1.5 py-1.5 text-right whitespace-nowrap">↑/↓</th>
+                  </tr>
+                </thead>
+                <tbody className="text-slate-700 divide-y divide-slate-100">
+                  {marketIndexDetailList.length === 0 ? (
+                    <tr><td colSpan={6} className="px-2 py-4 text-center text-slate-500 text-xs">Đang tải...</td></tr>
+                  ) : (
+                    marketIndexDetailList.map((row) => {
+                      const isUp = row.indexChange != null && row.indexChange >= 0;
+                      const chgCls = row.indexChange == null ? 'text-slate-700' : isUp ? 'text-emerald-600' : 'text-rose-600';
+                      return (
+                        <tr key={row.indexCode} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="px-1.5 sm:px-2 py-1.5 font-medium text-slate-800 whitespace-nowrap">{row.indexCode}</td>
+                          <td className={`px-1.5 py-1.5 text-right font-mono font-medium tabular-nums ${chgCls}`}>
+                            {row.indexValue != null ? formatNumberVI(row.indexValue, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+                          </td>
+                          <td className={`px-1.5 py-1.5 text-right font-mono tabular-nums ${chgCls}`}>
+                            {row.indexChange != null ? (row.indexChange >= 0 ? '+' : '') + formatNumberVI(row.indexChange, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+                          </td>
+                          <td className="px-1.5 py-1.5 text-right font-mono text-slate-500 tabular-nums text-[11px]">{formatVolumeMillion(row.sumVolume)}</td>
+                          <td className="px-1.5 py-1.5 text-right font-mono text-slate-500 tabular-nums text-[11px]">{formatValueBillion(row.sumValue)}</td>
+                          <td className="px-1.5 py-1.5 text-right whitespace-nowrap text-[11px]">
+                            <span className="text-emerald-600 font-medium">↑{row.advances}</span>
+                            <span className="text-slate-400 mx-0.5">_</span>
+                            <span className="text-amber-600 font-medium">{row.noChange}</span>
+                            <span className="text-slate-400 mx-0.5">_</span>
+                            <span className="text-rose-600 font-medium">↓{row.declines}</span>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      {/* Bảng giá theo index — full width, tránh tràn màn hình nhỏ */}
+      {marketDataContent && (
+        <div className="mb-4 sm:mb-6 min-w-0 w-full">
+          <section className="bg-white rounded-xl sm:rounded-2xl border border-slate-200/80 shadow-md sm:shadow-lg shadow-slate-200/50 overflow-hidden w-full">
+            <div className="px-3 sm:px-4 py-2.5 border-b border-slate-200 bg-slate-50/50">
+              <h2 className="text-sm font-semibold text-slate-800">Bảng giá theo index</h2>
+              <p className="text-slate-500 text-[10px] sm:text-xs mt-0.5 hidden sm:block">Chọn index, tìm mã — click hàng xem biểu đồ</p>
+            </div>
+            <div className="p-3 sm:p-4 min-w-0 overflow-hidden">
+              {marketDataContent}
+            </div>
+          </section>
+        </div>
+      )}
+
+      {/* Tin tức — full width ngang với khung bảng giá phía trên */}
+      <div className="mt-4 sm:mt-6 w-full min-w-0">
+        <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200/80 shadow-md sm:shadow-lg shadow-slate-200/50 overflow-hidden w-full min-h-[320px] sm:min-h-[360px] flex flex-col">
+          <div className="px-3 sm:px-4 py-2.5 border-b border-slate-200 bg-slate-50/50 shrink-0">
+            <h3 className="text-sm font-semibold text-slate-800">Tin tức</h3>
+            <p className="text-slate-500 text-[10px] mt-0.5 hidden sm:block">Nguồn CafeF</p>
+          </div>
+          <div className="p-3 sm:p-4 space-y-4 flex-1 min-h-0 flex flex-col">
+            {newsLoading ? (
+              <div className="flex-1 flex items-center justify-center gap-2 text-slate-500 text-sm">
+                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                Đang tải tin...
+              </div>
+            ) : newsError ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-center py-6">
+                <p className="text-slate-600 font-medium">Không tải được tin tức</p>
+                <p className="text-slate-500 text-xs mt-1">{newsError}</p>
+                <button type="button" onClick={fetchNews} className="mt-3 px-4 py-2 text-sm font-medium text-[#1E3A5F] border border-[#1E3A5F] rounded-lg hover:bg-[#1E3A5F]/5">Thử lại</button>
+              </div>
+            ) : news.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-center py-6">
+                <p className="text-slate-600 font-medium">Chưa có tin mới</p>
+                <p className="text-slate-500 text-xs mt-1">Tin sẽ hiển thị khi có bản cập nhật.</p>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                  <button type="button" onClick={fetchNews} className="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50">Tải lại</button>
+                  <button type="button" onClick={() => onNavigate('market')} className="px-4 py-2.5 bg-[#1E3A5F] text-white text-sm font-semibold rounded-lg hover:bg-[#1E3A5F]/90">Xem trang tin</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex-1 min-h-0">
+                  {news.slice(0, 5).map((article, idx) => (
+                    <a
+                      key={idx}
+                      href={typeof article.url === 'string' ? article.url.split(/\s|"/)[0].trim() : '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group block py-2 border-b border-slate-100 last:border-0 last:pb-0"
+                    >
+                      <div className="flex justify-between text-[10px] text-slate-500 mb-1 font-semibold uppercase tracking-wide">
+                        <span className="text-[#1E3A5F]">CafeF</span>
+                        <span>{article.date || '—'}</span>
+                      </div>
+                      <p className="text-xs text-slate-700 group-hover:text-slate-900 leading-relaxed font-medium transition-colors line-clamp-2">
+                        {article.title}
+                      </p>
+                    </a>
+                  ))}
+                </div>
+                <div className="pt-3 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('market')}
+                    className="w-full py-2.5 text-xs font-semibold text-slate-600 hover:text-[#1E3A5F] hover:bg-slate-50 rounded-xl transition-colors duration-150"
+                  >
+                    Xem tất cả tin tức
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

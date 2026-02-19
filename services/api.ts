@@ -68,6 +68,73 @@ export interface CreatePortfolioRequest {
   expectedReturnPercent?: number;
 }
 
+// Position types (theo plan stop-loss & take-profit)
+export type StopType = 'FIXED' | 'PERCENT' | 'MAX_LOSS' | 'TRAILING' | 'ATR' | 'SUPPORT_RESISTANCE' | 'MA';
+export type TakeProfitType = 'FIXED' | 'PERCENT' | 'R_RATIO';
+export type PositionStatus = 'OPEN' | 'CLOSED_TP' | 'CLOSED_SL' | 'CLOSED_MANUAL';
+
+export interface Position {
+  id: string;
+  portfolio_id: string;
+  symbol: string;
+  exchange: string;
+  entry_price: number;
+  stop_loss: number;
+  take_profit: number | null;
+  quantity: number;
+  risk_value_vnd: number;
+  status: PositionStatus;
+  opened_at: string;
+  closed_at?: string | null;
+  closed_price?: number | null;
+  profit_loss_vnd?: number | null;
+  side?: string;
+  stop_type?: string;
+  stop_params?: Record<string, unknown> | null;
+  take_profit_type?: string | null;
+  take_profit_params?: Record<string, unknown> | null;
+  trailing_current_stop?: number | null;
+  notes?: string | null;
+  risk_reward?: number | null;
+}
+
+export interface CreatePositionRequest {
+  symbol: string;
+  exchange: string;
+  /** Khi true (mặc định), BE lấy giá từ VPBS; không cần gửi entry_price. */
+  use_market_entry?: boolean;
+  entry_price?: number;
+  /** Khi use_market_quantity true, BE lấy khối lượng từ thị trường; không cần gửi quantity. */
+  use_market_quantity?: boolean;
+  quantity?: number;
+  stop_type?: StopType;
+  stop_params?: Record<string, unknown>;
+  stop_price?: number;
+  take_profit_type?: TakeProfitType;
+  take_profit_params?: Record<string, unknown>;
+  take_profit_price?: number;
+  signal_source_id?: string;
+  notes?: string;
+}
+
+export interface CalculatePositionRequest {
+  entry_price: number;
+  quantity: number;
+  stop_type?: StopType;
+  stop_params?: Record<string, unknown>;
+  stop_price?: number;
+  take_profit_type?: TakeProfitType;
+  take_profit_params?: Record<string, unknown>;
+  take_profit_price?: number;
+}
+
+export interface ClosePositionPayload {
+  reason: 'CLOSED_TP' | 'CLOSED_SL' | 'CLOSED_MANUAL';
+  /** Mặc định true: BE lấy giá đóng từ VPBS tại thời điểm đóng. Chỉ gửi closed_price khi use_market_price: false. */
+  use_market_price?: boolean;
+  closed_price?: number;
+}
+
 // Auth API
 export const authApi = {
   login: (data: LoginRequest) =>
@@ -117,6 +184,27 @@ export const portfolioApi = {
     apiClient.get(`/portfolios/${id}/performance`),
 };
 
+// Position API (nested under portfolio)
+export const positionApi = {
+  list: (portfolioId: string, params?: { status?: string; page?: number; limit?: number }) =>
+    apiClient.get(`/portfolios/${portfolioId}/positions`, { params }),
+
+  get: (portfolioId: string, positionId: string) =>
+    apiClient.get(`/portfolios/${portfolioId}/positions/${positionId}`),
+
+  create: (portfolioId: string, body: CreatePositionRequest) =>
+    apiClient.post(`/portfolios/${portfolioId}/positions`, body),
+
+  update: (portfolioId: string, positionId: string, body: { trailing_current_stop?: number }) =>
+    apiClient.patch(`/portfolios/${portfolioId}/positions/${positionId}`, body),
+
+  close: (portfolioId: string, positionId: string, payload: ClosePositionPayload) =>
+    apiClient.post(`/portfolios/${portfolioId}/positions/${positionId}/close`, payload),
+
+  calculate: (portfolioId: string, body: CalculatePositionRequest) =>
+    apiClient.post(`/portfolios/${portfolioId}/positions/calculate`, body),
+};
+
 // Signal API (stub – BE không còn /signals, trả về rỗng để FE không lỗi)
 export const signalApi = {
   getAll: () => Promise.resolve({ data: { success: true, data: [] } }),
@@ -150,11 +238,101 @@ export const marketApi = {
       params: codes?.length ? { codes: codes.join(',') } : undefined,
     }),
 
+  /** Tóm tắt chỉ số (Neopro marketIndexDetail). indexCode: VNINDEX,VN30,VNXALL,HNX30,... */
+  getMarketIndexDetail: (params?: { indexCode?: string }) => {
+    const indexCode = params?.indexCode && params.indexCode.trim() ? params.indexCode.trim() : 'VNINDEX,VN30,VNXALL,HNX30';
+    return apiClient.get('/market/market-index-detail', { params: { indexCode }, timeout: 15000 });
+  },
+
   getNews: (params?: { limit?: number; search?: string; format?: 'json' | 'markdown' | 'text' }) =>
     apiClient.get('/market/news', { params: params || { format: 'json' } }),
 
   getStocks: (params?: { exchange?: string; search?: string; sort?: string; order?: string; page?: number; limit?: number }, config?: { timeout?: number }) =>
     apiClient.get('/market/stocks', { params, timeout: config?.timeout ?? 60000 }),
+
+  /** Bảng chi tiết theo một hoặc nhiều index (VPBS stockDetailByIndex). indexCode(s): VNXALL, HOSE, HNX, UPCOM... */
+  getStockDetailByIndex: (params?: { indexCode?: string; indexCodes?: string | string[]; pageNo?: number; pageSize?: number }) => {
+    const p = params || {};
+    const indexCodesStr = Array.isArray(p.indexCodes) ? p.indexCodes.join(',') : (p.indexCodes ?? p.indexCode ?? 'VNXALL');
+    return apiClient.get('/market/stock-detail-by-index', { params: { indexCodes: indexCodesStr, pageNo: p.pageNo ?? 1, pageSize: p.pageSize ?? 500 }, timeout: 20000 });
+  },
+
+  /** Danh sách chứng quyền (VPBS stockCWDetail). Cùng format bảng giá để hiển thị chung. */
+  getStockCWDetail: (params?: { stockType?: string; pageNo?: number; pageSize?: number }) => {
+    const p = params || {};
+    return apiClient.get('/market/stock-cw-detail', {
+      params: { stockType: p.stockType ?? 'CW', pageNo: p.pageNo ?? 1, pageSize: p.pageSize ?? 5000 },
+      timeout: 20000,
+    });
+  },
+
+  /** Danh sách ETF (VPBS stockDetail?stockType=EF). Cùng format bảng giá để hiển thị chung. */
+  getStockEFDetail: (params?: { stockType?: string; pageNo?: number; pageSize?: number }) => {
+    const p = params || {};
+    return apiClient.get('/market/stock-ef-detail', {
+      params: { stockType: p.stockType ?? 'EF', pageNo: p.pageNo ?? 1, pageSize: p.pageSize ?? 5000 },
+      timeout: 20000,
+    });
+  },
+
+  /** Danh sách phái sinh (VPBS fuStockDetail). stockType: FUVN30 | FUVN100 | FUGB. */
+  getStockFUDetail: (params?: { stockType?: string; pageNo?: number; pageSize?: number }) => {
+    const p = params || {};
+    return apiClient.get('/market/stock-fu-detail', {
+      params: { stockType: p.stockType ?? 'FUVN30', pageNo: p.pageNo ?? 1, pageSize: p.pageSize ?? 5000 },
+      timeout: 20000,
+    });
+  },
+
+  /** Danh sách CP theo ngành (VPBS stockDetailByIndustry). industryCode: 0500, 1300, 5300, 8300... */
+  getStockDetailByIndustry: (params: { industryCode: string; pageNo?: number; pageSize?: number }) => {
+    const p = params;
+    return apiClient.get('/market/stock-detail-by-industry', {
+      params: { industryCode: p.industryCode, pageNo: p.pageNo ?? 1, pageSize: p.pageSize ?? 5000 },
+      timeout: 20000,
+    });
+  },
+
+  /** Khớp lệnh thoả thuận (VPBS ptStockMatch). marketCode: HOSE | HNX | UPCOM. */
+  getPtStockMatch: (params?: { marketCode?: string }) => {
+    const marketCode = (params?.marketCode && params.marketCode.trim()) || 'HOSE';
+    return apiClient.get('/market/pt-stock-match', { params: { marketCode }, timeout: 15000 });
+  },
+
+  /** Chào mua thoả thuận (VPBS ptStockBid). marketCode: HOSE | HNX | UPCOM. */
+  getPtStockBid: (params?: { marketCode?: string }) => {
+    const marketCode = (params?.marketCode && params.marketCode.trim()) || 'HOSE';
+    return apiClient.get('/market/pt-stock-bid', { params: { marketCode }, timeout: 15000 });
+  },
+
+  /** Chào bán thoả thuận (VPBS ptStockAsk). marketCode: HOSE | HNX | UPCOM. */
+  getPtStockAsk: (params?: { marketCode?: string }) => {
+    const marketCode = (params?.marketCode && params.marketCode.trim()) || 'HOSE';
+    return apiClient.get('/market/pt-stock-ask', { params: { marketCode }, timeout: 15000 });
+  },
+
+  /** Chi tiết thoả thuận (VPBS ptStockDetail). marketCode: HOSE | HNX | UPCOM. */
+  getPtStockDetail: (params?: { marketCode?: string }) => {
+    const marketCode = (params?.marketCode && params.marketCode.trim()) || 'HOSE';
+    return apiClient.get('/market/pt-stock-detail', { params: { marketCode }, timeout: 15000 });
+  },
+
+  /** Chi tiết lô lẻ (VPBS oddLotStockDetail). marketCode: HOSE | HNX | UPCOM. */
+  getOddLotStockDetail: (params?: { marketCode?: string; pageNo?: number; pageSize?: number }) => {
+    const p = params || {};
+    const marketCode = (p.marketCode && p.marketCode.trim()) || 'HOSE';
+    return apiClient.get('/market/odd-lot-stock-detail', {
+      params: { marketCode, pageNo: p.pageNo ?? 1, pageSize: p.pageSize ?? 5000 },
+      timeout: 20000,
+    });
+  },
+
+  getSymbolInfo: (symbol: string) =>
+    apiClient.get(`/market/symbols/${encodeURIComponent(symbol.trim())}/info`),
+
+  /** Exchange + giá thị trường (VPBS). quantity tuỳ chọn để nhận total_value. Đơn vị giá: nghìn đồng. */
+  getEntryInfo: (symbol: string, params?: { quantity?: number }) =>
+    apiClient.get(`/market/symbols/${encodeURIComponent(symbol.trim())}/entry-info`, { params }),
 
   getSymbolDetail: (symbol: string, params?: { exchange?: string }) =>
     apiClient.get(`/market/symbols/${symbol}/detail`, { params }),
@@ -174,6 +352,14 @@ export const marketApi = {
 
   getOrderBook: (symbol: string) =>
     apiClient.get(`/market/symbols/${symbol}/order-book`),
+
+  /** Danh sách trái phiếu doanh nghiệp (Neopro corpBondDetail). symbols=ALL hoặc mã cách nhau dấu phẩy. */
+  getCorpBondList: (params?: { symbols?: string }) =>
+    apiClient.get('/market/corp-bond-list', { params: params || { symbols: 'ALL' }, timeout: 15000 }),
+
+  /** Chi tiết trái phiếu (Neopro corpBondInfo). */
+  getCorpBondInfo: (symbol: string) =>
+    apiClient.get(`/market/corp-bond-info/${encodeURIComponent(symbol.trim())}`, { timeout: 10000 }),
 };
 
 // Export default client

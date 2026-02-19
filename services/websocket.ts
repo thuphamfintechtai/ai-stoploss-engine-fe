@@ -5,7 +5,8 @@ const WS_URL = import.meta.env.VITE_WS_URL || 'http://localhost:3000';
 class WebSocketService {
   private socket: Socket | null = null;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
+  private maxReconnectAttempts = 3;
+  private hasLoggedConnectionRefused = false;
 
   /**
    * Connect to WebSocket server
@@ -14,7 +15,6 @@ class WebSocketService {
     const token = localStorage.getItem('auth_token');
 
     if (!token) {
-      console.warn('No auth token found, skipping WebSocket connection');
       return;
     }
 
@@ -23,9 +23,10 @@ class WebSocketService {
         token,
       },
       reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
+      reconnectionDelay: 2000,
+      reconnectionDelayMax: 8000,
       reconnectionAttempts: this.maxReconnectAttempts,
+      timeout: 10000,
     });
 
     this.setupEventListeners();
@@ -38,26 +39,28 @@ class WebSocketService {
     if (!this.socket) return;
 
     this.socket.on('connect', () => {
-      console.log('WebSocket connected');
       this.reconnectAttempts = 0;
+      this.hasLoggedConnectionRefused = false;
     });
 
     this.socket.on('disconnect', (reason) => {
-      console.log('WebSocket disconnected:', reason);
+      // Chỉ log khi đã từng kết nối thành công (tránh spam khi backend chưa chạy)
+      if (this.reconnectAttempts > 0) return;
     });
 
-    this.socket.on('connect_error', (error) => {
-      console.error('WebSocket connection error:', error);
+    this.socket.on('connect_error', () => {
       this.reconnectAttempts++;
-
+      // Chỉ log 1 lần khi backend không chạy (ERR_CONNECTION_REFUSED)
+      if (!this.hasLoggedConnectionRefused) {
+        this.hasLoggedConnectionRefused = true;
+        console.warn('WebSocket: Không kết nối được server. Kiểm tra backend đã chạy chưa (ví dụ port 3000).');
+      }
       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        console.error('Max reconnection attempts reached');
+        this.socket?.removeAllListeners();
       }
     });
 
-    this.socket.on('subscribed', (data) => {
-      console.log('📡 Subscribed:', data);
-    });
+    this.socket.on('subscribed', () => {});
   }
 
   /**
@@ -147,7 +150,6 @@ class WebSocketService {
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
-      console.log('WebSocket disconnected');
     }
   }
 

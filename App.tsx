@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar, ComposedChart } from 'recharts';
 import { createChart, ColorType, CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
 import { TraderProfile, AiAnalysis } from './types';
@@ -10,9 +11,10 @@ import { MarketNewsView } from './components/MarketNewsView';
 import { AuthView } from './components/AuthView';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { analyzeTrader } from './services/geminiService';
-import { portfolioApi, marketApi, authApi } from './services/api';
+import { portfolioApi, positionApi, marketApi, authApi } from './services/api';
+import type { Position as PositionType, CreatePositionRequest } from './services/api';
 import wsService from './services/websocket';
-import { STOCK_PRICE_DISPLAY_SCALE } from './constants';
+import { STOCK_PRICE_DISPLAY_SCALE, PRICE_FRACTION_OPTIONS, PRICE_LOCALE, EXCHANGES, formatNumberVI, formatPricePoints, MARKET_INDEX_CODES_BANG_GIA, INDUSTRY_CODES, SINGLE_CHOICE_GROUPS } from './constants';
 
 // --- Helper: Convert Vietnamese date to Lightweight Charts format ---
 function convertToLightweightTime(dateStr: string): string {
@@ -54,41 +56,6 @@ const CandlestickChartLW = ({ data, loading }: { data: any[], loading: boolean }
 
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
-    const [selectedTool, setSelectedTool] = useState<'cursor' | 'trendline' | 'hline' | 'text'>('cursor');
-    const [drawings, setDrawings] = useState<any[]>([]);
-    const [pendingTrendline, setPendingTrendline] = useState<any>(null);
-
-    // Listen to tool changes from left sidebar
-    useEffect(() => {
-        const handleToolChange = (e: any) => {
-            const tool = e.detail.tool;
-            console.log('📍 Tool changed:', tool);
-            if (tool === 'clear') {
-                // Clear all drawings
-                drawings.forEach(drawing => {
-                    if (drawing.type === 'hline' && drawing.priceLine) {
-                        seriesRef.current?.removePriceLine(drawing.priceLine);
-                    } else if (drawing.type === 'trendline' && drawing.series) {
-                        chartRef.current?.removeSeries(drawing.series);
-                    }
-                });
-                seriesRef.current?.setMarkers([]);
-                setDrawings([]);
-                setPendingTrendline(null);
-                console.log('🧹 Cleared all drawings');
-            } else {
-                setSelectedTool(tool);
-                console.log('🎨 Selected tool:', tool);
-            }
-        };
-
-        window.addEventListener('chartToolChange', handleToolChange);
-        console.log('👂 Event listener attached');
-        return () => {
-            window.removeEventListener('chartToolChange', handleToolChange);
-            console.log('🔇 Event listener removed');
-        };
-    }, [drawings]);
 
     // Effect 1: Initialize chart on mount
     useEffect(() => {
@@ -134,7 +101,7 @@ const CandlestickChartLW = ({ data, loading }: { data: any[], loading: boolean }
         // Assign to refs for external access (drawing tools)
         chartRef.current = chart;
         seriesRef.current = candlestickSeries;
-        console.log('✅ Chart and series refs assigned');
+        console.log('Chart and series refs assigned');
 
         // Add volume histogram
         const volumeSeries = chart.addSeries(HistogramSeries, {
@@ -257,109 +224,6 @@ const CandlestickChartLW = ({ data, loading }: { data: any[], loading: boolean }
         setIsFullscreen(!isFullscreen);
     };
 
-    // Handle chart click for drawing
-    const handleChartClick = (event: any) => {
-        console.log('🖱️ Chart clicked!');
-        console.log('   - Selected tool:', selectedTool);
-        console.log('   - chartRef.current:', chartRef.current);
-        console.log('   - seriesRef.current:', seriesRef.current);
-        console.log('   - Event:', event);
-
-        if (!chartRef.current || selectedTool === 'cursor') {
-            console.log('⏭️ Skipping - cursor mode or no chart');
-            return;
-        }
-
-        const chart = chartRef.current;
-        const rect = chartContainerRef.current?.getBoundingClientRect();
-        if (!rect) {
-            console.log('❌ No rect');
-            return;
-        }
-
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
-
-        // Convert pixel coordinates to price/time (lightweight-charts v5 API)
-        try {
-            const timeScale = chart.timeScale();
-            const priceScale = chart.priceScale();
-
-            // Get logical coordinates
-            const timePoint = timeScale.coordinateToTime(x);
-            const priceValue = priceScale.coordinateToPrice(y);
-
-            console.log('📍 Click position:', { x, y, price: priceValue, time: timePoint, tool: selectedTool });
-
-            if (!timePoint || priceValue === null) {
-                console.warn('⚠️ Invalid coordinates');
-                return;
-            }
-
-            const price = priceValue;
-            const time = timePoint;
-
-            if (selectedTool === 'trendline') {
-            // Trendline requires 2 clicks
-            if (!pendingTrendline) {
-                // First click - save starting point
-                setPendingTrendline({ time, price });
-            } else {
-                // Second click - draw line from point1 to point2
-                const trendlineSeries = chart.addSeries(LineSeries, {
-                    color: '#2962FF',
-                    lineWidth: 2,
-                    priceLineVisible: false,
-                    lastValueVisible: false,
-                });
-
-                // Set data for the line (2 points)
-                trendlineSeries.setData([
-                    { time: pendingTrendline.time, value: pendingTrendline.price },
-                    { time: time, value: price }
-                ]);
-
-                setDrawings([...drawings, { type: 'trendline', series: trendlineSeries }]);
-                setPendingTrendline(null);
-                setSelectedTool('cursor');
-            }
-        } else if (selectedTool === 'hline') {
-            // Create horizontal price line
-            const priceLine = seriesRef.current?.createPriceLine({
-                price: price,
-                color: '#2962FF',
-                lineWidth: 2,
-                lineStyle: 2, // Dashed
-                axisLabelVisible: true,
-                title: `${(price * STOCK_PRICE_DISPLAY_SCALE).toLocaleString('vi-VN')} ₫`,
-            });
-
-            setDrawings([...drawings, { type: 'hline', priceLine }]);
-            setSelectedTool('cursor'); // Return to cursor after drawing
-        } else if (selectedTool === 'text') {
-            // Add text annotation (using marker)
-            const textContent = prompt('Nhập nội dung chú thích:', 'Ghi chú');
-            if (textContent) {
-                const marker = {
-                    time: time,
-                    position: 'aboveBar',
-                    color: '#2962FF',
-                    shape: 'circle',
-                    text: textContent,
-                };
-
-                const existingMarkers = seriesRef.current?.markers() || [];
-                seriesRef.current?.setMarkers([...existingMarkers, marker]);
-
-                setDrawings([...drawings, { type: 'text', marker }]);
-                setSelectedTool('cursor');
-            }
-            }
-        } catch (error) {
-            console.error('❌ Error in handleChartClick:', error);
-        }
-    };
-
     // Update chart size when fullscreen changes
     useEffect(() => {
         if (chartRef.current && chartContainerRef.current) {
@@ -370,17 +234,6 @@ const CandlestickChartLW = ({ data, loading }: { data: any[], loading: boolean }
             });
         }
     }, [isFullscreen]);
-
-    // Keyboard shortcuts
-    useEffect(() => {
-        const handleKeydown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                setSelectedTool('cursor');
-            }
-        };
-        window.addEventListener('keydown', handleKeydown);
-        return () => window.removeEventListener('keydown', handleKeydown);
-    }, []);
 
     const containerStyle: React.CSSProperties = isFullscreen
         ? {
@@ -400,97 +253,46 @@ const CandlestickChartLW = ({ data, loading }: { data: any[], loading: boolean }
             background: '#ffffff'
           };
 
-    const toolButtonStyle = (isActive: boolean, isDelete?: boolean) => ({
-        background: isActive
-            ? 'linear-gradient(135deg, #5B8FF9 0%, #4E7FE8 100%)'
-            : 'rgba(35, 38, 50, 0.95)',
-        border: isDelete
-            ? '1.5px solid rgba(239, 83, 80, 0.6)'
-            : isActive
-                ? 'none'
-                : '1px solid rgba(45, 50, 65, 0.8)',
-        borderRadius: '14px',
-        padding: '0',
-        color: '#fff',
-        cursor: 'pointer',
-        fontSize: '20px',
-        transition: 'all 0.15s ease',
-        boxShadow: isActive
-            ? '0 4px 16px rgba(91, 143, 249, 0.35)'
-            : '0 1px 3px rgba(0,0,0,0.3)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '52px',
-        height: '52px',
-        position: 'relative' as const,
-    });
-
     return (
-        <div style={containerStyle}>
-            {/* Pending trendline indicator (top center) */}
-            {pendingTrendline && (
+        <div style={{ ...containerStyle, position: 'relative', minWidth: 0 }}>
+                {/* Nút phóng to chart */}
                 <div style={{
                     position: 'absolute',
-                    top: 16,
-                    left: '50%',
-                    transform: 'translateX(-50%)',
+                    top: 12,
+                    right: 12,
                     zIndex: 10,
-                    background: 'rgba(35, 38, 50, 0.95)',
-                    border: '1px solid rgba(91, 143, 249, 0.4)',
-                    padding: '12px 18px',
-                    borderRadius: '14px',
-                    color: '#5B8FF9',
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
                 }}>
-                    <span style={{ fontSize: '8px' }}>●</span> Click điểm thứ 2...
+                    <button
+                        onClick={toggleFullscreen}
+                        className="w-9 h-9 flex items-center justify-center rounded-lg bg-white border border-[#E5E7EB] text-[#374151] hover:bg-[#F3F4F6] hover:border-[#1E3A5F] transition-colors shadow-sm"
+                        title={isFullscreen ? 'Thu nhỏ' : 'Phóng to'}
+                    >
+                        {isFullscreen ? (
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+                            </svg>
+                        ) : (
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+                            </svg>
+                        )}
+                    </button>
                 </div>
-            )}
 
-            {/* Nút phóng to chart */}
-            <div style={{
-                position: 'absolute',
-                top: 12,
-                right: 12,
-                zIndex: 10,
-            }}>
-                <button
-                    onClick={toggleFullscreen}
-                    className="w-9 h-9 flex items-center justify-center rounded-lg bg-white border border-[#E5E7EB] text-[#374151] hover:bg-[#F3F4F6] hover:border-[#1E3A5F] transition-colors shadow-sm"
-                    title={isFullscreen ? 'Thu nhỏ' : 'Phóng to'}
-                >
-                    {isFullscreen ? (
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
-                        </svg>
-                    ) : (
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
-                        </svg>
-                    )}
-                </button>
-            </div>
+                <div
+                    ref={chartContainerRef}
+                    style={{
+                        width: '100%',
+                        height: '100%',
+                        cursor: 'default',
+                    }}
+                />
 
-            <div
-                ref={chartContainerRef}
-                onClick={handleChartClick}
-                style={{
-                    width: '100%',
-                    height: '100%',
-                    cursor: selectedTool === 'cursor' ? 'default' : 'crosshair'
-                }}
-            />
-
-            {loading && (
-                <div className="flex items-center justify-center" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: '#ffffff' }}>
-                    <div className="text-[#6B7280]">Đang tải...</div>
-                </div>
-            )}
+                {loading && (
+                    <div className="flex items-center justify-center" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: '#ffffff' }}>
+                        <div className="text-[#6B7280]">Đang tải...</div>
+                    </div>
+                )}
         </div>
     );
 };
@@ -574,11 +376,11 @@ const TradingModal = ({ isOpen, onClose, symbol, exchange, data, loading, onTime
                     console.log('🔍 MATCHING RESPONSE:', matchingRes.data);
                     console.log('🔍 ORDER BOOK RESPONSE:', orderBookRes.data);
                     if (matchingRes.data.success) {
-                        console.log('✅ matchingHistory:', matchingRes.data.data);
+                        console.log('matchingHistory:', matchingRes.data.data);
                         setMatchingHistory(matchingRes.data.data);
                     }
                     if (orderBookRes.data.success) {
-                        console.log('✅ orderBook:', orderBookRes.data.data);
+                        console.log('orderBook:', orderBookRes.data.data);
                         setOrderBook(orderBookRes.data.data);
                     }
                 })
@@ -632,21 +434,35 @@ const TradingModal = ({ isOpen, onClose, symbol, exchange, data, loading, onTime
     const latestCandle = data.length > 0 ? data[data.length - 1] : null;
     const detail = symbolDetail || {};
 
-    // API trả giá nghìn đồng → luôn * STOCK_PRICE_DISPLAY_SCALE khi hiển thị trong phần Giao dịch
+    // API trả giá (đơn vị theo STOCK_PRICE_DISPLAY_SCALE). Fallback từ candle khi detail thiếu.
     const rawClose = detail.closePrice != null ? Number(detail.closePrice) : null;
-    const currentPrice = rawClose != null
+    const currentPriceRaw = rawClose != null
       ? rawClose * STOCK_PRICE_DISPLAY_SCALE
       : (latestCandle?.close ?? 0);
-    const priceChange = (Number(detail.change) || 0) * STOCK_PRICE_DISPLAY_SCALE;
+    const priceChangeRaw = (Number(detail.change) || 0) * STOCK_PRICE_DISPLAY_SCALE;
     const priceChangePercent = detail.percentChange ?? 0;
     const companyName = detail.companyName || symbol;
-    const isNegative = priceChange < 0;
+    const isNegative = priceChangeRaw < 0;
+    const toPoint = (v: number) => (v >= 1000 ? v / 1000 : v);
+    const currentPrice = toPoint(currentPriceRaw);
+    const priceChange = toPoint(priceChangeRaw);
+
+    // Giá Sàn/TC/Trần: ưu tiên detail từ API, nếu 0 hoặc thiếu thì lấy từ candle (đã scale khi load)
+    const rawFloor = (Number(detail.floor) || 0) * STOCK_PRICE_DISPLAY_SCALE;
+    const rawRef = (Number(detail.reference) || 0) * STOCK_PRICE_DISPLAY_SCALE;
+    const rawCeiling = (Number(detail.ceiling) || 0) * STOCK_PRICE_DISPLAY_SCALE;
+    const floorDisplay = rawFloor > 0 ? toPoint(rawFloor) : toPoint(latestCandle?.low ?? currentPriceRaw);
+    const referenceDisplay = rawRef > 0 ? toPoint(rawRef) : toPoint(latestCandle?.open ?? currentPriceRaw);
+    const ceilingDisplay = rawCeiling > 0 ? toPoint(rawCeiling) : toPoint(latestCandle?.high ?? currentPriceRaw);
+    const totalTradingDisplay = Number(detail.totalTrading) || latestCandle?.volume || 0;
+    // GTGD (tỷ): detail.totalValue hoặc ước lượng từ giá đóng cửa * KL (tỷ = 1e9)
+    const totalValueDisplay = Number(detail.totalValue) ?? (totalTradingDisplay && currentPriceRaw ? (currentPriceRaw * totalTradingDisplay) / 1e9 : null);
 
     const tabs = ['Giao dịch', 'Hồ sơ', 'Cổ đông', 'Vốn & Cổ tức', 'Tài chính', 'Thống kê'];
     const timeframes = ['1m', '1d', '1w', '1M'];
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#111827]/50 animate-fade-in p-4">
+        <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-[#111827]/50 animate-fade-in p-4">
             <div className="w-full max-w-7xl h-[90vh] bg-white rounded-lg overflow-hidden flex flex-col shadow-2xl border border-[#E5E7EB]">
                 {/* Header */}
                 <div className="bg-[#F9FAFB] border-b border-[#E5E7EB] px-6 py-4">
@@ -672,24 +488,24 @@ const TradingModal = ({ isOpen, onClose, symbol, exchange, data, loading, onTime
                             <div className="flex items-center gap-8">
                                 <div>
                                     <div className={`text-3xl font-bold font-mono ${isNegative ? 'text-red-600' : 'text-green-600'}`}>
-                                        {currentPrice.toLocaleString('vi-VN')} ₫
+                                        {currentPrice.toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS)}
                                     </div>
                                     <div className={`text-sm font-mono mt-1 ${isNegative ? 'text-red-600' : 'text-green-600'}`}>
-                                        {isNegative ? '↓' : '↑'} {Math.abs(priceChange).toLocaleString('vi-VN')} ₫ ({priceChangePercent >= 0 ? '+' : ''}{priceChangePercent.toFixed(2)}%)
+                                        {isNegative ? '↓' : '↑'} {Math.abs(priceChange).toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS)} ({priceChangePercent >= 0 ? '+' : ''}{priceChangePercent.toFixed(2)}%)
                                     </div>
                                 </div>
                                 <div className="flex gap-6 text-sm">
-                                    <div><span className="text-[#6B7280]">Sàn:</span> <span className="text-[#1E3A5F] font-mono ml-1">{((Number(detail.floor) || 0) * STOCK_PRICE_DISPLAY_SCALE).toLocaleString('vi-VN')} ₫</span></div>
-                                    <div><span className="text-[#6B7280]">TC:</span> <span className="text-amber-600 font-mono ml-1">{((Number(detail.reference) || 0) * STOCK_PRICE_DISPLAY_SCALE).toLocaleString('vi-VN')} ₫</span></div>
-                                    <div><span className="text-[#6B7280]">Trần:</span> <span className="text-purple-600 font-mono ml-1">{((Number(detail.ceiling) || 0) * STOCK_PRICE_DISPLAY_SCALE).toLocaleString('vi-VN')} ₫</span></div>
-                                    <div><span className="text-[#6B7280]">Cao:</span> <span className="text-green-600 font-mono ml-1">{(latestCandle?.high ?? currentPrice).toLocaleString('vi-VN')} ₫</span></div>
-                                    <div><span className="text-[#6B7280]">Thấp:</span> <span className="text-red-600 font-mono ml-1">{(latestCandle?.low ?? currentPrice).toLocaleString('vi-VN')} ₫</span></div>
+                                    <div><span className="text-[#6B7280]">Sàn:</span> <span className="text-[#1E3A5F] font-mono ml-1">{(floorDisplay != null && floorDisplay > 0 ? Number(floorDisplay).toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS)  : '—')}</span></div>
+                                    <div><span className="text-[#6B7280]">TC:</span> <span className="text-amber-600 font-mono ml-1">{(referenceDisplay != null && referenceDisplay > 0 ? Number(referenceDisplay).toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS)  : '—')}</span></div>
+                                    <div><span className="text-[#6B7280]">Trần:</span> <span className="text-purple-600 font-mono ml-1">{(ceilingDisplay != null && ceilingDisplay > 0 ? Number(ceilingDisplay).toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS)  : '—')}</span></div>
+                                    <div><span className="text-[#6B7280]">Cao:</span> <span className="text-green-600 font-mono ml-1">{toPoint(latestCandle?.high ?? currentPriceRaw).toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS)}</span></div>
+                                    <div><span className="text-[#6B7280]">Thấp:</span> <span className="text-red-600 font-mono ml-1">{toPoint(latestCandle?.low ?? currentPriceRaw).toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS)}</span></div>
                                 </div>
                             </div>
                             <div className="flex gap-6 text-sm">
-                                <div><span className="text-[#6B7280]">Tổng KL:</span> <span className="text-[#111827] font-mono ml-1">{(detail.totalTrading || 0).toLocaleString('vi-VN')}</span></div>
-                                <div><span className="text-[#6B7280]">KLGD TB 10 phiên:</span> <span className="text-[#111827] font-mono ml-1">{(detail.avgVol10s || 0).toLocaleString('vi-VN', {maximumFractionDigits: 0})}</span></div>
-                                <div><span className="text-[#6B7280]">GTGD:</span> <span className="text-[#111827] font-mono ml-1">{(detail.totalValue || 0).toLocaleString('vi-VN')} tỷ</span></div>
+                                <div><span className="text-[#6B7280]">Tổng KL:</span> <span className="text-[#111827] font-mono ml-1">{totalTradingDisplay > 0 ? formatNumberVI(totalTradingDisplay, { maximumFractionDigits: 0 }) : '—'}</span></div>
+                                <div><span className="text-[#6B7280]">KLGD TB 10 phiên:</span> <span className="text-[#111827] font-mono ml-1">{formatNumberVI(detail.avgVol10s || 0, { maximumFractionDigits: 0 })}</span></div>
+                                <div><span className="text-[#6B7280]">GTGD:</span> <span className="text-[#111827] font-mono ml-1">{totalValueDisplay != null && totalValueDisplay > 0 ? totalValueDisplay.toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS) : '—'} tỷ</span></div>
                             </div>
                         </div>
                     )}
@@ -727,15 +543,15 @@ const TradingModal = ({ isOpen, onClose, symbol, exchange, data, loading, onTime
                                     {/* OHLC Inline - TradingView Style (đã scale khi load) */}
                                     <div className="flex items-center gap-2 text-sm font-mono">
                                         <span className="text-[#1E3A5F]">O</span>
-                                        <span className="text-[#1E3A5F] font-semibold">{(latestCandle?.open ?? 0).toLocaleString('vi-VN')} ₫</span>
+                                        <span className="text-[#1E3A5F] font-semibold">{toPoint(latestCandle?.open ?? 0).toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS)}</span>
                                         <span className="text-[#1E3A5F] ml-2">H</span>
-                                        <span className="text-[#1E3A5F] font-semibold">{(latestCandle?.high ?? 0).toLocaleString('vi-VN')} ₫</span>
+                                        <span className="text-[#1E3A5F] font-semibold">{toPoint(latestCandle?.high ?? 0).toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS)}</span>
                                         <span className="text-[#1E3A5F] ml-2">L</span>
-                                        <span className="text-[#1E3A5F] font-semibold">{(latestCandle?.low ?? 0).toLocaleString('vi-VN')} ₫</span>
+                                        <span className="text-[#1E3A5F] font-semibold">{toPoint(latestCandle?.low ?? 0).toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS)}</span>
                                         <span className="text-[#1E3A5F] ml-2">C</span>
-                                        <span className="text-[#1E3A5F] font-semibold">{(latestCandle?.close ?? 0).toLocaleString('vi-VN')} ₫</span>
+                                        <span className="text-[#1E3A5F] font-semibold">{toPoint(latestCandle?.close ?? 0).toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS)}</span>
                                         <span className={`ml-3 ${(latestCandle?.close ?? 0) >= (latestCandle?.open ?? 0) ? 'text-green-600' : 'text-red-600'}`}>
-                                            {priceChange >= 0 ? '+' : ''}{priceChange.toLocaleString('vi-VN')} ({priceChangePercent >= 0 ? '+' : ''}{priceChangePercent.toFixed(2)}%)
+                                            {priceChange >= 0 ? '+' : ''}{priceChange.toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS)} ({priceChangePercent >= 0 ? '+' : ''}{priceChangePercent.toFixed(2)}%)
                                         </span>
                                     </div>
 
@@ -743,7 +559,7 @@ const TradingModal = ({ isOpen, onClose, symbol, exchange, data, loading, onTime
                                     <div className="text-sm">
                                         <span className="text-[#6B7280]">Khối lượng</span>
                                         <span className="text-[#111827] font-mono font-semibold ml-2">
-                                            {(latestCandle?.volume || 0).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}
+                                            {formatNumberVI(latestCandle?.volume || 0, { maximumFractionDigits: 0 })}
                                         </span>
                                     </div>
                                 </div>
@@ -878,7 +694,7 @@ const TradingModal = ({ isOpen, onClose, symbol, exchange, data, loading, onTime
                                                     <span className="text-[#6B7280]">CP đang lưu hành:</span>
                                                     <span className="text-[#111827] font-medium">
                                                         {companyInfo.data.data.listedInformation?.sharesOutstanding
-                                                            ? companyInfo.data.data.listedInformation.sharesOutstanding.toLocaleString('vi-VN')
+                                                            ? formatNumberVI(companyInfo.data.data.listedInformation.sharesOutstanding)
                                                             : 'N/A'}
                                                     </span>
                                                 </div>
@@ -969,7 +785,7 @@ const TradingModal = ({ isOpen, onClose, symbol, exchange, data, loading, onTime
                                                                         {sh.ownerType === 0 ? 'Cá nhân' : sh.ownerType === 2 ? 'Tổ chức' : 'Khác'}
                                                                     </td>
                                                                     <td className="py-3 text-right text-[#111827] font-mono">
-                                                                        {sh.quantity ? sh.quantity.toLocaleString('vi-VN') : '-'}
+                                                                        {sh.quantity ? formatNumberVI(sh.quantity) : '-'}
                                                                     </td>
                                                                     <td className="py-3 text-right text-[#1E3A5F] font-medium">
                                                                         {sh.shareholderRate !== undefined ? `${sh.shareholderRate.toFixed(2)}%` : '-'}
@@ -1046,7 +862,7 @@ const TradingModal = ({ isOpen, onClose, symbol, exchange, data, loading, onTime
                                                     <span className="text-[#6B7280]">CP niêm yết:</span>
                                                     <span className="text-[#111827] font-bold">
                                                         {companyInfo.data.data.listedInformation?.sharesListed
-                                                            ? companyInfo.data.data.listedInformation.sharesListed.toLocaleString('vi-VN')
+                                                            ? formatNumberVI(companyInfo.data.data.listedInformation.sharesListed)
                                                             : '-'}
                                                     </span>
                                                 </div>
@@ -1054,7 +870,7 @@ const TradingModal = ({ isOpen, onClose, symbol, exchange, data, loading, onTime
                                                     <span className="text-[#6B7280]">CP lưu hành:</span>
                                                     <span className="text-[#111827] font-bold">
                                                         {companyInfo.data.data.listedInformation?.sharesOutstanding
-                                                            ? companyInfo.data.data.listedInformation.sharesOutstanding.toLocaleString('vi-VN')
+                                                            ? formatNumberVI(companyInfo.data.data.listedInformation.sharesOutstanding)
                                                             : '-'}
                                                     </span>
                                                 </div>
@@ -1062,7 +878,7 @@ const TradingModal = ({ isOpen, onClose, symbol, exchange, data, loading, onTime
                                                     <span className="text-[#6B7280]">Room NN còn lại:</span>
                                                     <span className="text-green-600 font-bold">
                                                         {companyInfo.data.data.listedInformation?.foreignCurrentRoom
-                                                            ? companyInfo.data.data.listedInformation.foreignCurrentRoom.toLocaleString('vi-VN')
+                                                            ? formatNumberVI(companyInfo.data.data.listedInformation.foreignCurrentRoom)
                                                             : '-'}
                                                     </span>
                                                 </div>
@@ -1079,17 +895,15 @@ const TradingModal = ({ isOpen, onClose, symbol, exchange, data, loading, onTime
                                                     <div className="flex justify-between bg-[#F3F4F6] rounded p-3 border border-[#E5E7EB]">
                                                         <span className="text-[#6B7280]">EPS:</span>
                                                         <span className="text-[#111827] font-bold">
-                                                            {companyInfo.data.data.financeInformation.eps
-                                                                ? companyInfo.data.data.financeInformation.eps.toLocaleString('vi-VN', { maximumFractionDigits: 2 })
-                                                                : '-'}
+                                                            {companyInfo.data.data.financeInformation.eps != null
+                                                                ? formatNumberVI(Number(companyInfo.data.data.financeInformation.eps) * STOCK_PRICE_DISPLAY_SCALE, { maximumFractionDigits: 0 })                                                                  : '-'}
                                                         </span>
                                                     </div>
                                                     <div className="flex justify-between bg-[#F3F4F6] rounded p-3 border border-[#E5E7EB]">
                                                         <span className="text-[#6B7280]">BVPS:</span>
                                                         <span className="text-[#111827] font-bold">
-                                                            {companyInfo.data.data.financeInformation.bvps
-                                                                ? companyInfo.data.data.financeInformation.bvps.toLocaleString('vi-VN', { maximumFractionDigits: 2 })
-                                                                : '-'}
+                                                            {companyInfo.data.data.financeInformation.bvps != null
+                                                                ? formatNumberVI(Number(companyInfo.data.data.financeInformation.bvps) * STOCK_PRICE_DISPLAY_SCALE, { maximumFractionDigits: 0 })                                                                  : '-'}
                                                         </span>
                                                     </div>
                                                     <div className="flex justify-between bg-[#F3F4F6] rounded p-3 border border-[#E5E7EB]">
@@ -1146,13 +960,13 @@ const TradingModal = ({ isOpen, onClose, symbol, exchange, data, loading, onTime
                                                             <div className="bg-[#F3F4F6] rounded p-4 border border-[#E5E7EB]">
                                                                 <div className="text-[#6B7280] text-xs mb-1">EPS</div>
                                                                 <div className="text-[#111827] text-xl font-bold">
-                                                                    {info.eps !== null && info.eps !== undefined ? info.eps.toLocaleString('vi-VN', { maximumFractionDigits: 0 }) : '-'}
+                                                                    {info.eps !== null && info.eps !== undefined ? formatNumberVI(Number(info.eps) * STOCK_PRICE_DISPLAY_SCALE, { maximumFractionDigits: 0 })   : '-'}
                                                                 </div>
                                                             </div>
                                                             <div className="bg-[#F3F4F6] rounded p-4 border border-[#E5E7EB]">
                                                                 <div className="text-[#6B7280] text-xs mb-1">BVPS</div>
                                                                 <div className="text-[#111827] text-xl font-bold">
-                                                                    {info.bvps !== null && info.bvps !== undefined ? info.bvps.toLocaleString('vi-VN', { maximumFractionDigits: 0 }) : '-'}
+                                                                    {info.bvps !== null && info.bvps !== undefined ? formatNumberVI(Number(info.bvps) * STOCK_PRICE_DISPLAY_SCALE, { maximumFractionDigits: 0 })   : '-'}
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -1260,14 +1074,14 @@ const TradingModal = ({ isOpen, onClose, symbol, exchange, data, loading, onTime
                                                                     info.stockPercentChange > 0 ? 'text-green-600' :
                                                                     info.stockPercentChange < 0 ? 'text-red-600' : 'text-amber-600'
                                                                 }`}>
-                                                                    {info.closePrice != null ? (info.closePrice * STOCK_PRICE_DISPLAY_SCALE).toLocaleString('vi-VN') + ' ₫' : '-'}
+                                                                    {info.closePrice != null ? (info.closePrice * STOCK_PRICE_DISPLAY_SCALE).toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS)   : '-'}
                                                                 </div>
                                                                 <div className={`text-xs mt-1 ${
                                                                     info.stockPercentChange > 0 ? 'text-green-600' :
                                                                     info.stockPercentChange < 0 ? 'text-red-600' : 'text-amber-600'
                                                                 }`}>
                                                                     {info.change !== null && info.change !== undefined ?
-                                                                        `${info.change > 0 ? '+' : ''}${(info.change * STOCK_PRICE_DISPLAY_SCALE).toLocaleString('vi-VN')} ₫` : '-'}
+                                                                        `${info.change > 0 ? '+' : ''}${(info.change * STOCK_PRICE_DISPLAY_SCALE).toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS)}` : '-'}
                                                                     {' '}
                                                                     ({info.stockPercentChange !== null && info.stockPercentChange !== undefined ?
                                                                         `${info.stockPercentChange > 0 ? '+' : ''}${info.stockPercentChange.toFixed(2)}%` : '-'})
@@ -1276,25 +1090,25 @@ const TradingModal = ({ isOpen, onClose, symbol, exchange, data, loading, onTime
                                                             <div className="bg-[#F3F4F6] rounded p-4 border border-[#E5E7EB]">
                                                                 <div className="text-[#6B7280] text-xs mb-1">Tham chiếu</div>
                                                                 <div className="text-amber-600 text-xl font-bold">
-                                                                    {info.reference != null ? (info.reference * STOCK_PRICE_DISPLAY_SCALE).toLocaleString('vi-VN') + ' ₫' : '-'}
+                                                                    {info.reference != null ? (info.reference * STOCK_PRICE_DISPLAY_SCALE).toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS)   : '-'}
                                                                 </div>
                                                             </div>
                                                             <div className="bg-[#F3F4F6] rounded p-4 border border-[#E5E7EB]">
                                                                 <div className="text-[#6B7280] text-xs mb-1">Trần</div>
                                                                 <div className="text-purple-400 text-xl font-bold">
-                                                                    {info.ceiling != null ? (info.ceiling * STOCK_PRICE_DISPLAY_SCALE).toLocaleString('vi-VN') + ' ₫' : '-'}
+                                                                    {info.ceiling != null ? (info.ceiling * STOCK_PRICE_DISPLAY_SCALE).toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS)   : '-'}
                                                                 </div>
                                                             </div>
                                                             <div className="bg-[#F3F4F6] rounded p-4 border border-[#E5E7EB]">
                                                                 <div className="text-[#6B7280] text-xs mb-1">Sàn</div>
                                                                 <div className="text-cyan-400 text-xl font-bold">
-                                                                    {info.floor != null ? (info.floor * STOCK_PRICE_DISPLAY_SCALE).toLocaleString('vi-VN') + ' ₫' : '-'}
+                                                                    {info.floor != null ? (info.floor * STOCK_PRICE_DISPLAY_SCALE).toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS)   : '-'}
                                                                 </div>
                                                             </div>
                                                             <div className="bg-[#F3F4F6] rounded p-4 border border-[#E5E7EB]">
                                                                 <div className="text-[#6B7280] text-xs mb-1">KL giao dịch</div>
                                                                 <div className="text-[#111827] text-xl font-bold">
-                                                                    {info.totalTrading ? info.totalTrading.toLocaleString('vi-VN') : '-'}
+                                                                    {info.totalTrading ? formatNumberVI(info.totalTrading) : '-'}
                                                                 </div>
                                                             </div>
                                                             <div className="bg-[#F3F4F6] rounded p-4 border border-[#E5E7EB]">
@@ -1325,7 +1139,7 @@ const TradingModal = ({ isOpen, onClose, symbol, exchange, data, loading, onTime
                                                             <div className="bg-[#F3F4F6] rounded p-4 border border-[#E5E7EB]">
                                                                 <div className="text-[#6B7280] text-xs mb-1">KL TB 10 phiên</div>
                                                                 <div className="text-[#111827] text-2xl font-bold">
-                                                                    {info.avgVol10s ? info.avgVol10s.toLocaleString('vi-VN') : '-'}
+                                                                    {info.avgVol10s ? formatNumberVI(info.avgVol10s) : '-'}
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -1415,19 +1229,19 @@ const TradingModal = ({ isOpen, onClose, symbol, exchange, data, loading, onTime
 
                         {/* Scrollable area: stats + table + ĐỊNH GIÁ + HIỆU SUẤT */}
                         <div className="flex-1 overflow-y-auto min-h-0">
-                        {/* Trading Stats */}
-                        {matchingHistory?.data && (
+                        {/* Trading Stats – BE trả data: { arrayList, totalTradingVolume, buyUpVolume, sellDownVolume } */}
+                        {matchingHistory && (
                             <div className="p-3 pb-4 border-b border-[#E5E7EB]">
                                 <div className="flex justify-between text-xs text-[#6B7280] gap-4">
-                                    <span className="py-1">KL: <span className="text-[#111827] font-mono">{(matchingHistory.data.totalTradingVolume || 0).toLocaleString('vi-VN', {maximumFractionDigits: 0})}</span></span>
-                                    <span className="py-1">M: <span className="text-green-600 font-mono">{(matchingHistory.data.buyUpVolume || 0).toLocaleString('vi-VN', {maximumFractionDigits: 0})}</span></span>
-                                    <span className="py-1">B: <span className="text-red-600 font-mono">{(matchingHistory.data.sellDownVolume || 0).toLocaleString('vi-VN', {maximumFractionDigits: 0})}</span></span>
+                                    <span className="py-1">KL: <span className="text-[#111827] font-mono">{formatNumberVI(matchingHistory.totalTradingVolume ?? matchingHistory.data?.totalTradingVolume ?? 0, { maximumFractionDigits: 0 })}</span></span>
+                                    <span className="py-1">M: <span className="text-green-600 font-mono">{formatNumberVI(matchingHistory.buyUpVolume ?? matchingHistory.data?.buyUpVolume ?? 0, { maximumFractionDigits: 0 })}</span></span>
+                                    <span className="py-1">B: <span className="text-red-600 font-mono">{formatNumberVI(matchingHistory.sellDownVolume ?? matchingHistory.data?.sellDownVolume ?? 0, { maximumFractionDigits: 0 })}</span></span>
                                 </div>
                             </div>
                         )}
 
-                        {/* Tab Content: Khớp lệnh */}
-                        {sidebarTab === 'Khớp lệnh' && matchingHistory?.data?.arrayList && (
+                        {/* Tab Content: Khớp lệnh – arrayList ở root hoặc data.arrayList */}
+                        {sidebarTab === 'Khớp lệnh' && (matchingHistory?.arrayList ?? matchingHistory?.data?.arrayList) && (
                             <div className="overflow-y-auto">
                                 <table className="w-full text-xs">
                                     <thead className="sticky top-0 bg-[#F9FAFB]">
@@ -1438,31 +1252,36 @@ const TradingModal = ({ isOpen, onClose, symbol, exchange, data, loading, onTime
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {matchingHistory.data.arrayList.map((trade: any, idx: number) => (
+                                        {(matchingHistory.arrayList ?? matchingHistory.data?.arrayList ?? []).map((trade: any, idx: number) => {
+                                            const price = Number(trade.matchPrice ?? trade.price ?? 0);
+                                            const vol = Number(trade.tradingVolume ?? trade.volume ?? 0);
+                                            const timeStr = (trade.time ?? trade.matchTime ?? '').toString();
+                                            return (
                                             <tr key={idx} className="border-b border-[#E5E7EB] hover:bg-[#F9FAFB]">
                                                 <td className={`py-3 px-3 font-mono ${
-                                                    trade.style === 'B' ? 'text-green-600' :
-                                                    trade.style === 'S' ? 'text-red-600' : 'text-amber-600'
+                                                    (trade.style ?? trade.side ?? '') === 'B' ? 'text-green-600' :
+                                                    (trade.style ?? trade.side ?? '') === 'S' ? 'text-red-600' : 'text-amber-600'
                                                 }`}>
-                                                    {(trade.matchPrice * STOCK_PRICE_DISPLAY_SCALE).toLocaleString('vi-VN')} ₫
+                                                    {(price * STOCK_PRICE_DISPLAY_SCALE).toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS)}
                                                 </td>
                                                 <td className="py-3 px-3 text-right text-[#111827] font-mono">
-                                                    {(trade.tradingVolume / 100).toFixed(1)}
+                                                    {(vol / 100).toFixed(1)}
                                                 </td>
                                                 <td className="py-3 px-3 text-right text-[#6B7280]">
-                                                    {trade.time.substring(0, 5)}
+                                                    {timeStr.substring(0, 5)}
                                                 </td>
                                             </tr>
-                                        ))}
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
                         )}
 
-                        {/* Tab Content: Bước giá */}
+                        {/* Tab Content: Bước giá – BE trả data: { priceStatistic } */}
                         {sidebarTab === 'Bước giá' && (
                             <div className="overflow-y-auto">
-                                {orderBook?.priceStatistic && orderBook.data.data.priceStatistic.length > 0 ? (
+                                {((orderBook?.priceStatistic ?? orderBook?.data?.priceStatistic)?.length ?? 0) > 0 ? (
                                     <table className="w-full text-xs">
                                         <thead className="sticky top-0 bg-[#F9FAFB]">
                                             <tr className="border-b border-[#E5E7EB]">
@@ -1473,22 +1292,28 @@ const TradingModal = ({ isOpen, onClose, symbol, exchange, data, loading, onTime
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {orderBook.data.data.priceStatistic.map((step: any, idx: number) => (
+                                            {(orderBook?.priceStatistic ?? orderBook?.data?.priceStatistic ?? []).map((step: any, idx: number) => {
+                                                const stepPrice = Number(step.priceStep ?? step.price ?? 0);
+                                                const buyVol = Number(step.buyUpVolume ?? step.buyVolume ?? 0);
+                                                const sellVol = Number(step.sellDownVolume ?? step.sellVolume ?? 0);
+                                                const totalVol = Number(step.stepVolume ?? step.volume ?? step.totalVolume ?? 0);
+                                                return (
                                                 <tr key={idx} className="border-b border-[#E5E7EB] hover:bg-[#F9FAFB]">
                                                     <td className="py-3 px-3 font-mono text-amber-600">
-                                                        {(step.priceStep * STOCK_PRICE_DISPLAY_SCALE).toLocaleString('vi-VN')} ₫
+                                                        {(stepPrice * STOCK_PRICE_DISPLAY_SCALE).toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS)}
                                                     </td>
                                                     <td className="py-3 px-3 text-right font-mono text-green-600">
-                                                        {step.buyUpVolume ? (step.buyUpVolume / 100).toFixed(1) : '-'}
+                                                        {buyVol ? (buyVol / 100).toFixed(1) : '-'}
                                                     </td>
                                                     <td className="py-3 px-3 text-right font-mono text-red-600">
-                                                        {step.sellDownVolume ? (step.sellDownVolume / 100).toFixed(1) : '-'}
+                                                        {sellVol ? (sellVol / 100).toFixed(1) : '-'}
                                                     </td>
                                                     <td className="py-3 px-3 text-right font-mono text-[#111827]">
-                                                        {(step.stepVolume / 100).toFixed(1)}
+                                                        {totalVol ? (totalVol / 100).toFixed(1) : '-'}
                                                     </td>
                                                 </tr>
-                                            ))}
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 ) : (
@@ -1513,7 +1338,7 @@ const TradingModal = ({ isOpen, onClose, symbol, exchange, data, loading, onTime
                                 </div>
                                 <div className="flex justify-between py-1">
                                     <span className="text-[#6B7280]">EPS:</span>
-                                    <span className="text-[#111827] font-mono text-right">{detail.eps ? detail.eps.toLocaleString('vi-VN', {maximumFractionDigits: 0}) : '-'}</span>
+                                    <span className="text-[#111827] font-mono text-right">{detail.eps != null ? formatNumberVI(Number(detail.eps) * STOCK_PRICE_DISPLAY_SCALE, { maximumFractionDigits: 0 })   : '-'}</span>
                                 </div>
                                 <div className="flex justify-between py-1">
                                     <span className="text-[#6B7280]">ROE:</span>
@@ -1529,7 +1354,7 @@ const TradingModal = ({ isOpen, onClose, symbol, exchange, data, loading, onTime
                                 </div>
                                 <div className="flex justify-between border-t border-[#E5E7EB] pt-4 mt-3 py-1">
                                     <span className="text-[#6B7280]">Vốn hóa:</span>
-                                    <span className="text-[#111827] font-mono text-right">{detail.marketCap ? detail.marketCap.toLocaleString('vi-VN') + ' tỷ' : '-'}</span>
+                                    <span className="text-[#111827] font-mono text-right">{detail.marketCap ? detail.marketCap.toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS) + ' tỷ' : '-'}</span>
                                 </div>
                             </div>
                         </div>
@@ -1638,12 +1463,12 @@ const ChartModal = ({ isOpen, onClose, symbol, exchange, data, loading, stocks, 
                         <div className="flex items-center gap-6 pl-16">
                             <div>
                                 <p className="text-xs text-[#6B7280] mb-1">Giá hiện tại</p>
-                                <p className="text-3xl font-bold text-[#111827] font-mono">{latestPrice.toLocaleString('vi-VN')} ₫</p>
+                                <p className="text-3xl font-bold text-[#111827] font-mono">{latestPrice.toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS)}</p>
                             </div>
                             <div>
                                 <p className="text-xs text-[#6B7280] mb-1">Thay đổi</p>
                                 <p className={`text-xl font-semibold ${priceChange >= 0 ? 'text-[#0B6E4B]' : 'text-[#A63D3D]'}`}>
-                                    {priceChange >= 0 ? '+' : ''}{priceChange.toLocaleString('vi-VN')} ₫ ({priceChangePercent >= 0 ? '+' : ''}{priceChangePercent.toFixed(2)}%)
+                                    {priceChange >= 0 ? '+' : ''}{priceChange.toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS)} ({priceChangePercent >= 0 ? '+' : ''}{priceChangePercent.toFixed(2)}%)
                                 </p>
                             </div>
                         </div>
@@ -1758,19 +1583,19 @@ const ChartModal = ({ isOpen, onClose, symbol, exchange, data, loading, stocks, 
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-[#E5E7EB]">
                                 <div className="bg-[#F9FAFB] p-4 rounded-lg border border-[#E5E7EB]">
                                     <p className="text-xs text-[#6B7280] mb-1">Mở cửa</p>
-                                    <p className="text-lg font-bold text-[#111827] font-mono">{data[data.length - 1]?.open.toLocaleString('vi-VN')} ₫</p>
+                                    <p className="text-lg font-bold text-[#111827] font-mono">{data[data.length - 1]?.open.toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS)}</p>
                                 </div>
                                 <div className="bg-[#F9FAFB] p-4 rounded-lg border border-[#E5E7EB]">
                                     <p className="text-xs text-[#6B7280] mb-1">Cao nhất</p>
-                                    <p className="text-lg font-bold text-[#0B6E4B] font-mono">{data[data.length - 1]?.high.toLocaleString('vi-VN')} ₫</p>
+                                    <p className="text-lg font-bold text-[#0B6E4B] font-mono">{data[data.length - 1]?.high.toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS)}</p>
                                 </div>
                                 <div className="bg-[#F9FAFB] p-4 rounded-lg border border-[#E5E7EB]">
                                     <p className="text-xs text-[#6B7280] mb-1">Thấp nhất</p>
-                                    <p className="text-lg font-bold text-[#A63D3D] font-mono">{data[data.length - 1]?.low.toLocaleString('vi-VN')} ₫</p>
+                                    <p className="text-lg font-bold text-[#A63D3D] font-mono">{data[data.length - 1]?.low.toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS)}</p>
                                 </div>
                                 <div className="bg-[#F9FAFB] p-4 rounded-lg border border-[#E5E7EB]">
                                     <p className="text-xs text-[#6B7280] mb-1">Khối lượng</p>
-                                    <p className="text-lg font-bold text-[#111827] font-mono">{data[data.length - 1]?.volume.toLocaleString('vi-VN', { maximumFractionDigits: 0 })} CP</p>
+                                    <p className="text-lg font-bold text-[#111827] font-mono">{data[data.length - 1]?.volume != null ? formatNumberVI(data[data.length - 1].volume, { maximumFractionDigits: 0 }) : '—'} CP</p>
                                 </div>
                             </div>
                         </div>
@@ -1908,7 +1733,7 @@ function PortfolioSetupModalStandalone({
           <div className="space-y-5">
             <div className="space-y-1.5">
               <label className="text-[10px] font-semibold text-[#6B7280] uppercase tracking-wider flex justify-between">
-                Vốn ban đầu (VND)
+                Vốn ban đầu
                 <span className="font-normal">Bước 1</span>
               </label>
               <div className="relative">
@@ -1919,7 +1744,6 @@ function PortfolioSetupModalStandalone({
                   className="input-fintech w-full bg-[#FAFAFA] border border-[#E5E7EB] rounded-lg py-3 pl-4 pr-12 text-[#111827] font-mono text-lg font-semibold placeholder-[#9CA3AF]"
                   placeholder="10000"
                 />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#6B7280] text-base font-mono">VND</span>
               </div>
             </div>
 
@@ -1933,14 +1757,14 @@ function PortfolioSetupModalStandalone({
               <div className="bg-[#F9FAFB] p-4 rounded-lg border border-[#E5E7EB]">
                 <div className="flex justify-between mb-2 text-[10px] text-[#6B7280] font-semibold">
                   <span>An toàn (1%)</span>
-                  <span>Mạo hiểm (10%)</span>
+                  <span>Tối đa (100%)</span>
                 </div>
                 <input
                   type="range"
                   min="1"
-                  max="10"
-                  step="0.5"
-                  value={localRisk}
+                  max="100"
+                  step="1"
+                  value={Math.min(100, Math.max(1, localRisk))}
                   onChange={(e) => setLocalRisk(parseFloat(e.target.value))}
                   className="w-full h-1.5 bg-[#E5E7EB] rounded-full appearance-none cursor-pointer accent-[#1E3A5F]"
                 />
@@ -1948,7 +1772,7 @@ function PortfolioSetupModalStandalone({
                   <span className="text-xl font-semibold text-[#111827] font-mono">{localRisk}%</span>
                   <div className="text-right">
                     <p className="text-[9px] text-[#6B7280] uppercase font-semibold">Mất tối đa</p>
-                    <p className="text-sm font-semibold text-[#111827] font-mono">{calcMaxLoss().toLocaleString('vi-VN')} ₫</p>
+                    <p className="text-sm font-semibold text-[#111827] font-mono">{formatNumberVI(calcMaxLoss())}</p>
                   </div>
                 </div>
               </div>
@@ -1971,7 +1795,7 @@ function PortfolioSetupModalStandalone({
                 <span className="text-[#6B7280] text-sm">% / kỳ</span>
                 {parseFloat(localBalance) > 0 && (
                   <span className="text-[#6B7280] text-xs ml-auto">
-                    ≈ {(parseFloat(localBalance) * localExpectedReturn / 100).toLocaleString('vi-VN')} ₫
+                    ≈ {formatNumberVI(parseFloat(localBalance) * localExpectedReturn / 100)}
                   </span>
                 )}
               </div>
@@ -2003,8 +1827,543 @@ function PortfolioSetupModalStandalone({
   );
 }
 
+// Icon chấm than + tooltip giải thích cho người không chuyên (dùng trong modal Đặt lệnh)
+function ExplainIcon({ text }: { text: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <span className="relative inline-flex align-middle ml-1 group">
+      <button
+        type="button"
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+        onFocus={() => setShow(true)}
+        onBlur={() => setShow(false)}
+        className="w-4 h-4 rounded-full bg-[#1E3A5F] text-white flex items-center justify-center flex-shrink-0 text-[10px] font-bold hover:bg-[#2C4A6F] focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/50"
+        aria-label="Giải thích"
+      >
+        !
+      </button>
+      {show && (
+        <span
+          className="absolute left-0 bottom-full mb-1 w-64 p-2.5 text-left text-xs font-normal text-[#374151] bg-white border border-[#E5E7EB] rounded-lg shadow-lg z-[110] pointer-events-none"
+          role="tooltip"
+        >
+          {text}
+        </span>
+      )}
+    </span>
+  );
+}
+
+// Modal Đặt lệnh (SL: giá cố định / % / thua lỗ tối đa; TP: cố định / % / R:R)
+function OpenPositionModal({
+  isOpen,
+  onClose,
+  portfolioId,
+  onSuccess,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  portfolioId: string;
+  onSuccess: () => void;
+}) {
+  const [symbol, setSymbol] = useState('');
+  const [exchange, setExchange] = useState<string>('');
+  const [exchangeLoading, setExchangeLoading] = useState(false);
+  const [exchangeError, setExchangeError] = useState<string | null>(null);
+  const [marketPrice, setMarketPrice] = useState<number | null>(null);
+  const [useMarketPrice, setUseMarketPrice] = useState(true); // true = lấy giá thị trường, false = tự nhập
+  const [entryPriceInput, setEntryPriceInput] = useState(''); // giá (điểm) khi tự nhập
+  const [quantityInput, setQuantityInput] = useState(''); // khối lượng do user nhập (không lấy từ thị trường)
+  const [stopType, setStopType] = useState<'FIXED' | 'PERCENT' | 'MAX_LOSS'>('FIXED');
+  const [stopPrice, setStopPrice] = useState('');
+  const [stopPercent, setStopPercent] = useState('');
+  const [stopMaxLossVnd, setStopMaxLossVnd] = useState('');
+  const [takeProfitType, setTakeProfitType] = useState<'FIXED' | 'PERCENT' | 'R_RATIO' | ''>('');
+  const [takeProfitPrice, setTakeProfitPrice] = useState('');
+  const [takeProfitPercent, setTakeProfitPercent] = useState('');
+  const [takeProfitRR, setTakeProfitRR] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [preview, setPreview] = useState<{ stop_loss: number; take_profit: number | null; risk_value_vnd: number; risk_reward: number | null } | null>(null);
+
+  const fetchEntryInfo = async (sym: string, qty?: number) => {
+    const s = sym.trim();
+    if (!s) {
+      setExchange('');
+      setMarketPrice(null);
+      setQuantityInput('');
+      setExchangeError(null);
+      return;
+    }
+    setExchangeLoading(true);
+    setExchangeError(null);
+    try {
+      const res = await marketApi.getEntryInfo(s, qty != null ? { quantity: qty } : undefined);
+      if (res.data?.success && res.data?.data) {
+        const d = res.data.data;
+        setExchange(d.exchange || '');
+        // Giá luôn lưu theo đơn vị ĐIỂM (1 điểm = 1.000 VND). Nếu API trả VND (>= 1000) thì quy về điểm.
+        const raw = typeof d.market_price === 'number' ? d.market_price : null;
+        const priceInPoints = raw != null ? (raw >= 1000 ? raw / 1000 : raw) : null;
+        setMarketPrice(priceInPoints);
+        setExchangeError(null);
+      } else {
+        setExchange('');
+        setMarketPrice(null);
+        setQuantityInput('');
+        setExchangeError('Không lấy được thông tin mã');
+      }
+    } catch {
+      setExchange('');
+      setMarketPrice(null);
+      setQuantityInput('');
+      setExchangeError('Không lấy được thông tin mã');
+    } finally {
+      setExchangeLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setSymbol('');
+    setExchange('');
+    setExchangeLoading(false);
+    setExchangeError(null);
+    setMarketPrice(null);
+    setQuantityInput('');
+    setUseMarketPrice(true);
+    setEntryPriceInput('');
+    setStopType('FIXED');
+    setStopPrice('');
+    setStopPercent('');
+    setStopMaxLossVnd('');
+    setTakeProfitType('');
+    setTakeProfitPrice('');
+    setTakeProfitPercent('');
+    setTakeProfitRR('');
+    setPreview(null);
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
+  const parseQuantity = (): number | null => {
+    const s = quantityInput.replace(/\s|,/g, '');
+    const n = parseInt(s, 10);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+  const effectiveQuantity = parseQuantity();
+
+  const getEffectivePricePoints = (): number | null => {
+    if (useMarketPrice) {
+      const p = marketPrice != null ? (marketPrice >= 1000 ? marketPrice / 1000 : marketPrice) : null;
+      return p != null && p > 0 ? p : null;
+    }
+    const n = parseFloat(entryPriceInput.replace(/,/g, '.'));
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+  const effectivePricePoints = getEffectivePricePoints();
+
+  // Quy ước: Popup nhập giá theo ĐIỂM (1 điểm = 1.000 ₫). Gửi lên BE luôn là VND (điểm × 1000).
+  const buildBody = (): CreatePositionRequest | null => {
+    if (effectiveQuantity == null || effectiveQuantity <= 0) return null;
+    if (effectivePricePoints == null || effectivePricePoints <= 0) return null;
+
+    const body: CreatePositionRequest = {
+      symbol: symbol.trim(),
+      exchange,
+      use_market_entry: useMarketPrice,
+      ...(useMarketPrice ? {} : { entry_price: Math.round(effectivePricePoints * 1000) }),
+      use_market_quantity: false,
+      quantity: effectiveQuantity,
+      stop_type: stopType,
+      stop_params: {},
+    };
+
+    if (stopType === 'FIXED') {
+      const sp = parseFloat(stopPrice);
+      if (Number.isNaN(sp)) return null;
+      body.stop_price = Math.round(sp * 1000); // điểm → VND
+    } else if (stopType === 'PERCENT') {
+      const pct = parseFloat(stopPercent);
+      if (Number.isNaN(pct)) return null;
+      body.stop_params = { percent: pct };
+    } else if (stopType === 'MAX_LOSS') {
+      const maxVnd = parseFloat(stopMaxLossVnd);
+      if (Number.isNaN(maxVnd) || maxVnd <= 0) return null;
+      body.stop_params = { max_loss_vnd: maxVnd }; // đã là VND
+    }
+
+    if (takeProfitType === 'FIXED') {
+      const tp = parseFloat(takeProfitPrice);
+      if (!Number.isNaN(tp)) {
+        body.take_profit_type = 'FIXED';
+        body.take_profit_price = Math.round(tp * 1000); // điểm → VND
+      }
+    } else if (takeProfitType === 'PERCENT') {
+      const pct = parseFloat(takeProfitPercent);
+      if (!Number.isNaN(pct)) {
+        body.take_profit_type = 'PERCENT';
+        body.take_profit_params = { percent: pct };
+      }
+    } else if (takeProfitType === 'R_RATIO') {
+      const rr = parseFloat(takeProfitRR);
+      if (!Number.isNaN(rr) && rr > 0) {
+        body.take_profit_type = 'R_RATIO';
+        body.take_profit_params = { risk_reward_ratio: rr };
+      }
+    }
+    return body;
+  };
+
+  const handlePreview = async () => {
+    const body = buildBody();
+    if (!body || !body.symbol) {
+      alert('Điền đủ Mã CK và cấu hình dừng lỗ. Khối lượng lấy từ thị trường sau khi chọn mã.');
+      return;
+    }
+    if (!exchange || effectivePricePoints == null || effectivePricePoints <= 0 || effectiveQuantity == null || effectiveQuantity <= 0) {
+      alert('Chọn mã CK, nhập giá và khối lượng hợp lệ.');
+      return;
+    }
+    try {
+      const entryPriceVnd = Math.round(effectivePricePoints * 1000);
+      const res = await positionApi.calculate(portfolioId, {
+        entry_price: entryPriceVnd,
+        quantity: effectiveQuantity,
+        stop_type: body.stop_type,
+        stop_params: body.stop_params,
+        stop_price: body.stop_price,
+        take_profit_type: body.take_profit_type,
+        take_profit_params: body.take_profit_params,
+        take_profit_price: body.take_profit_price,
+      });
+      if (res.data?.success && res.data?.data) {
+        setPreview(res.data.data);
+      }
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Tính toán thất bại.');
+    }
+  };
+
+  const handleSubmit = async () => {
+    const body = buildBody();
+    if (!body || !body.symbol) {
+      alert('Điền đủ Mã CK và cấu hình dừng lỗ. Khối lượng lấy từ thị trường sau khi chọn mã.');
+      return;
+    }
+    if (!exchange || effectivePricePoints == null || effectivePricePoints <= 0 || effectiveQuantity == null || effectiveQuantity <= 0) {
+      alert('Chọn mã CK và nhập giá, khối lượng hợp lệ.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await positionApi.create(portfolioId, body);
+      onSuccess();
+      handleClose();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Đặt lệnh thất bại.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 animate-fade-in">
+      <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl overflow-hidden h-[90vh] max-h-[90vh] flex flex-col">
+        <div className="px-5 py-4 flex justify-between items-center flex-shrink-0 border-b border-[#E5E7EB]/80">
+          <h2 className="text-xl font-semibold text-[#111827]">
+            Đặt lệnh
+          </h2>
+          <button type="button" onClick={handleClose} className="p-2 rounded-full text-[#6B7280] hover:bg-[#F3F4F6] hover:text-[#111827]" aria-label="Đóng">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto px-5 py-5 space-y-6 bg-[#FAFBFC]">
+          <section className="space-y-3">
+            <h3 className="text-sm font-medium text-[#374151]">Mã &amp; sàn</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm text-[#6B7280] mb-1">Mã CK</label>
+                <input
+                  type="text"
+                  value={symbol}
+                  onChange={(e) => {
+                    setSymbol(e.target.value);
+                    if (!e.target.value.trim()) { setExchange(''); setMarketPrice(null); setExchangeError(null); }
+                  }}
+                  onBlur={() => fetchEntryInfo(symbol)}
+                  placeholder="VD: ACB"
+                  className="w-full px-3 py-2.5 rounded-xl border border-[#E5E7EB] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-[#6B7280] mb-1">Sàn</label>
+                <div className="px-3 py-2.5 rounded-xl border border-[#E5E7EB] bg-white text-[#374151] text-sm min-h-[42px] flex items-center">
+                  {exchangeLoading ? 'Đang tải...' : exchangeError ? <span className="text-red-600">{exchangeError}</span> : exchange || '—'}
+                </div>
+              </div>
+            </div>
+          </section>
+          <section className="space-y-3">
+            <h3 className="text-sm font-medium text-[#374151]">Giá &amp; khối lượng</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="block text-sm text-[#6B7280]">Giá vào</label>
+                <div className="flex rounded-xl overflow-hidden bg-[#F1F5F9] p-1">
+                  <button type="button" onClick={() => setUseMarketPrice(true)} className={`flex-1 py-2 text-xs font-medium rounded-lg transition-colors ${useMarketPrice ? 'bg-white text-[#1E3A5F] shadow-sm' : 'text-[#64748B]'}`}>Giá sàn</button>
+                  <button type="button" onClick={() => { setUseMarketPrice(false); if (marketPrice != null && entryPriceInput === '') setEntryPriceInput((marketPrice >= 1000 ? marketPrice / 1000 : marketPrice).toFixed(2)); }} className={`flex-1 py-2 text-xs font-medium rounded-lg transition-colors ${!useMarketPrice ? 'bg-white text-[#1E3A5F] shadow-sm' : 'text-[#64748B]'}`}>Tự nhập</button>
+                </div>
+                {useMarketPrice ? (
+                  <div className="px-3 py-2.5 rounded-xl border border-[#E5E7EB] bg-white min-h-[44px] flex items-center justify-between">
+                    {exchangeLoading ? <span className="text-[#64748B] text-sm">Đang lấy giá...</span> : marketPrice != null ? (<><span className="font-semibold tabular-nums text-[#111827]">{(() => { const p = marketPrice * STOCK_PRICE_DISPLAY_SCALE; const points = p >= 1000 ? p / 1000 : p; return points.toFixed(2); })()}</span><span className="text-[#64748B] text-sm">điểm</span></>) : <span className="text-[#94A3B8] text-sm">Chọn mã CK trước</span>}
+                  </div>
+                ) : (
+                  <div className="flex rounded-xl border border-[#E5E7EB] bg-white overflow-hidden">
+                    <input type="text" inputMode="decimal" value={entryPriceInput} onChange={(e) => setEntryPriceInput(e.target.value.replace(/[^\d.,]/g, ''))} placeholder="23.85" className="flex-1 min-w-0 px-3 py-2.5 text-[#111827] min-h-[44px] placeholder:text-[#94A3B8] focus:outline-none" />
+                    <span className="flex-shrink-0 min-w-[3.5rem] px-3 py-2.5 text-sm text-[#64748B] flex items-center justify-end bg-[#F8FAFC]">điểm</span>
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm text-[#6B7280] mb-1">Khối lượng (cp)</label>
+                <input type="text" inputMode="numeric" value={quantityInput} onChange={(e) => setQuantityInput(e.target.value.replace(/[^\d,]/g, ''))} placeholder="Số cp" className="w-full px-3 py-2.5 rounded-xl border border-[#E5E7EB] text-[#111827] placeholder:text-[#94A3B8] bg-white focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] min-h-[44px]" />
+              </div>
+            </div>
+          </section>
+          {effectivePricePoints != null && effectivePricePoints > 0 && effectiveQuantity != null && effectiveQuantity > 0 && (() => {
+            const pricePoints = effectivePricePoints;
+            const priceVndPerShare = pricePoints * 1000;
+            const totalVnd = Math.round(pricePoints * 1000 * effectiveQuantity);
+            return (
+            <section className="rounded-xl bg-white border border-[#E5E7EB]/80 p-4">
+              <h3 className="text-sm font-medium text-[#374151] mb-3">Tổng tiền ước tính</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between text-[#475569]"><span>Giá</span><span className="font-mono tabular-nums">{pricePoints.toFixed(2)} điểm</span></div>
+                <div className="flex justify-between text-[#475569]"><span>Đơn giá</span><span className="font-mono tabular-nums">{formatNumberVI(priceVndPerShare)} ₫/cp</span></div>
+                <div className="flex justify-between text-[#475569]"><span>Khối lượng</span><span className="font-mono tabular-nums">{formatNumberVI(effectiveQuantity)} cp</span></div>
+                <div className="flex justify-between pt-2 mt-2 border-t border-[#E5E7EB] font-medium text-[#111827]"><span>Thành tiền</span><span className="font-mono tabular-nums text-[#166534]">{formatNumberVI(totalVnd)} ₫</span></div>
+              </div>
+            </section>
+            );
+          })()}
+          <section className="rounded-xl bg-white border border-[#E5E7EB]/80 p-4 space-y-3">
+            <h3 className="text-sm font-medium text-[#374151]">Ngừng lỗ</h3>
+            <div className="flex rounded-xl overflow-hidden bg-[#F1F5F9] p-1">
+              <button type="button" onClick={() => setStopType('FIXED')} className={`flex-1 py-2 text-xs font-medium rounded-lg transition-colors ${stopType === 'FIXED' ? 'bg-white text-[#1E3A5F] shadow-sm' : 'text-[#64748B]'}`}>Theo giá</button>
+              <button type="button" onClick={() => setStopType('PERCENT')} className={`flex-1 py-2 text-xs font-medium rounded-lg transition-colors ${stopType === 'PERCENT' ? 'bg-white text-[#1E3A5F] shadow-sm' : 'text-[#64748B]'}`}>Theo %</button>
+              <button type="button" onClick={() => setStopType('MAX_LOSS')} className={`flex-1 py-2 text-xs font-medium rounded-lg transition-colors ${stopType === 'MAX_LOSS' ? 'bg-white text-[#1E3A5F] shadow-sm' : 'text-[#64748B]'}`}>Thua lỗ tối đa</button>
+            </div>
+            {stopType === 'FIXED' && (
+              <div>
+                <label className="block text-sm text-[#6B7280] mb-1">Giá dừng lỗ (điểm)</label>
+                <input type="number" value={stopPrice} onChange={(e) => setStopPrice(e.target.value)} placeholder="VD: 22.50" className="w-full px-3 py-2.5 border border-[#E5E7EB] rounded-xl text-[#111827] bg-white focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20" />
+                {stopPrice.trim() !== '' && (() => {
+                  const sp = parseFloat(stopPrice);
+                  if (!Number.isFinite(sp) || sp <= 0) return null;
+                  const entryPoints = effectivePricePoints ?? 0;
+                  const stopVndPerShare = sp * 1000;
+                  const riskPerShare = (entryPoints - sp) * 1000;
+                  const qty = effectiveQuantity ?? 0;
+                  const totalRisk = qty > 0 ? Math.round(riskPerShare * qty) : 0;
+                  return (
+                    <div className="mt-3 rounded-xl bg-[#FEF2F2]/60 border border-[#FECACA]/80 p-3 text-sm">
+                      <div className="text-xs text-[#6B7280] mb-2">Tính dừng lỗ</div>
+                      <div className="space-y-1.5 text-[#475569]">
+                        <div className="flex justify-between"><span>Giá dừng lỗ</span><span className="font-mono tabular-nums">{sp.toFixed(2)} điểm</span></div>
+                        <div className="flex justify-between"><span>Đơn giá</span><span className="font-mono tabular-nums">{formatNumberVI(stopVndPerShare)} ₫/cp</span></div>
+                        {effectivePricePoints != null && effectiveQuantity != null && effectiveQuantity > 0 && (
+                          <div className="flex justify-between pt-1.5 border-t border-[#E5E7EB] font-medium text-[#111827]"><span>Rủi ro ước tính</span><span className="font-mono tabular-nums text-red-600">{formatNumberVI(totalRisk)} ₫</span></div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+            {stopType === 'PERCENT' && (
+              <>
+                <label className="block text-sm text-[#6B7280] mb-1">% thua lỗ chấp nhận</label>
+                <input type="number" value={stopPercent} onChange={(e) => setStopPercent(e.target.value)} placeholder="VD: 5" className="w-full px-3 py-2.5 border border-[#E5E7EB] rounded-xl text-[#111827] bg-white focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20" />
+                {stopPercent.trim() !== '' && effectivePricePoints != null && effectiveQuantity != null && (() => {
+                  const pct = parseFloat(stopPercent);
+                  if (!Number.isFinite(pct) || pct < 0) return null;
+                  const entryPoints = effectivePricePoints;
+                  const stopPoints = entryPoints * (1 - pct / 100);
+                  const stopVnd = stopPoints * 1000;
+                  const riskPerShare = (entryPoints - stopPoints) * 1000;
+                  const totalRisk = Math.round(riskPerShare * effectiveQuantity);
+                  return (
+                    <div className="mt-3 rounded-xl bg-[#FEF2F2]/60 border border-[#FECACA]/80 p-3 text-sm">
+                      <div className="text-xs text-[#6B7280] mb-2">Tính dừng lỗ</div>
+                      <div className="space-y-1.5 text-[#475569]">
+                        <div className="flex justify-between"><span>Giá vào</span><span className="font-mono tabular-nums">{entryPoints.toFixed(2)} điểm</span></div>
+                        <div className="flex justify-between"><span>Giảm {pct}%</span><span className="font-mono tabular-nums">→ {stopPoints.toFixed(2)} điểm</span></div>
+                        <div className="flex justify-between pt-1.5 border-t border-[#E5E7EB] font-medium text-[#111827]"><span>Rủi ro ước tính</span><span className="font-mono tabular-nums text-red-600">{formatNumberVI(totalRisk)} ₫</span></div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </>
+            )}
+            {stopType === 'MAX_LOSS' && (
+              <>
+                <label className="block text-sm text-[#6B7280] mb-1">Số tiền tối đa chấp nhận thua (₫)</label>
+                <input type="number" value={stopMaxLossVnd} onChange={(e) => setStopMaxLossVnd(e.target.value)} placeholder="VD: 500000" className="w-full px-3 py-2.5 border border-[#E5E7EB] rounded-xl text-[#111827] bg-white focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20" />
+                {stopMaxLossVnd.trim() !== '' && effectivePricePoints != null && effectiveQuantity != null && effectiveQuantity > 0 && (() => {
+                  const maxVnd = parseFloat(stopMaxLossVnd);
+                  if (!Number.isFinite(maxVnd) || maxVnd <= 0) return null;
+                  const entryPoints = effectivePricePoints;
+                  const riskPerShareVnd = maxVnd / effectiveQuantity;
+                  const stopPoints = entryPoints - riskPerShareVnd / 1000;
+                  if (stopPoints <= 0) return null;
+                  return (
+                    <div className="mt-3 rounded-xl bg-[#FEF2F2]/60 border border-[#FECACA]/80 p-3 text-sm">
+                      <div className="text-xs text-[#6B7280] mb-2">Tính dừng lỗ</div>
+                      <div className="space-y-1.5 text-[#475569]">
+                        <div className="flex justify-between"><span>Thua lỗ tối đa</span><span className="font-mono tabular-nums">{formatNumberVI(maxVnd)} ₫</span></div>
+                        <div className="flex justify-between pt-1.5 border-t border-[#E5E7EB] font-medium text-[#111827]"><span>Giá dừng lỗ (điểm)</span><span className="font-mono tabular-nums text-red-600">{stopPoints.toFixed(2)}</span></div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </>
+            )}
+          </section>
+          <section className="rounded-xl bg-white border border-[#E5E7EB]/80 p-4 space-y-3">
+            <h3 className="text-sm font-medium text-[#374151]">Chốt lời <span className="text-[#6B7280] font-normal">(tùy chọn)</span></h3>
+            <div className="grid grid-cols-2 gap-1.5">
+              <button type="button" onClick={() => setTakeProfitType('')} className={`py-2 text-xs font-medium rounded-lg transition-colors ${takeProfitType === '' ? 'bg-[#ECFDF5] text-[#0B6E4B] border border-[#A7F3D0]' : 'bg-[#F1F5F9] text-[#64748B] border border-transparent'}`}>Không</button>
+              <button type="button" onClick={() => setTakeProfitType('FIXED')} className={`py-2 text-xs font-medium rounded-lg transition-colors ${takeProfitType === 'FIXED' ? 'bg-[#ECFDF5] text-[#0B6E4B] border border-[#A7F3D0]' : 'bg-[#F1F5F9] text-[#64748B] border border-transparent'}`}>Giá cố định</button>
+              <button type="button" onClick={() => setTakeProfitType('PERCENT')} className={`py-2 text-xs font-medium rounded-lg transition-colors ${takeProfitType === 'PERCENT' ? 'bg-[#ECFDF5] text-[#0B6E4B] border border-[#A7F3D0]' : 'bg-[#F1F5F9] text-[#64748B] border border-transparent'}`}>Theo %</button>
+              <button type="button" onClick={() => setTakeProfitType('R_RATIO')} className={`py-2 text-xs font-medium rounded-lg transition-colors ${takeProfitType === 'R_RATIO' ? 'bg-[#ECFDF5] text-[#0B6E4B] border border-[#A7F3D0]' : 'bg-[#F1F5F9] text-[#64748B] border border-transparent'}`}>Theo R:R</button>
+            </div>
+            {takeProfitType === 'FIXED' && (
+              <>
+                <label className="block text-sm text-[#6B7280] mb-1">Giá chốt lời (điểm)</label>
+                <input type="number" value={takeProfitPrice} onChange={(e) => setTakeProfitPrice(e.target.value)} placeholder="VD: 26.00" className="w-full px-3 py-2.5 border border-[#E5E7EB] rounded-xl text-[#111827] bg-white focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20" />
+                {takeProfitPrice.trim() !== '' && (() => {
+                  const tp = parseFloat(takeProfitPrice);
+                  if (!Number.isFinite(tp) || tp <= 0) return null;
+                  const tpVnd = tp * 1000;
+                  const qty = effectiveQuantity ?? 0;
+                  const totalVnd = qty > 0 ? Math.round(tpVnd * qty) : 0;
+                  return (
+                    <div className="mt-3 rounded-xl bg-[#F0FDF4]/80 border border-[#BBF7D0]/80 p-3 text-sm">
+                      <div className="text-xs text-[#6B7280] mb-2">Tính chốt lời</div>
+                      <div className="space-y-1.5 text-[#475569]">
+                        <div className="flex justify-between"><span>Giá chốt lời</span><span className="font-mono tabular-nums">{tp.toFixed(2)} điểm</span></div>
+                        <div className="flex justify-between"><span>Đơn giá</span><span className="font-mono tabular-nums">{formatNumberVI(tpVnd)} ₫/cp</span></div>
+                        {qty > 0 && <div className="flex justify-between pt-1.5 border-t border-[#E5E7EB] font-medium text-[#111827]"><span>Thành tiền ước tính</span><span className="font-mono tabular-nums text-[#166534]">{formatNumberVI(totalVnd)} ₫</span></div>}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </>
+            )}
+            {takeProfitType === 'PERCENT' && (
+              <>
+                <label className="block text-sm text-[#6B7280] mb-1">% lợi nhuận mong muốn</label>
+                <input type="number" value={takeProfitPercent} onChange={(e) => setTakeProfitPercent(e.target.value)} placeholder="VD: 10" className="w-full px-3 py-2.5 border border-[#E5E7EB] rounded-xl text-[#111827] bg-white focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20" />
+                {takeProfitPercent.trim() !== '' && effectivePricePoints != null && (() => {
+                  const pct = parseFloat(takeProfitPercent);
+                  if (!Number.isFinite(pct) || pct < 0) return null;
+                  const entryPoints = effectivePricePoints;
+                  const tpPoints = entryPoints * (1 + pct / 100);
+                  const tpVnd = tpPoints * 1000;
+                  const qty = effectiveQuantity ?? 0;
+                  const totalVnd = qty > 0 ? Math.round(tpVnd * qty) : 0;
+                  return (
+                    <div className="mt-3 rounded-xl bg-[#F0FDF4]/80 border border-[#BBF7D0]/80 p-3 text-sm">
+                      <div className="text-xs text-[#6B7280] mb-2">Tính chốt lời</div>
+                      <div className="space-y-1.5 text-[#475569]">
+                        <div className="flex justify-between"><span>Giá vào</span><span className="font-mono tabular-nums">{entryPoints.toFixed(2)} điểm</span></div>
+                        <div className="flex justify-between"><span>Tăng {pct}%</span><span className="font-mono tabular-nums">→ {tpPoints.toFixed(2)} điểm</span></div>
+                        {qty > 0 && <div className="flex justify-between pt-1.5 border-t border-[#E5E7EB] font-medium text-[#111827]"><span>Thành tiền ước tính</span><span className="font-mono tabular-nums text-[#166534]">{formatNumberVI(totalVnd)} ₫</span></div>}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </>
+            )}
+            {takeProfitType === 'R_RATIO' && (
+              <>
+                <label className="block text-sm text-[#6B7280] mb-1">Tỷ lệ R:R (lợi : rủi ro)</label>
+                <input type="number" value={takeProfitRR} onChange={(e) => setTakeProfitRR(e.target.value)} placeholder="VD: 2" className="w-full px-3 py-2.5 border border-[#E5E7EB] rounded-xl text-[#111827] bg-white focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20" />
+                {takeProfitRR.trim() !== '' && effectivePricePoints != null && (() => {
+                  const rr = parseFloat(takeProfitRR);
+                  if (!Number.isFinite(rr) || rr <= 0) return null;
+                  const entryPoints = effectivePricePoints;
+                  let riskPerShare = 0;
+                  if (stopType === 'FIXED' && stopPrice.trim() !== '') {
+                    const sp = parseFloat(stopPrice);
+                    if (Number.isFinite(sp)) riskPerShare = (entryPoints - sp) * 1000;
+                  } else if (stopType === 'PERCENT' && stopPercent.trim() !== '') {
+                    const pct = parseFloat(stopPercent);
+                    if (Number.isFinite(pct) && pct >= 0) {
+                      const stopPoints = entryPoints * (1 - pct / 100);
+                      riskPerShare = (entryPoints - stopPoints) * 1000;
+                    }
+                  } else if (stopType === 'MAX_LOSS' && stopMaxLossVnd.trim() !== '' && effectiveQuantity != null && effectiveQuantity > 0) {
+                    const maxVnd = parseFloat(stopMaxLossVnd);
+                    if (Number.isFinite(maxVnd) && maxVnd > 0) riskPerShare = maxVnd / effectiveQuantity;
+                  }
+                  if (riskPerShare <= 0) return null;
+                  const rewardPerShare = riskPerShare * rr;
+                  const tpPoints = entryPoints + rewardPerShare / 1000;
+                  const tpVnd = tpPoints * 1000;
+                  const qty = effectiveQuantity ?? 0;
+                  const totalVnd = qty > 0 ? Math.round(tpVnd * qty) : 0;
+                  return (
+                    <div className="mt-3 rounded-xl bg-[#F0FDF4]/80 border border-[#BBF7D0]/80 p-3 text-sm">
+                      <div className="text-xs text-[#6B7280] mb-2">Tính chốt lời R:R</div>
+                      <div className="space-y-1.5 text-[#475569]">
+                        <div className="flex justify-between"><span>R:R = 1:{rr}</span><span className="font-mono tabular-nums">Giá chốt lời {tpPoints.toFixed(2)} điểm</span></div>
+                        {qty > 0 && <div className="flex justify-between pt-1.5 border-t border-[#E5E7EB] font-medium text-[#111827]"><span>Thành tiền ước tính</span><span className="font-mono tabular-nums text-[#166534]">{formatNumberVI(totalVnd)} ₫</span></div>}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </>
+            )}
+          </section>
+          {preview && (
+            <section className="rounded-xl bg-white border border-[#E5E7EB]/80 p-4">
+              <h3 className="text-sm font-medium text-[#374151] mb-2">Xem trước</h3>
+              <div className="text-sm text-[#475569] space-y-1">
+                <p>Dừng lỗ: {typeof preview.stop_loss === 'number' ? (preview.stop_loss / 1000).toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS) : '—'} · Chốt lời: {preview.take_profit != null && typeof preview.take_profit === 'number' ? (preview.take_profit / 1000).toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS) : '—'}</p>
+                <p>Rủi ro: {typeof preview.risk_value_vnd === 'number' ? formatNumberVI(preview.risk_value_vnd) : '—'} ₫ · R:R: {preview.risk_reward != null && typeof preview.risk_reward === 'number' ? preview.risk_reward.toFixed(2) : '—'}</p>
+              </div>
+            </section>
+          )}
+        </div>
+        <div className="px-5 py-4 border-t border-[#E5E7EB]/80 flex-shrink-0 bg-white rounded-b-2xl">
+          <button type="button" onClick={handleSubmit} disabled={submitting || !exchange || effectivePricePoints == null || effectivePricePoints <= 0 || effectiveQuantity == null || effectiveQuantity <= 0 || exchangeLoading} className="w-full py-3 rounded-xl bg-[#1E3A5F] text-white font-medium text-sm hover:bg-[#2C4A6F] disabled:opacity-50 disabled:pointer-events-none transition-colors">{submitting ? 'Đang tạo...' : 'Đặt lệnh'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Rủi ro VND của một position: ưu tiên tính từ giá điểm để tránh hiển thị sai khi DB lưu cũ (entry từng bị ×1000). */
+function getPositionRiskVnd(pos: any): number {
+  const p = pos;
+  const entry = p.entry_price_points != null ? Number(p.entry_price_points) : Number(p.entry_price);
+  const stop = p.stop_loss_points != null ? Number(p.stop_loss_points) : Number(p.stop_loss);
+  const entryPoints = (typeof entry === 'number' && entry >= 1000) ? entry / 1000 : entry;
+  const stopPoints = (typeof stop === 'number' && stop >= 1000) ? stop / 1000 : stop;
+  const qty = Number(p.quantity) || 0;
+  if (entryPoints != null && stopPoints != null && qty > 0 && entryPoints > stopPoints) {
+    return Math.round((entryPoints - stopPoints) * 1000 * qty);
+  }
+  return Number(p.risk_value_vnd) || 0;
+}
+
 function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
-  const [currentView, setCurrentView] = useState('terminal');
+  const [currentView, setCurrentView] = useState('home');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Core State
@@ -2027,6 +2386,21 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
   const [previousPrices, setPreviousPrices] = useState<{[key: string]: number}>({});
   const [priceChanges, setPriceChanges] = useState<{[key: string]: 'up' | 'down' | null}>({});
 
+  // Bảng thị trường theo index (VPBS stockDetailByIndex) – chọn nhiều index
+  const [indexDetailList, setIndexDetailList] = useState<any[]>([]);
+  const [indexCodes, setIndexCodes] = useState<string[]>(['VNXALL']);
+  const indexCode = indexCodes[0] ?? 'VNXALL'; // tương thích nếu có chỗ còn dùng indexCode
+  const [indexSearch, setIndexSearch] = useState('');
+  const [loadingIndexDetail, setLoadingIndexDetail] = useState(false);
+  const [indexDropdownOpen, setIndexDropdownOpen] = useState(false);
+  const [marketTableFullscreen, setMarketTableFullscreen] = useState(false);
+  const [bondDetailSymbol, setBondDetailSymbol] = useState<string | null>(null);
+  const [bondDetailData, setBondDetailData] = useState<any>(null);
+  const [loadingBondDetail, setLoadingBondDetail] = useState(false);
+  /** Thỏa thuận: Chào mua / Chào bán (Khớp lệnh dùng indexDetailList). */
+  const [ptBidList, setPtBidList] = useState<any[]>([]);
+  const [ptAskList, setPtAskList] = useState<any[]>([]);
+
   // UI State
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [insightTrader, setInsightTrader] = useState<TraderProfile | null>(null);
@@ -2040,10 +2414,16 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
   const [chartModalData, setChartModalData] = useState<any[]>([]);
   const [loadingChart, setLoadingChart] = useState(false);
 
-  // Derived Calculations (chức năng vị thế đã bỏ – risk dùng = 0)
-  const maxRiskAmount = totalBalance > 0 ? (totalBalance * maxRiskPercent) / 100 : 0; 
-  const currentRiskUsed = 0;
-  const riskUsagePercent = 0;
+  // Position State (vị thế mở/đóng)
+  const [positions, setPositions] = useState<PositionType[]>([]);
+  const [loadingPositions, setLoadingPositions] = useState(false);
+  const [showOpenPositionModal, setShowOpenPositionModal] = useState(false);
+
+  // Derived: rủi ro đã dùng = tổng rủi ro (tính từ điểm khi có, tránh số cũ sai)
+  const openPositions = positions.filter((p) => p.status === 'OPEN');
+  const currentRiskUsed = openPositions.reduce((s, p) => s + getPositionRiskVnd(p), 0);
+  const maxRiskAmount = totalBalance > 0 ? (totalBalance * maxRiskPercent) / 100 : 0;
+  const riskUsagePercent = maxRiskAmount > 0 ? (currentRiskUsed / maxRiskAmount) * 100 : 0;
 
   const availableRisk = maxRiskAmount;
   const riskData = [
@@ -2079,6 +2459,176 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
     }, 5000);
     return () => clearInterval(interval);
   }, [stocksPage, stocksSearch, stocksExchange]);
+
+  const FU_STOCK_TYPES = ['FUVN30', 'FUVN100', 'FUGB'];
+  /** Trái phiếu riêng lẻ, chứng quyền, ETF, Phái sinh, Thỏa thuận, Lô lẻ, CP ngành: chỉ được chọn 1 option, không chọn kết hợp. */
+  const isSingleOnlyIndexCode = (code: string) =>
+    code === 'BOND' || code === 'CQ' || code === 'EF' || FU_STOCK_TYPES.includes(code) || String(code).startsWith('PT_') || String(code).startsWith('OL_') || String(code).startsWith('INDUSTRY_');
+
+  const toggleIndexCode = (code: string, current: string[]) => {
+    const singleOnly = isSingleOnlyIndexCode(code);
+    const isSelected = current.includes(code);
+    if (singleOnly) {
+      if (isSelected) return ['VNXALL'];
+      return [code];
+    }
+    if (isSelected) return current.length > 1 ? current.filter((c) => c !== code) : ['VNXALL'];
+    const hasSingleOnly = current.some((c) => isSingleOnlyIndexCode(c));
+    if (hasSingleOnly) return [code];
+    return [...current, code].sort();
+  };
+
+  const isBondView = indexCodes.length === 1 && indexCodes[0] === 'BOND';
+  const isCWView = indexCodes.length === 1 && indexCodes[0] === 'CQ';
+  const isEFView = indexCodes.length === 1 && indexCodes[0] === 'EF';
+  const isPTView = indexCodes.length === 1 && String(indexCodes[0]).startsWith('PT_');
+  const ptMarketCode = isPTView ? String(indexCodes[0]).replace(/^PT_/, '') : '';
+  const isOddLotView = indexCodes.length === 1 && String(indexCodes[0]).startsWith('OL_');
+  const oddLotMarketCode = isOddLotView ? String(indexCodes[0]).replace(/^OL_/, '') : '';
+  const isFUView = indexCodes.length === 1 && FU_STOCK_TYPES.includes(indexCodes[0]);
+  const fuStockType = isFUView ? indexCodes[0] : '';
+  const isIndustryView = indexCodes.length === 1 && String(indexCodes[0]).startsWith('INDUSTRY_');
+  const industryCode = isIndustryView ? String(indexCodes[0]).replace(/^INDUSTRY_/, '') : '';
+  const industryName = industryCode ? (INDUSTRY_CODES.find((i) => i.code === industryCode)?.name ?? industryCode) : '';
+
+  /** Label ngắn hiển thị trên nút Danh mục */
+  const indexSelectionLabel =
+    indexCodes.length === 0 || (indexCodes.length === 1 && indexCodes[0] === 'VNXALL')
+      ? 'VNXALL'
+      : indexCodes.length === 1 && indexCodes[0] === 'BOND'
+        ? 'Trái phiếu riêng lẻ'
+        : indexCodes.length === 1 && indexCodes[0] === 'CQ'
+          ? 'Chứng quyền'
+          : indexCodes.length === 1 && indexCodes[0] === 'EF'
+            ? 'ETF'
+            : indexCodes.length === 1 && isPTView
+              ? `Thỏa thuận (${ptMarketCode})`
+              : indexCodes.length === 1 && isOddLotView
+                ? `Lô lẻ ${oddLotMarketCode === 'UPCOM' ? 'Upcom' : oddLotMarketCode}`
+                : indexCodes.length === 1 && isFUView
+                  ? (MARKET_INDEX_CODES_BANG_GIA.find((x) => x.code === fuStockType)?.name ?? fuStockType)
+                  : indexCodes.length === 1 && isIndustryView
+                ? `Ngành: ${industryName}`
+                : indexCodes.length <= 2
+                  ? indexCodes.map((c) => MARKET_INDEX_CODES_BANG_GIA.find((x) => x.code === c)?.name ?? c).join(', ')
+                  : `${indexCodes.length} danh mục`;
+
+  async function loadIndexDetail() {
+    setLoadingIndexDetail(true);
+    if (!isPTView) {
+      setPtBidList([]);
+      setPtAskList([]);
+    }
+    try {
+      if (isBondView) {
+        const res = await marketApi.getCorpBondList({ symbols: 'ALL' });
+        setIndexDetailList(Array.isArray(res.data?.data) ? res.data.data : []);
+      } else if (isCWView) {
+        const res = await marketApi.getStockCWDetail({ stockType: 'CW', pageNo: 1, pageSize: 5000 });
+        if (res.data?.success && Array.isArray(res.data?.data)) {
+          setIndexDetailList(res.data.data);
+        } else {
+          setIndexDetailList([]);
+        }
+      } else if (isEFView) {
+        const res = await marketApi.getStockEFDetail({ stockType: 'EF', pageNo: 1, pageSize: 5000 });
+        if (res.data?.success && Array.isArray(res.data?.data)) {
+          setIndexDetailList(res.data.data);
+        } else {
+          setIndexDetailList([]);
+        }
+      } else if (isIndustryView && industryCode) {
+        const res = await marketApi.getStockDetailByIndustry({ industryCode, pageNo: 1, pageSize: 5000 });
+        if (res.data?.success && Array.isArray(res.data?.data)) {
+          setIndexDetailList(res.data.data);
+        } else {
+          setIndexDetailList([]);
+        }
+      } else if (isPTView && ptMarketCode) {
+        const [matchRes, bidRes, askRes] = await Promise.all([
+          marketApi.getPtStockMatch({ marketCode: ptMarketCode }),
+          marketApi.getPtStockBid({ marketCode: ptMarketCode }),
+          marketApi.getPtStockAsk({ marketCode: ptMarketCode }),
+        ]);
+        setIndexDetailList(matchRes.data?.success && Array.isArray(matchRes.data?.data) ? matchRes.data.data : []);
+        setPtBidList(bidRes.data?.success && Array.isArray(bidRes.data?.data) ? bidRes.data.data : []);
+        setPtAskList(askRes.data?.success && Array.isArray(askRes.data?.data) ? askRes.data.data : []);
+      } else if (isOddLotView && oddLotMarketCode) {
+        setPtBidList([]);
+        setPtAskList([]);
+        const res = await marketApi.getOddLotStockDetail({ marketCode: oddLotMarketCode, pageNo: 1, pageSize: 5000 });
+        if (res.data?.success && Array.isArray(res.data?.data)) {
+          setIndexDetailList(res.data.data);
+        } else {
+          setIndexDetailList([]);
+        }
+      } else if (isFUView && fuStockType) {
+        setPtBidList([]);
+        setPtAskList([]);
+        const res = await marketApi.getStockFUDetail({ stockType: fuStockType, pageNo: 1, pageSize: 5000 });
+        if (res.data?.success && Array.isArray(res.data?.data)) {
+          setIndexDetailList(res.data.data);
+        } else {
+          setIndexDetailList([]);
+        }
+      } else {
+        setPtBidList([]);
+        setPtAskList([]);
+        const res = await marketApi.getStockDetailByIndex({ indexCodes: indexCodes.length ? indexCodes : ['VNXALL'], pageNo: 1, pageSize: 500 });
+        if (res.data?.success && Array.isArray(res.data?.data)) {
+          setIndexDetailList(res.data.data);
+        } else {
+          setIndexDetailList([]);
+        }
+      }
+    } catch {
+      setIndexDetailList([]);
+    } finally {
+      setLoadingIndexDetail(false);
+    }
+  }
+
+  useEffect(() => {
+    if (currentView === 'home') loadIndexDetail();
+  }, [currentView, indexCodes.join(',')]);
+
+  useEffect(() => {
+    if (!bondDetailSymbol) {
+      setBondDetailData(null);
+      return;
+    }
+    setLoadingBondDetail(true);
+    setBondDetailData(null);
+    marketApi.getCorpBondInfo(bondDetailSymbol)
+      .then((res) => { setBondDetailData(res.data?.data ?? res.data); })
+      .catch(() => setBondDetailData(null))
+      .finally(() => setLoadingBondDetail(false));
+  }, [bondDetailSymbol]);
+
+  // Load positions khi có portfolio
+  async function loadPositions() {
+    if (!portfolio?.id) return;
+    setLoadingPositions(true);
+    try {
+      const res = await positionApi.list(portfolio.id);
+      if (res.data?.success && Array.isArray(res.data?.data)) {
+        setPositions(res.data.data);
+      }
+    } catch (e: any) {
+      // 404 = portfolio không tồn tại hoặc API positions chưa sẵn sàng → coi như danh sách rỗng
+      if (e?.response?.status === 404) {
+        setPositions([]);
+      } else {
+        console.error('Load positions error:', e);
+      }
+    } finally {
+      setLoadingPositions(false);
+    }
+  }
+
+  useEffect(() => {
+    if (portfolio?.id) loadPositions();
+  }, [portfolio?.id]);
 
   async function loadData() {
     try {
@@ -2159,29 +2709,24 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
       if (res.data.success) {
         const newStocks = res.data.data;
 
-        // Detect price changes for flash effect
+        // Detect price changes for flash effect (chỉ khi có giá hợp lệ)
         const changes: {[key: string]: 'up' | 'down' | null} = {};
-        newStocks.forEach((stock: any) => {
-          const key = `${stock.symbol}-${stock.exchange}`;
-          const newPrice = parseFloat(stock.price);
-          const oldPrice = previousPrices[key];
-
-          if (oldPrice !== undefined && oldPrice !== newPrice) {
-            changes[key] = newPrice > oldPrice ? 'up' : 'down';
-          }
-        });
-
-        // Update states
-        setStocks(newStocks);
-        setStocksTotal(res.data.pagination.total);
-        setPriceChanges(changes);
-
-        // Update previous prices
         const prices: {[key: string]: number} = {};
         newStocks.forEach((stock: any) => {
           const key = `${stock.symbol}-${stock.exchange}`;
-          prices[key] = parseFloat(stock.price);
+          const newPrice = Number(stock.price);
+          const oldPrice = previousPrices[key];
+          if (Number.isFinite(newPrice)) {
+            prices[key] = newPrice;
+            if (oldPrice !== undefined && Number.isFinite(oldPrice) && oldPrice !== newPrice) {
+              changes[key] = newPrice > oldPrice ? 'up' : 'down';
+            }
+          }
         });
+
+        setStocks(newStocks);
+        setStocksTotal(res.data.pagination.total);
+        setPriceChanges(changes);
         setPreviousPrices(prices);
 
         // Clear flash after 1 second
@@ -2374,6 +2919,45 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
         onTimeframeChange={loadChartData}
       />
 
+      {/* Modal chi tiết trái phiếu */}
+      {bondDetailSymbol != null && (
+        <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/50 p-4" onClick={() => setBondDetailSymbol(null)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#E5E7EB] bg-[#F9FAFB]">
+              <h2 className="text-lg font-semibold text-[#111827]">Chi tiết trái phiếu — {bondDetailSymbol}</h2>
+              <button type="button" onClick={() => setBondDetailSymbol(null)} className="p-2 rounded-lg hover:bg-[#E5E7EB] text-[#6B7280]">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1">
+              {loadingBondDetail ? (
+                <p className="text-[#6B7280] text-sm">Đang tải...</p>
+              ) : bondDetailData ? (
+                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                  {typeof bondDetailData === 'object' && !Array.isArray(bondDetailData) && Object.entries(bondDetailData).map(([key, val]) => (
+                    <div key={key} className="border-b border-[#E5E7EB]/50 pb-2">
+                      <dt className="text-[#6B7280] font-medium capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</dt>
+                      <dd className="text-[#111827] mt-0.5 font-mono">{val != null && typeof val === 'object' ? JSON.stringify(val) : String(val)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : (
+                <p className="text-[#6B7280] text-sm">Không có dữ liệu chi tiết.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {portfolio?.id && (
+        <OpenPositionModal
+          isOpen={showOpenPositionModal}
+          onClose={() => setShowOpenPositionModal(false)}
+          portfolioId={portfolio.id}
+          onSuccess={loadPositions}
+        />
+      )}
+
       <ChartModal
         isOpen={false}
         onClose={() => setShowChartModal(false)}
@@ -2402,124 +2986,593 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
       >
         
         {currentView === 'home' && (
-          <div className="space-y-8 max-w-[1600px] mx-auto animate-fade-in">
+          <div className="w-full animate-fade-in">
             <HomeView 
               totalBalance={totalBalance}
-              activePositionsCount={0}
+              activePositionsCount={openPositions.length}
               riskUsed={currentRiskUsed}
               maxRisk={maxRiskAmount}
               onNavigate={setCurrentView}
               marketDataContent={
-                /* Dữ liệu thị trường - Tất cả mã chứng khoán, cột trái */
+                /* Bảng dữ liệu thị trường — toolbar responsive, bảng scroll ngang trên mobile */
                 <>
-                  <div className="flex justify-between items-center flex-wrap gap-2">
-                    <div>
-                      <h2 className="text-sm font-semibold text-[#111827] flex items-center gap-2">
-                        <span className="w-1 h-4 bg-[#1E3A5F] rounded-full" />
-                        Dữ Liệu Thị Trường
-                      </h2>
-                      <p className="text-[10px] text-[#6B7280] mt-0.5">Tất cả mã chứng khoán • {stocksTotal} mã • Click để xem chart</p>
+                  <div className="w-full flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 w-full sm:w-44 sm:max-w-[200px] min-w-0">
+                      <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                      <input type="text" placeholder="Tìm mã..." value={indexSearch} onChange={(e) => setIndexSearch(e.target.value)} className="bg-transparent border-0 outline-none text-slate-800 text-sm placeholder-slate-400 w-full min-w-0" />
                     </div>
-                    <div className="flex gap-1 p-1 bg-[#F3F4F6] rounded-lg border border-[#E5E7EB]">
-                      <input
-                        type="text"
-                        placeholder="Tìm mã..."
-                        value={stocksSearch}
-                        onChange={(e) => { setStocksSearch(e.target.value); setStocksPage(1); }}
-                        className="text-[10px] w-24 px-2 py-1.5 border border-[#E5E7EB] rounded font-medium focus:outline-none focus:ring-1 focus:ring-[#1E3A5F]"
-                      />
-                      <select
-                        value={stocksExchange}
-                        onChange={(e) => { setStocksExchange(e.target.value); setStocksPage(1); }}
-                        className="text-[10px] px-2 py-1.5 border border-[#E5E7EB] rounded font-medium focus:outline-none focus:ring-1 focus:ring-[#1E3A5F] bg-white"
-                      >
-                        <option value="">Tất cả sàn</option>
-                        <option value="HOSE">HOSE</option>
-                        <option value="HNX">HNX</option>
-                        <option value="UPCOM">UPCOM</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="card-flat rounded-lg overflow-hidden">
-                    <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
-                      <table className="w-full text-left border-collapse table-dense">
-                        <thead className="bg-[#F9FAFB] text-[#6B7280] text-[10px] uppercase font-semibold border-b border-[#E5E7EB] sticky top-0">
-                          <tr>
-                            <th className="px-4 py-3">Mã CK</th>
-                            <th className="px-4 py-3 text-right">Giá</th>
-                            <th className="px-4 py-3 text-right">Khối lượng</th>
-                            <th className="px-4 py-3 text-center">Hành động</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[#E5E7EB] text-sm text-[#374151]">
-                          {loading && stocks.length === 0 ? (
-                            <tr>
-                              <td colSpan={4} className="px-4 py-8 text-center text-[#6B7280] text-sm">
-                                Đang tải dữ liệu mã chứng khoán...
-                              </td>
-                            </tr>
-                          ) : stocks.length === 0 ? (
-                            <tr>
-                              <td colSpan={4} className="px-4 py-8 text-center text-[#6B7280] text-sm">
-                                Chưa có dữ liệu. Kiểm tra kết nối API.
-                              </td>
-                            </tr>
-                          ) : stocks.map((stock) => {
-                            const stockKey = `${stock.symbol}-${stock.exchange}`;
-                            const priceChange = priceChanges[stockKey];
-                            return (
-                              <tr
-                                key={stockKey}
-                                className={`hover:bg-[#F9FAFB] transition-colors duration-150 cursor-pointer ${
-                                  selectedSymbol === stock.symbol ? 'bg-[#DBEAFE] border-l-4 border-l-[#1E3A5F]' : ''
-                                } ${priceChange === 'up' ? 'flash-green' : priceChange === 'down' ? 'flash-red' : ''}`}
-                              >
-                                <td className="px-4 py-2.5 font-semibold text-[#111827]" onClick={() => handleStockClick(stock.symbol, stock.exchange)}>
-                                  {stock.symbol}
-                                  <span className="text-[9px] text-[#6B7280] block font-normal mt-0.5">{stock.exchange}</span>
-                                </td>
-                                <td className="px-4 py-2.5 text-right font-mono font-medium" onClick={() => handleStockClick(stock.symbol, stock.exchange)}>
-                                  {(parseFloat(stock.price) * STOCK_PRICE_DISPLAY_SCALE).toLocaleString('vi-VN')} ₫
-                                </td>
-                                <td className="px-4 py-2.5 text-right text-[#6B7280] text-xs font-mono" onClick={() => handleStockClick(stock.symbol, stock.exchange)}>
-                                  {parseFloat(stock.volume).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}
-                                </td>
-                                <td className="px-4 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
-                                  <button
-                                    onClick={() => handleStockClick(stock.symbol, stock.exchange)}
-                                    className="text-[10px] border border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white px-2.5 py-1 rounded font-semibold transition-colors duration-150"
+                    <div className="flex items-center gap-2 w-full sm:w-auto sm:flex-1 sm:justify-end min-w-0">
+                      <div className="relative flex-1 min-w-0 sm:flex-initial">
+                        <button type="button" onClick={() => setIndexDropdownOpen((o) => !o)} className="w-full sm:w-auto flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs sm:text-sm font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-colors min-w-0 sm:min-w-[140px] justify-between">
+                          <span className="truncate">{indexSelectionLabel}</span>
+                          <svg className={`w-4 h-4 text-[#6B7280] shrink-0 transition-transform ${indexDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                        </button>
+                        {indexDropdownOpen && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setIndexDropdownOpen(false)} aria-hidden />
+                            <div className="absolute right-0 top-full mt-1.5 z-50 w-[300px] max-h-[70vh] overflow-y-auto rounded-xl bg-white border border-[#E5E7EB] shadow-xl py-2">
+                              <div className="px-3 py-2 border-b border-[#E5E7EB] flex gap-2 flex-wrap">
+                                <button type="button" onClick={() => { setIndexCodes(['VNXALL']); setIndexDropdownOpen(false); }} className="text-xs font-medium text-[#1E3A5F] hover:bg-[#EFF6FF] px-2 py-1.5 rounded">Mặc định</button>
+                                <button type="button" onClick={() => { setIndexCodes(MARKET_INDEX_CODES_BANG_GIA.filter((x) => !isSingleOnlyIndexCode(x.code)).map((x) => x.code)); setIndexDropdownOpen(false); }} className="text-xs font-medium text-[#6B7280] hover:bg-[#F3F4F6] px-2 py-1.5 rounded">Tất cả chỉ số</button>
+                              </div>
+                              <div className="py-2">
+                                <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#9CA3AF]">Chỉ số (chọn nhiều)</p>
+                                <div className="flex flex-wrap gap-1 px-2">
+                                  {['VNXALL', 'VN30', 'VN100', 'HOSE', 'HNX', 'UPCOM', 'VNALL', 'VNX50', 'HNX30'].map((code) => {
+                                    const item = MARKET_INDEX_CODES_BANG_GIA.find((x) => x.code === code); if (!item) return null;
+                                    const isSelected = indexCodes.includes(code);
+                                    return (
+                                      <button key={code} type="button" onClick={() => setIndexCodes(toggleIndexCode(code, indexCodes))} className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${isSelected ? 'bg-[#0B6E4B] text-white' : 'bg-[#F3F4F6] text-[#374151] hover:bg-[#E5E7EB]'}`}>{item.name}</button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                              <div className="py-2 border-t border-[#F3F4F6]">
+                                <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#9CA3AF]">Một lựa chọn</p>
+                                {SINGLE_CHOICE_GROUPS.map((group) => (
+                                  <div key={group.label} className="mt-2 first:mt-0">
+                                    <p className="px-3 py-0.5 text-[9px] font-medium uppercase tracking-wide text-[#9CA3AF]">{group.label}</p>
+                                    <div className="flex flex-wrap gap-1 px-2 mt-0.5">
+                                      {group.codes.map((code) => {
+                                        const item = MARKET_INDEX_CODES_BANG_GIA.find((x) => x.code === code); if (!item) return null;
+                                        const isSelected = indexCodes.includes(code);
+                                        return (
+                                          <button key={code} type="button" onClick={() => setIndexCodes(toggleIndexCode(code, indexCodes))} className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${isSelected ? 'bg-[#1E3A5F] text-white' : 'bg-[#F3F4F6] text-[#374151] hover:bg-[#E5E7EB]'}`}>{item.name}</button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="py-2 border-t border-[#F3F4F6]">
+                                <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#9CA3AF]">CP theo ngành</p>
+                                <div className="px-2 pb-1">
+                                  <select
+                                    value={industryCode ? `INDUSTRY_${industryCode}` : ''}
+                                    onChange={(e) => { const v = e.target.value; if (v) setIndexCodes([v]); else if (isIndustryView) setIndexCodes(['VNXALL']); }}
+                                    className="w-full px-3 py-2 text-sm font-medium text-[#374151] bg-[#F9FAFB] border border-[#E5E7EB] rounded-lg focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] outline-none"
                                   >
-                                    Trade
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                    <div className="flex justify-between items-center px-4 py-2 border-t border-[#E5E7EB] bg-[#FAFAFA]">
-                      <p className="text-[10px] text-[#6B7280]">
-                        Trang {stocksPage} / {Math.max(1, Math.ceil(stocksTotal / 50))} • {stocksTotal} mã
-                      </p>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => setStocksPage(p => Math.max(1, p - 1))}
-                          disabled={stocksPage === 1}
-                          className="px-2 py-1 text-[10px] border border-[#E5E7EB] rounded font-semibold disabled:opacity-50 hover:bg-[#F3F4F6]"
-                        >
-                          ← Trước
-                        </button>
-                        <button
-                          onClick={() => setStocksPage(p => p + 1)}
-                          disabled={stocksPage >= Math.ceil(stocksTotal / 50) || stocksTotal === 0}
-                          className="px-2 py-1 text-[10px] border border-[#E5E7EB] rounded font-semibold disabled:opacity-50 hover:bg-[#F3F4F6]"
-                        >
-                          Tiếp →
-                        </button>
+                                    <option value="">— Chọn ngành —</option>
+                                    {INDUSTRY_CODES.map((i) => (
+                                      <option key={i.code} value={`INDUSTRY_${i.code}`}>{i.name}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+                            </div>
+                          </>
+                        )}
                       </div>
+                      <button type="button" onClick={() => setMarketTableFullscreen((f) => !f)} className="p-2.5 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-[#1E3A5F] transition-colors shrink-0" title={marketTableFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}>
+                        {marketTableFullscreen ? <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg> : <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>}
+                      </button>
                     </div>
                   </div>
+                  {marketTableFullscreen && typeof document !== 'undefined' && createPortal(
+                    <div className="fixed inset-0 z-[9999] flex flex-col">
+                      <div className="absolute inset-0 bg-black/50" onClick={() => setMarketTableFullscreen(false)} aria-hidden />
+                      <div className="absolute inset-2 sm:inset-4 flex flex-col bg-white rounded-xl shadow-2xl overflow-hidden z-10">
+                        <div className="flex items-center justify-between px-4 py-2 border-b border-[#E5E7EB] bg-[#F9FAFB] shrink-0">
+                          <span className="text-sm font-semibold text-[#111827]">Bảng giá thị trường — Toàn màn hình</span>
+                          <button type="button" onClick={() => setMarketTableFullscreen(false)} className="p-1.5 rounded-lg hover:bg-[#E5E7EB] text-[#6B7280]">Thu nhỏ</button>
+                        </div>
+                        <div className="w-full bg-white border-b border-[#E5E7EB] flex items-center gap-3 px-4 py-3 min-h-12 shrink-0">
+                          <div className="flex items-center gap-2 bg-[#F9FAFB] border border-[#E5E7EB] rounded-lg px-3 py-2 w-44 sm:w-52 flex-shrink-0">
+                            <svg className="w-4 h-4 text-[#9CA3AF] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                            <input type="text" placeholder="Tìm mã..." value={indexSearch} onChange={(e) => setIndexSearch(e.target.value)} className="bg-transparent border-0 outline-none text-[#111827] text-sm placeholder-[#9CA3AF] w-full min-w-0" />
+                          </div>
+                          <div className="flex-1 min-w-0 flex items-center justify-end">
+                            <div className="relative">
+                              <button type="button" onClick={(e) => { e.stopPropagation(); setIndexDropdownOpen((o) => !o); }} className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-[#374151] bg-[#F9FAFB] hover:bg-[#F3F4F6] border border-[#E5E7EB] transition-colors min-w-[140px] justify-between">
+                                <span className="truncate">{indexSelectionLabel}</span>
+                                <svg className={`w-4 h-4 text-[#6B7280] shrink-0 transition-transform ${indexDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                              </button>
+                              {indexDropdownOpen && (
+                                <>
+                                  <div className="fixed inset-0 z-[10040]" onClick={() => setIndexDropdownOpen(false)} aria-hidden />
+                                  <div className="absolute right-0 top-full mt-1.5 z-[10050] w-[300px] max-h-[60vh] overflow-y-auto rounded-xl bg-white border border-[#E5E7EB] shadow-xl py-2">
+                                    <div className="px-3 py-2 border-b border-[#E5E7EB] flex gap-2 flex-wrap">
+                                      <button type="button" onClick={() => { setIndexCodes(['VNXALL']); setIndexDropdownOpen(false); }} className="text-xs font-medium text-[#1E3A5F] hover:bg-[#EFF6FF] px-2 py-1.5 rounded">Mặc định</button>
+                                      <button type="button" onClick={() => { setIndexCodes(MARKET_INDEX_CODES_BANG_GIA.filter((x) => !isSingleOnlyIndexCode(x.code)).map((x) => x.code)); setIndexDropdownOpen(false); }} className="text-xs font-medium text-[#6B7280] hover:bg-[#F3F4F6] px-2 py-1.5 rounded">Tất cả chỉ số</button>
+                                    </div>
+                                    <div className="py-2">
+                                      <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#9CA3AF]">Chỉ số (chọn nhiều)</p>
+                                      <div className="flex flex-wrap gap-1 px-2">
+                                        {['VNXALL', 'VN30', 'VN100', 'HOSE', 'HNX', 'UPCOM', 'VNALL', 'VNX50', 'HNX30'].map((code) => {
+                                          const item = MARKET_INDEX_CODES_BANG_GIA.find((x) => x.code === code); if (!item) return null;
+                                          const isSelected = indexCodes.includes(code);
+                                          return (
+                                            <button key={code} type="button" onClick={() => setIndexCodes(toggleIndexCode(code, indexCodes))} className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${isSelected ? 'bg-[#0B6E4B] text-white' : 'bg-[#F3F4F6] text-[#374151] hover:bg-[#E5E7EB]'}`}>{item.name}</button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                    <div className="py-2 border-t border-[#F3F4F6]">
+                                      <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#9CA3AF]">Một lựa chọn</p>
+                                      {SINGLE_CHOICE_GROUPS.map((group) => (
+                                        <div key={group.label} className="mt-2 first:mt-0">
+                                          <p className="px-3 py-0.5 text-[9px] font-medium uppercase tracking-wide text-[#9CA3AF]">{group.label}</p>
+                                          <div className="flex flex-wrap gap-1 px-2 mt-0.5">
+                                            {group.codes.map((code) => {
+                                              const item = MARKET_INDEX_CODES_BANG_GIA.find((x) => x.code === code); if (!item) return null;
+                                              const isSelected = indexCodes.includes(code);
+                                              return (
+                                                <button key={code} type="button" onClick={() => setIndexCodes(toggleIndexCode(code, indexCodes))} className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${isSelected ? 'bg-[#1E3A5F] text-white' : 'bg-[#F3F4F6] text-[#374151] hover:bg-[#E5E7EB]'}`}>{item.name}</button>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <div className="py-2 border-t border-[#F3F4F6]">
+                                      <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#9CA3AF]">CP theo ngành</p>
+                                      <div className="px-2 pb-1">
+                                        <select
+                                          value={industryCode ? `INDUSTRY_${industryCode}` : ''}
+                                          onChange={(e) => { const v = e.target.value; if (v) setIndexCodes([v]); else if (isIndustryView) setIndexCodes(['VNXALL']); }}
+                                          className="w-full px-3 py-2 text-sm font-medium text-[#374151] bg-[#F9FAFB] border border-[#E5E7EB] rounded-lg focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] outline-none"
+                                        >
+                                          <option value="">— Chọn ngành —</option>
+                                          {INDUSTRY_CODES.map((i) => (
+                                            <option key={i.code} value={`INDUSTRY_${i.code}`}>{i.name}</option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex-1 min-h-0 overflow-auto">
+                          {isPTView ? (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3">
+                              {/* Chào mua */}
+                              <div className="rounded-lg border border-[#E5E7EB] bg-white overflow-hidden flex flex-col min-h-0">
+                                <div className="px-3 py-2 bg-[#F9FAFB] border-b border-[#E5E7EB] font-semibold text-[#4B5563] text-sm shrink-0">Chào mua</div>
+                                <div className="flex-1 min-h-0 overflow-auto">
+                                  <table className="w-full text-left border-collapse text-sm">
+                                    <thead className="bg-[#F3F4F6] text-[#4B5563] text-[10px] uppercase font-semibold border-b border-[#E5E7EB] sticky top-0 z-10">
+                                      <tr>
+                                        <th className="px-2 py-1.5 whitespace-nowrap">Mã CK</th>
+                                        <th className="px-2 py-1.5 text-right whitespace-nowrap">Giá</th>
+                                        <th className="px-2 py-1.5 text-right whitespace-nowrap">KL</th>
+                                        <th className="px-2 py-1.5 text-right whitespace-nowrap">Thời gian</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="text-[#374151] divide-y divide-[#E5E7EB]">
+                                      {loadingIndexDetail && ptBidList.length === 0 ? (
+                                        <tr><td colSpan={4} className="px-3 py-8 text-center text-[#6B7280] text-xs">Đang tải dữ liệu...</td></tr>
+                                      ) : ptBidList.length === 0 ? (
+                                        <tr><td colSpan={4} className="px-3 py-8 text-center text-[#6B7280] text-xs">Hiện tại không có dữ liệu.</td></tr>
+                                      ) : ptBidList.slice(0, 200).map((r: any, i: number) => {
+                                        const fmt = (v: number | null | undefined, scale = 1) => v != null && Number.isFinite(v) ? (v * scale).toLocaleString('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : '—';
+                                        const fmtVol = (v: number | null | undefined) => v != null && Number.isFinite(v) ? Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 0 }) : '—';
+                                        return (
+                                          <tr key={`bid-${r.symbol}-${i}`} onClick={() => handleStockClick(r.symbol, ptMarketCode || 'HOSE')} className="hover:bg-[#F0F9FF] cursor-pointer">
+                                            <td className="px-2 py-1.5 font-medium text-[#1E3A5F] whitespace-nowrap text-xs">{r.symbol}</td>
+                                            <td className="px-2 py-1.5 text-right font-mono text-xs">{fmt(r.price)}</td>
+                                            <td className="px-2 py-1.5 text-right font-mono text-[#6B7280] text-xs">{fmtVol(r.volume)}</td>
+                                            <td className="px-2 py-1.5 text-right font-mono text-[#6B7280] text-xs">{r.time || '—'}</td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                              {/* Khớp lệnh */}
+                              <div className="rounded-lg border border-[#E5E7EB] bg-white overflow-hidden flex flex-col min-h-0">
+                                <div className="px-3 py-2 bg-[#F9FAFB] border-b border-[#E5E7EB] font-semibold text-[#4B5563] text-sm shrink-0">Khớp lệnh</div>
+                                <div className="flex-1 min-h-0 overflow-auto">
+                                  <table className="w-full text-left border-collapse text-sm">
+                                    <thead className="bg-[#F3F4F6] text-[#4B5563] text-[10px] uppercase font-semibold border-b border-[#E5E7EB] sticky top-0 z-10">
+                                      <tr>
+                                        <th className="px-2 py-1.5 whitespace-nowrap">Mã CK</th>
+                                        <th className="px-2 py-1.5 text-right whitespace-nowrap">Tham chiếu</th>
+                                        <th className="px-2 py-1.5 text-right whitespace-nowrap">Giá</th>
+                                        <th className="px-2 py-1.5 text-right whitespace-nowrap">KL</th>
+                                        <th className="px-2 py-1.5 text-right whitespace-nowrap">Giá trị</th>
+                                        <th className="px-2 py-1.5 text-right whitespace-nowrap">Thời gian</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="text-[#374151] divide-y divide-[#E5E7EB]">
+                                      {loadingIndexDetail && indexDetailList.length === 0 ? (
+                                        <tr><td colSpan={6} className="px-3 py-8 text-center text-[#6B7280] text-xs">Đang tải dữ liệu...</td></tr>
+                                      ) : (() => {
+                                        const search = indexSearch.trim().toUpperCase();
+                                        const filtered = search ? indexDetailList.filter((r: any) => (r.symbol || '').toUpperCase().includes(search)) : indexDetailList;
+                                        if (filtered.length === 0) return <tr><td colSpan={6} className="px-3 py-8 text-center text-[#6B7280] text-xs">Hiện tại không có dữ liệu.</td></tr>;
+                                        const fmt = (v: number | null | undefined, scale = 1) => v != null && Number.isFinite(v) ? (v * scale).toLocaleString('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : '—';
+                                        const fmtVol = (v: number | null | undefined) => v != null && Number.isFinite(v) ? Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 0 }) : '—';
+                                        return filtered.slice(0, 500).map((r: any, i: number) => (
+                                          <tr key={`match-${r.symbol}-${r.time}-${i}`} onClick={() => handleStockClick(r.symbol, ptMarketCode || 'HOSE')} className="hover:bg-[#F0F9FF] cursor-pointer">
+                                            <td className="px-2 py-1.5 font-semibold text-[#1E3A5F] whitespace-nowrap text-xs">{r.symbol}</td>
+                                            <td className="px-2 py-1.5 text-right font-mono text-[#6B7280] text-xs">{fmt(r.refPrice)}</td>
+                                            <td className="px-2 py-1.5 text-right font-mono text-xs">{fmt(r.price)}</td>
+                                            <td className="px-2 py-1.5 text-right font-mono text-[#6B7280] text-xs">{fmtVol(r.volume)}</td>
+                                            <td className="px-2 py-1.5 text-right font-mono text-[#6B7280] text-xs">{fmtVol(r.value)}</td>
+                                            <td className="px-2 py-1.5 text-right font-mono text-[#6B7280] text-xs">{r.time || '—'}</td>
+                                          </tr>
+                                        ));
+                                      })()}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                              {/* Chào bán */}
+                              <div className="rounded-lg border border-[#E5E7EB] bg-white overflow-hidden flex flex-col min-h-0">
+                                <div className="px-3 py-2 bg-[#F9FAFB] border-b border-[#E5E7EB] font-semibold text-[#4B5563] text-sm shrink-0">Chào bán</div>
+                                <div className="flex-1 min-h-0 overflow-auto">
+                                  <table className="w-full text-left border-collapse text-sm">
+                                    <thead className="bg-[#F3F4F6] text-[#4B5563] text-[10px] uppercase font-semibold border-b border-[#E5E7EB] sticky top-0 z-10">
+                                      <tr>
+                                        <th className="px-2 py-1.5 whitespace-nowrap">Mã CK</th>
+                                        <th className="px-2 py-1.5 text-right whitespace-nowrap">Giá</th>
+                                        <th className="px-2 py-1.5 text-right whitespace-nowrap">KL</th>
+                                        <th className="px-2 py-1.5 text-right whitespace-nowrap">Thời gian</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="text-[#374151] divide-y divide-[#E5E7EB]">
+                                      {loadingIndexDetail && ptAskList.length === 0 ? (
+                                        <tr><td colSpan={4} className="px-3 py-8 text-center text-[#6B7280] text-xs">Đang tải dữ liệu...</td></tr>
+                                      ) : ptAskList.length === 0 ? (
+                                        <tr><td colSpan={4} className="px-3 py-8 text-center text-[#6B7280] text-xs">Hiện tại không có dữ liệu.</td></tr>
+                                      ) : ptAskList.slice(0, 200).map((r: any, i: number) => {
+                                        const fmt = (v: number | null | undefined, scale = 1) => v != null && Number.isFinite(v) ? (v * scale).toLocaleString('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : '—';
+                                        const fmtVol = (v: number | null | undefined) => v != null && Number.isFinite(v) ? Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 0 }) : '—';
+                                        return (
+                                          <tr key={`ask-${r.symbol}-${i}`} onClick={() => handleStockClick(r.symbol, ptMarketCode || 'HOSE')} className="hover:bg-[#F0F9FF] cursor-pointer">
+                                            <td className="px-2 py-1.5 font-medium text-[#1E3A5F] whitespace-nowrap text-xs">{r.symbol}</td>
+                                            <td className="px-2 py-1.5 text-right font-mono text-xs">{fmt(r.price)}</td>
+                                            <td className="px-2 py-1.5 text-right font-mono text-[#6B7280] text-xs">{fmtVol(r.volume)}</td>
+                                            <td className="px-2 py-1.5 text-right font-mono text-[#6B7280] text-xs">{r.time || '—'}</td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                          <table className="w-full text-left border-collapse text-sm">
+                            {isBondView ? (
+                              <>
+                                <thead className="bg-[#F9FAFB] text-[#4B5563] text-[10px] uppercase font-semibold border-b border-[#E5E7EB] sticky top-0 z-10">
+                                  <tr>
+                                    <th className="px-3 py-2.5 whitespace-nowrap">Mã TP</th>
+                                    <th className="px-3 py-2.5 whitespace-nowrap">Tên / Ký hiệu</th>
+                                    <th className="px-3 py-2.5 text-right whitespace-nowrap">Lãi suất (%)</th>
+                                    <th className="px-3 py-2.5 text-right whitespace-nowrap">Ngày đáo hạn</th>
+                                    <th className="px-3 py-2.5 text-right whitespace-nowrap">Giá</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="text-[#374151] divide-y divide-[#E5E7EB]">
+                                  {loadingIndexDetail && indexDetailList.length === 0 ? (
+                                    <tr><td colSpan={5} className="px-4 py-12 text-center text-[#6B7280]">Đang tải dữ liệu...</td></tr>
+                                  ) : (() => {
+                                    const search = indexSearch.trim().toUpperCase();
+                                    const filtered = search ? indexDetailList.filter((r: any) => (r.symbol || r.bondCode || '').toUpperCase().includes(search)) : indexDetailList;
+                                    if (filtered.length === 0) return <tr><td colSpan={5} className="px-4 py-12 text-center text-[#6B7280]">Chưa có dữ liệu.</td></tr>;
+                                    return filtered.slice(0, 200).map((r: any) => {
+                                      const sym = r.symbol ?? r.bondCode ?? r.code ?? '—';
+                                      return (
+                                        <tr key={sym} onClick={() => setBondDetailSymbol(sym)} className="hover:bg-[#F0F9FF] cursor-pointer">
+                                          <td className="px-3 py-2 font-semibold text-[#1E3A5F] whitespace-nowrap">{sym}</td>
+                                          <td className="px-3 py-2 text-[#374151]">{r.bondName ?? r.name ?? r.issuerName ?? '—'}</td>
+                                          <td className="px-3 py-2 text-right font-mono">{r.couponRate ?? r.interestRate ?? r.laiSuat ?? '—'}</td>
+                                          <td className="px-3 py-2 text-right font-mono text-[#6B7280]">{r.maturityDate ?? r.dueDate ?? r.ngayDaoHan ?? '—'}</td>
+                                          <td className="px-3 py-2 text-right font-mono">{r.lastPrice ?? r.price ?? r.gia ?? '—'}</td>
+                                        </tr>
+                                      );
+                                    });
+                                  })()}
+                                </tbody>
+                              </>
+                            ) : (
+                              <>
+                                <thead className="bg-[#F9FAFB] text-[#4B5563] text-[10px] uppercase font-semibold border-b border-[#E5E7EB] sticky top-0 z-10">
+                                  <tr>
+                                    <th className="px-3 py-2.5 whitespace-nowrap">Mã CK</th>
+                                    <th className="px-3 py-2.5 text-right whitespace-nowrap">TC</th>
+                                    <th className="px-3 py-2.5 text-right whitespace-nowrap">Trần</th>
+                                    <th className="px-3 py-2.5 text-right whitespace-nowrap">Sàn</th>
+                                    <th colSpan={6} className="px-3 py-2.5 text-center border-l border-[#E5E7EB]">Mua</th>
+                                    <th colSpan={4} className="px-3 py-2.5 text-center border-l border-[#E5E7EB]">Khớp lệnh</th>
+                                    <th colSpan={6} className="px-3 py-2.5 text-center border-l border-[#E5E7EB]">Bán</th>
+                                    <th colSpan={3} className="px-3 py-2.5 text-center border-l border-[#E5E7EB]">Giá GD</th>
+                                  </tr>
+                                  <tr className="bg-[#F3F4F6] text-[9px] text-[#6B7280]">
+                                    <th className="px-3 py-1.5" />
+                                    <th className="px-3 py-1.5 text-right" />
+                                    <th className="px-3 py-1.5 text-right" />
+                                    <th className="px-3 py-1.5 text-right" />
+                                    <th className="px-3 py-1.5 text-right border-l border-[#E5E7EB]">Giá 3</th>
+                                    <th className="px-3 py-1.5 text-right">KL 3</th>
+                                    <th className="px-3 py-1.5 text-right">Giá 2</th>
+                                    <th className="px-3 py-1.5 text-right">KL 2</th>
+                                    <th className="px-3 py-1.5 text-right">Giá 1</th>
+                                    <th className="px-3 py-1.5 text-right">KL 1</th>
+                                    <th className="px-3 py-1.5 text-right border-l border-[#E5E7EB]">Giá</th>
+                                    <th className="px-3 py-1.5 text-right">KL</th>
+                                    <th className="px-3 py-1.5 text-right">+/-</th>
+                                    <th className="px-3 py-1.5 text-right">%</th>
+                                    <th className="px-3 py-1.5 text-right border-l border-[#E5E7EB]">Giá 1</th>
+                                    <th className="px-3 py-1.5 text-right">KL 1</th>
+                                    <th className="px-3 py-1.5 text-right">Giá 2</th>
+                                    <th className="px-3 py-1.5 text-right">KL 2</th>
+                                    <th className="px-3 py-1.5 text-right">Giá 3</th>
+                                    <th className="px-3 py-1.5 text-right">KL 3</th>
+                                    <th className="px-3 py-1.5 text-right border-l border-[#E5E7EB]">Tổng KL</th>
+                                    <th className="px-3 py-1.5 text-right">Cao</th>
+                                    <th className="px-3 py-1.5 text-right">TB</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="text-[#374151] divide-y divide-[#E5E7EB]">
+                                  {loadingIndexDetail && indexDetailList.length === 0 ? (
+                                    <tr><td colSpan={20} className="px-4 py-12 text-center text-[#6B7280]">Đang tải dữ liệu...</td></tr>
+                                  ) : (() => {
+                                    const search = indexSearch.trim().toUpperCase();
+                                    const filtered = search ? indexDetailList.filter((r: any) => (r.symbol || '').toUpperCase().includes(search)) : indexDetailList;
+                                    if (filtered.length === 0) return <tr><td colSpan={20} className="px-4 py-12 text-center text-[#6B7280]">Chưa có dữ liệu.</td></tr>;
+                                    const fmt = (v: number | null | undefined, scale = 1) => v != null && Number.isFinite(v) ? (v * scale).toLocaleString('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : '—';
+                                    const fmtVol = (v: number | null | undefined) => v != null && Number.isFinite(v) ? Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 0 }) : '—';
+                                    const chgCls = (ch: number | null | undefined) => ch == null || ch === 0 ? 'text-[#374151]' : ch > 0 ? 'text-[#0B6E4B]' : 'text-[#A63D3D]';
+                                    return filtered.slice(0, 200).map((r: any) => {
+                                      const matchPrice = r.matchPrice;
+                                      const change = r.change;
+                                      const pct = r.percentChange;
+                                      const isCeiling = r.tran != null && matchPrice != null && matchPrice >= r.tran;
+                                      const isFloor = r.san != null && matchPrice != null && matchPrice <= r.san;
+                                      return (
+                                        <tr key={`${r.symbol}-${r.exchange}`} onClick={() => handleStockClick(r.symbol, r.exchange || 'HOSE')} className={`hover:bg-[#F0F9FF] cursor-pointer ${selectedSymbol === r.symbol ? 'bg-[#EFF6FF] ring-inset ring-1 ring-[#1E3A5F]/20' : ''}`}>
+                                          <td className="px-3 py-2 font-semibold text-[#1E3A5F] whitespace-nowrap">{r.symbol}</td>
+                                          <td className="px-3 py-2 text-right font-mono text-[#374151]">{fmt(r.tc)}</td>
+                                          <td className="px-3 py-2 text-right font-mono text-[#7C3AED]">{fmt(r.tran)}</td>
+                                          <td className="px-3 py-2 text-right font-mono text-[#0369A1]">{fmt(r.san)}</td>
+                                          <td className="px-3 py-2 text-right font-mono border-l border-[#E5E7EB] text-[#4B5563]">{fmt(r.gia3)}</td>
+                                          <td className="px-3 py-2 text-right font-mono text-[#6B7280]">{fmtVol(r.kl3)}</td>
+                                          <td className="px-3 py-2 text-right font-mono text-[#4B5563]">{fmt(r.gia2)}</td>
+                                          <td className="px-3 py-2 text-right font-mono text-[#6B7280]">{fmtVol(r.kl2)}</td>
+                                          <td className="px-3 py-2 text-right font-mono text-[#4B5563]">{fmt(r.gia1)}</td>
+                                          <td className="px-3 py-2 text-right font-mono text-[#6B7280]">{fmtVol(r.kl1)}</td>
+                                          <td className={`px-3 py-2 text-right font-mono font-semibold border-l border-[#E5E7EB] ${isCeiling ? 'text-[#7C3AED] bg-[#F5F3FF]' : isFloor ? 'text-[#0369A1] bg-[#E0F2FE]' : change != null && change > 0 ? 'text-[#0B6E4B] bg-[#ECFDF5]' : change != null && change < 0 ? 'text-[#A63D3D] bg-[#FEF2F2]' : 'text-[#374151] bg-[#F3F4F6]'}`}>{fmt(matchPrice)}</td>
+                                          <td className="px-3 py-2 text-right font-mono text-[#6B7280]">{fmtVol(r.matchVolume)}</td>
+                                          <td className={`px-3 py-2 text-right font-mono ${chgCls(change)}`}>{change != null ? (change >= 0 ? '+' : '') + fmt(change) : '—'}</td>
+                                          <td className={`px-3 py-2 text-right font-mono ${chgCls(pct)}`}>{pct != null ? (pct >= 0 ? '+' : '') + fmt(pct, 1) + '%' : '—'}</td>
+                                          <td className="px-3 py-2 text-right font-mono border-l border-[#E5E7EB] text-[#4B5563]">{fmt(r.askPrice1)}</td>
+                                          <td className="px-3 py-2 text-right font-mono text-[#6B7280]">{fmtVol(r.askVol1)}</td>
+                                          <td className="px-3 py-2 text-right font-mono text-[#4B5563]">{fmt(r.askPrice2)}</td>
+                                          <td className="px-3 py-2 text-right font-mono text-[#6B7280]">{fmtVol(r.askVol2)}</td>
+                                          <td className="px-3 py-2 text-right font-mono text-[#4B5563]">{fmt(r.askPrice3)}</td>
+                                          <td className="px-3 py-2 text-right font-mono text-[#6B7280]">{fmtVol(r.askVol3)}</td>
+                                          <td className="px-3 py-2 text-right font-mono border-l border-[#E5E7EB] text-[#6B7280]">{fmtVol(r.totalVolume)}</td>
+                                          <td className="px-3 py-2 text-right font-mono text-[#4B5563]">{fmt(r.high)}</td>
+                                          <td className="px-3 py-2 text-right font-mono text-[#4B5563]">{fmt(r.average)}</td>
+                                        </tr>
+                                      );
+                                    });
+                                  })()}
+                                </tbody>
+                              </>
+                            )}
+                          </table>
+                          )}
+                        </div>
+                        <div className="px-4 py-2.5 border-t border-slate-200 bg-slate-50 text-xs text-slate-600 shrink-0">
+                          {isBondView ? `${indexDetailList.length} trái phiếu • Click hàng để xem chi tiết` : isCWView ? `${indexDetailList.length} chứng quyền • Click hàng để xem biểu đồ` : isEFView ? `${indexDetailList.length} ETF • Click hàng để xem biểu đồ` : isIndustryView ? `${indexDetailList.length} mã • Ngành: ${industryName} • Click hàng để xem biểu đồ` : isPTView ? `${indexDetailList.length} khớp lệnh thoả thuận (${ptMarketCode}) • Click hàng để xem biểu đồ` : isOddLotView ? `${indexDetailList.length} mã lô lẻ (${oddLotMarketCode}) • Click hàng để xem biểu đồ` : isFUView ? `${indexDetailList.length} phái sinh (${fuStockType}) • Click hàng để xem biểu đồ` : `${indexDetailList.length} mã • Index: ${indexCodes.join(', ') || 'VNXALL'} • Click hàng để xem biểu đồ`}
+                        </div>
+                      </div>
+                    </div>,
+                    document.body
+                  )}
+                  {!marketTableFullscreen && (
+                  <div className="rounded-xl overflow-hidden bg-white border border-slate-200 shadow-sm min-w-0 w-full">
+                    <div className="overflow-x-auto overflow-y-auto max-h-[420px] sm:max-h-[520px] w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+                      {isPTView ? (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3">
+                          <div className="rounded-lg border border-[#E5E7EB] bg-white overflow-hidden">
+                            <div className="px-3 py-2 bg-[#F9FAFB] border-b border-[#E5E7EB] font-semibold text-[#4B5563] text-sm">Chào mua</div>
+                            <div className="overflow-auto max-h-[400px]">
+                              <table className="w-full text-left border-collapse text-sm">
+                                <thead className="bg-[#F3F4F6] text-[#4B5563] text-[10px] uppercase font-semibold sticky top-0"><tr><th className="px-2 py-1.5">Mã CK</th><th className="px-2 py-1.5 text-right">Giá</th><th className="px-2 py-1.5 text-right">KL</th><th className="px-2 py-1.5 text-right">Thời gian</th></tr></thead>
+                                <tbody className="text-[#374151] divide-y divide-[#E5E7EB]">
+                                  {loadingIndexDetail && ptBidList.length === 0 ? <tr><td colSpan={4} className="px-3 py-6 text-center text-[#6B7280] text-xs">Đang tải...</td></tr> : ptBidList.length === 0 ? <tr><td colSpan={4} className="px-3 py-6 text-center text-[#6B7280] text-xs">Hiện tại không có dữ liệu.</td></tr> : ptBidList.slice(0, 200).map((r: any, i: number) => {
+                                    const fmt = (v: number | null | undefined, s = 1) => v != null && Number.isFinite(v) ? (v * s).toLocaleString('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : '—';
+                                    const fmtV = (v: number | null | undefined) => v != null && Number.isFinite(v) ? Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 0 }) : '—';
+                                    return <tr key={`b-${r.symbol}-${i}`} onClick={() => handleStockClick(r.symbol, ptMarketCode || 'HOSE')} className="hover:bg-[#F0F9FF] cursor-pointer"><td className="px-2 py-1.5 font-medium text-[#1E3A5F] text-xs">{r.symbol}</td><td className="px-2 py-1.5 text-right font-mono text-xs">{fmt(r.price)}</td><td className="px-2 py-1.5 text-right font-mono text-[#6B7280] text-xs">{fmtV(r.volume)}</td><td className="px-2 py-1.5 text-right font-mono text-[#6B7280] text-xs">{r.time || '—'}</td></tr>;
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                          <div className="rounded-lg border border-[#E5E7EB] bg-white overflow-hidden">
+                            <div className="px-3 py-2 bg-[#F9FAFB] border-b border-[#E5E7EB] font-semibold text-[#4B5563] text-sm">Khớp lệnh</div>
+                            <div className="overflow-auto max-h-[400px]">
+                              <table className="w-full text-left border-collapse text-sm">
+                                <thead className="bg-[#F3F4F6] text-[#4B5563] text-[10px] uppercase font-semibold sticky top-0"><tr><th className="px-2 py-1.5">Mã CK</th><th className="px-2 py-1.5 text-right">Tham chiếu</th><th className="px-2 py-1.5 text-right">Giá</th><th className="px-2 py-1.5 text-right">KL</th><th className="px-2 py-1.5 text-right">Giá trị</th><th className="px-2 py-1.5 text-right">Thời gian</th></tr></thead>
+                                <tbody className="text-[#374151] divide-y divide-[#E5E7EB]">
+                                  {loadingIndexDetail && indexDetailList.length === 0 ? <tr><td colSpan={6} className="px-3 py-6 text-center text-[#6B7280] text-xs">Đang tải...</td></tr> : (() => {
+                                    const filtered = indexSearch.trim() ? indexDetailList.filter((r: any) => (r.symbol || '').toUpperCase().includes(indexSearch.trim().toUpperCase())) : indexDetailList;
+                                    if (filtered.length === 0) return <tr><td colSpan={6} className="px-3 py-6 text-center text-[#6B7280] text-xs">Hiện tại không có dữ liệu.</td></tr>;
+                                    const fmt = (v: number | null | undefined, s = 1) => v != null && Number.isFinite(v) ? (v * s).toLocaleString('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : '—';
+                                    const fmtV = (v: number | null | undefined) => v != null && Number.isFinite(v) ? Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 0 }) : '—';
+                                    return filtered.slice(0, 500).map((r: any, i: number) => <tr key={`m-${r.symbol}-${i}`} onClick={() => handleStockClick(r.symbol, ptMarketCode || 'HOSE')} className="hover:bg-[#F0F9FF] cursor-pointer"><td className="px-2 py-1.5 font-semibold text-[#1E3A5F] text-xs">{r.symbol}</td><td className="px-2 py-1.5 text-right font-mono text-[#6B7280] text-xs">{fmt(r.refPrice)}</td><td className="px-2 py-1.5 text-right font-mono text-xs">{fmt(r.price)}</td><td className="px-2 py-1.5 text-right font-mono text-[#6B7280] text-xs">{fmtV(r.volume)}</td><td className="px-2 py-1.5 text-right font-mono text-[#6B7280] text-xs">{fmtV(r.value)}</td><td className="px-2 py-1.5 text-right font-mono text-[#6B7280] text-xs">{r.time || '—'}</td></tr>);
+                                  })()}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                          <div className="rounded-lg border border-[#E5E7EB] bg-white overflow-hidden">
+                            <div className="px-3 py-2 bg-[#F9FAFB] border-b border-[#E5E7EB] font-semibold text-[#4B5563] text-sm">Chào bán</div>
+                            <div className="overflow-auto max-h-[400px]">
+                              <table className="w-full text-left border-collapse text-sm">
+                                <thead className="bg-[#F3F4F6] text-[#4B5563] text-[10px] uppercase font-semibold sticky top-0"><tr><th className="px-2 py-1.5">Mã CK</th><th className="px-2 py-1.5 text-right">Giá</th><th className="px-2 py-1.5 text-right">KL</th><th className="px-2 py-1.5 text-right">Thời gian</th></tr></thead>
+                                <tbody className="text-[#374151] divide-y divide-[#E5E7EB]">
+                                  {loadingIndexDetail && ptAskList.length === 0 ? <tr><td colSpan={4} className="px-3 py-6 text-center text-[#6B7280] text-xs">Đang tải...</td></tr> : ptAskList.length === 0 ? <tr><td colSpan={4} className="px-3 py-6 text-center text-[#6B7280] text-xs">Hiện tại không có dữ liệu.</td></tr> : ptAskList.slice(0, 200).map((r: any, i: number) => {
+                                    const fmt = (v: number | null | undefined, s = 1) => v != null && Number.isFinite(v) ? (v * s).toLocaleString('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : '—';
+                                    const fmtV = (v: number | null | undefined) => v != null && Number.isFinite(v) ? Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 0 }) : '—';
+                                    return <tr key={`a-${r.symbol}-${i}`} onClick={() => handleStockClick(r.symbol, ptMarketCode || 'HOSE')} className="hover:bg-[#F0F9FF] cursor-pointer"><td className="px-2 py-1.5 font-medium text-[#1E3A5F] text-xs">{r.symbol}</td><td className="px-2 py-1.5 text-right font-mono text-xs">{fmt(r.price)}</td><td className="px-2 py-1.5 text-right font-mono text-[#6B7280] text-xs">{fmtV(r.volume)}</td><td className="px-2 py-1.5 text-right font-mono text-[#6B7280] text-xs">{r.time || '—'}</td></tr>;
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                      <table className="w-full text-left border-collapse text-sm">
+                        {isBondView ? (
+                          <>
+                            <thead className="bg-[#F9FAFB] text-[#4B5563] text-[10px] uppercase font-semibold border-b border-[#E5E7EB] sticky top-0 z-10">
+                              <tr>
+                                <th className="px-3 py-2.5 whitespace-nowrap">Mã TP</th>
+                                <th className="px-3 py-2.5 whitespace-nowrap">Tên / Ký hiệu</th>
+                                <th className="px-3 py-2.5 text-right whitespace-nowrap">Lãi suất (%)</th>
+                                <th className="px-3 py-2.5 text-right whitespace-nowrap">Ngày đáo hạn</th>
+                                <th className="px-3 py-2.5 text-right whitespace-nowrap">Giá</th>
+                              </tr>
+                            </thead>
+                            <tbody className="text-[#374151] divide-y divide-[#E5E7EB]">
+                              {loadingIndexDetail && indexDetailList.length === 0 ? (
+                                <tr><td colSpan={5} className="px-4 py-12 text-center text-[#6B7280]">Đang tải dữ liệu...</td></tr>
+                              ) : (() => {
+                                const search = indexSearch.trim().toUpperCase();
+                                const filtered = search ? indexDetailList.filter((r: any) => (r.symbol || r.bondCode || '').toUpperCase().includes(search)) : indexDetailList;
+                                if (filtered.length === 0) return <tr><td colSpan={5} className="px-4 py-12 text-center text-[#6B7280]">Chưa có dữ liệu. Thử đổi index hoặc kiểm tra API.</td></tr>;
+                                return filtered.slice(0, 200).map((r: any) => {
+                                  const sym = r.symbol ?? r.bondCode ?? r.code ?? '—';
+                                  return (
+                                    <tr key={sym} onClick={() => setBondDetailSymbol(sym)} className="hover:bg-[#F0F9FF] cursor-pointer transition-colors">
+                                      <td className="px-3 py-2 font-semibold text-[#1E3A5F] whitespace-nowrap">{sym}</td>
+                                      <td className="px-3 py-2 text-[#374151]">{r.bondName ?? r.name ?? r.issuerName ?? '—'}</td>
+                                      <td className="px-3 py-2 text-right font-mono">{r.couponRate ?? r.interestRate ?? r.laiSuat ?? '—'}</td>
+                                      <td className="px-3 py-2 text-right font-mono text-[#6B7280]">{r.maturityDate ?? r.dueDate ?? r.ngayDaoHan ?? '—'}</td>
+                                      <td className="px-3 py-2 text-right font-mono">{r.lastPrice ?? r.price ?? r.gia ?? '—'}</td>
+                                    </tr>
+                                  );
+                                });
+                              })()}
+                            </tbody>
+                          </>
+                        ) : (
+                          <>
+                            <thead className="bg-[#F9FAFB] text-[#4B5563] text-[10px] uppercase font-semibold border-b border-[#E5E7EB] sticky top-0 z-10">
+                              <tr>
+                                <th className="px-3 py-2.5 whitespace-nowrap">Mã CK</th>
+                                <th className="px-3 py-2.5 text-right whitespace-nowrap">TC</th>
+                                <th className="px-3 py-2.5 text-right whitespace-nowrap">Trần</th>
+                                <th className="px-3 py-2.5 text-right whitespace-nowrap">Sàn</th>
+                                <th colSpan={6} className="px-3 py-2.5 text-center border-l border-[#E5E7EB]">Mua</th>
+                                <th colSpan={4} className="px-3 py-2.5 text-center border-l border-[#E5E7EB]">Khớp lệnh</th>
+                                <th colSpan={6} className="px-3 py-2.5 text-center border-l border-[#E5E7EB]">Bán</th>
+                                <th colSpan={3} className="px-3 py-2.5 text-center border-l border-[#E5E7EB]">Giá GD</th>
+                              </tr>
+                              <tr className="bg-[#F3F4F6] text-[9px] text-[#6B7280]">
+                                <th className="px-3 py-1.5" />
+                                <th className="px-3 py-1.5 text-right" />
+                                <th className="px-3 py-1.5 text-right" />
+                                <th className="px-3 py-1.5 text-right" />
+                                <th className="px-3 py-1.5 text-right border-l border-[#E5E7EB]">Giá 3</th>
+                                <th className="px-3 py-1.5 text-right">KL 3</th>
+                                <th className="px-3 py-1.5 text-right">Giá 2</th>
+                                <th className="px-3 py-1.5 text-right">KL 2</th>
+                                <th className="px-3 py-1.5 text-right">Giá 1</th>
+                                <th className="px-3 py-1.5 text-right">KL 1</th>
+                                <th className="px-3 py-1.5 text-right border-l border-[#E5E7EB]">Giá</th>
+                                <th className="px-3 py-1.5 text-right">KL</th>
+                                <th className="px-3 py-1.5 text-right">+/-</th>
+                                <th className="px-3 py-1.5 text-right">%</th>
+                                <th className="px-3 py-1.5 text-right border-l border-[#E5E7EB]">Giá 1</th>
+                                <th className="px-3 py-1.5 text-right">KL 1</th>
+                                <th className="px-3 py-1.5 text-right">Giá 2</th>
+                                <th className="px-3 py-1.5 text-right">KL 2</th>
+                                <th className="px-3 py-1.5 text-right">Giá 3</th>
+                                <th className="px-3 py-1.5 text-right">KL 3</th>
+                                <th className="px-3 py-1.5 text-right border-l border-[#E5E7EB]">Tổng KL</th>
+                                <th className="px-3 py-1.5 text-right">Cao</th>
+                                <th className="px-3 py-1.5 text-right">TB</th>
+                              </tr>
+                            </thead>
+                            <tbody className="text-[#374151] divide-y divide-[#E5E7EB]">
+                              {loadingIndexDetail && indexDetailList.length === 0 ? (
+                                <tr><td colSpan={20} className="px-4 py-12 text-center text-[#6B7280]">Đang tải dữ liệu...</td></tr>
+                              ) : (() => {
+                                const search = indexSearch.trim().toUpperCase();
+                                const filtered = search ? indexDetailList.filter((r: any) => (r.symbol || '').toUpperCase().includes(search)) : indexDetailList;
+                                if (filtered.length === 0) return <tr><td colSpan={20} className="px-4 py-12 text-center text-[#6B7280]">Chưa có dữ liệu. Thử đổi index hoặc kiểm tra API.</td></tr>;
+                                const fmt = (v: number | null | undefined, scale = 1) => v != null && Number.isFinite(v) ? (v * scale).toLocaleString('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : '—';
+                                const fmtVol = (v: number | null | undefined) => v != null && Number.isFinite(v) ? Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 0 }) : '—';
+                                const chgCls = (ch: number | null | undefined) => ch == null || ch === 0 ? 'text-[#374151]' : ch > 0 ? 'text-[#0B6E4B]' : 'text-[#A63D3D]';
+                                return filtered.slice(0, 200).map((r: any) => {
+                                  const ref = r.tc;
+                                  const matchPrice = r.matchPrice;
+                                  const change = r.change;
+                                  const pct = r.percentChange;
+                                  const isCeiling = r.tran != null && matchPrice != null && matchPrice >= r.tran;
+                                  const isFloor = r.san != null && matchPrice != null && matchPrice <= r.san;
+                                  return (
+                                    <tr key={`${r.symbol}-${r.exchange}`} onClick={() => handleStockClick(r.symbol, r.exchange || 'HOSE')} className={`hover:bg-[#F0F9FF] cursor-pointer transition-colors ${selectedSymbol === r.symbol ? 'bg-[#EFF6FF] ring-inset ring-1 ring-[#1E3A5F]/20' : ''}`}>
+                                      <td className="px-3 py-2 font-semibold text-[#1E3A5F] whitespace-nowrap">{r.symbol}</td>
+                                      <td className="px-3 py-2 text-right font-mono text-[#374151]">{fmt(ref)}</td>
+                                      <td className="px-3 py-2 text-right font-mono text-[#7C3AED]">{fmt(r.tran)}</td>
+                                      <td className="px-3 py-2 text-right font-mono text-[#0369A1]">{fmt(r.san)}</td>
+                                      <td className="px-3 py-2 text-right font-mono border-l border-[#E5E7EB] text-[#4B5563]">{fmt(r.gia3)}</td>
+                                      <td className="px-3 py-2 text-right font-mono text-[#6B7280]">{fmtVol(r.kl3)}</td>
+                                      <td className="px-3 py-2 text-right font-mono text-[#4B5563]">{fmt(r.gia2)}</td>
+                                      <td className="px-3 py-2 text-right font-mono text-[#6B7280]">{fmtVol(r.kl2)}</td>
+                                      <td className="px-3 py-2 text-right font-mono text-[#4B5563]">{fmt(r.gia1)}</td>
+                                      <td className="px-3 py-2 text-right font-mono text-[#6B7280]">{fmtVol(r.kl1)}</td>
+                                      <td className={`px-3 py-2 text-right font-mono font-semibold border-l border-[#E5E7EB] ${isCeiling ? 'text-[#7C3AED] bg-[#F5F3FF]' : isFloor ? 'text-[#0369A1] bg-[#E0F2FE]' : change != null && change > 0 ? 'text-[#0B6E4B] bg-[#ECFDF5]' : change != null && change < 0 ? 'text-[#A63D3D] bg-[#FEF2F2]' : 'text-[#374151] bg-[#F3F4F6]'}`}>{fmt(matchPrice)}</td>
+                                      <td className="px-3 py-2 text-right font-mono text-[#6B7280]">{fmtVol(r.matchVolume)}</td>
+                                      <td className={`px-3 py-2 text-right font-mono ${chgCls(change)}`}>{change != null ? (change >= 0 ? '+' : '') + fmt(change) : '—'}</td>
+                                      <td className={`px-3 py-2 text-right font-mono ${chgCls(pct)}`}>{pct != null ? (pct >= 0 ? '+' : '') + fmt(pct, 1) + '%' : '—'}</td>
+                                      <td className="px-3 py-2 text-right font-mono border-l border-[#E5E7EB] text-[#4B5563]">{fmt(r.askPrice1)}</td>
+                                      <td className="px-3 py-2 text-right font-mono text-[#6B7280]">{fmtVol(r.askVol1)}</td>
+                                      <td className="px-3 py-2 text-right font-mono text-[#4B5563]">{fmt(r.askPrice2)}</td>
+                                      <td className="px-3 py-2 text-right font-mono text-[#6B7280]">{fmtVol(r.askVol2)}</td>
+                                      <td className="px-3 py-2 text-right font-mono text-[#4B5563]">{fmt(r.askPrice3)}</td>
+                                      <td className="px-3 py-2 text-right font-mono text-[#6B7280]">{fmtVol(r.askVol3)}</td>
+                                      <td className="px-3 py-2 text-right font-mono border-l border-[#E5E7EB] text-[#6B7280]">{fmtVol(r.totalVolume)}</td>
+                                      <td className="px-3 py-2 text-right font-mono text-[#4B5563]">{fmt(r.high)}</td>
+                                      <td className="px-3 py-2 text-right font-mono text-[#4B5563]">{fmt(r.average)}</td>
+                                    </tr>
+                                  );
+                                });
+                              })()}
+                            </tbody>
+                          </>
+                        )}
+                      </table>
+                      )}
+                    </div>
+                    <div className="px-3 sm:px-4 py-2.5 border-t border-slate-200 bg-slate-50 text-xs text-slate-600 flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span>{isBondView ? `${indexDetailList.length} trái phiếu • Click hàng để xem chi tiết` : isCWView ? `${indexDetailList.length} chứng quyền • Click hàng để xem biểu đồ` : isEFView ? `${indexDetailList.length} ETF • Click hàng để xem biểu đồ` : isIndustryView ? `${indexDetailList.length} mã • Ngành: ${industryName} • Click hàng để xem biểu đồ` : isPTView ? `${indexDetailList.length} khớp lệnh thoả thuận (${ptMarketCode}) • Click hàng để xem biểu đồ` : isOddLotView ? `${indexDetailList.length} mã lô lẻ (${oddLotMarketCode}) • Click hàng để xem biểu đồ` : isFUView ? `${indexDetailList.length} phái sinh (${fuStockType}) • Click hàng để xem biểu đồ` : `${indexDetailList.length} mã • Index: ${indexCodes.join(', ') || 'VNXALL'} • Click hàng để xem biểu đồ`}</span>
+                      <span className="text-slate-400 sm:hidden">• Kéo ngang để xem thêm cột</span>
+                    </div>
+                  </div>
+                )}
                 </>
               }
             />
@@ -2544,23 +3597,23 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
                 <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
                     <div className="group relative overflow-hidden rounded-xl bg-white border border-[#E5E7EB] pl-4 pr-4 py-4 shadow-sm hover:shadow-md hover:border-[#1E3A5F]/20 transition-all duration-200 border-l-4 border-l-[#1E3A5F]">
                         <p className="text-[10px] font-semibold uppercase tracking-widest text-[#6B7280] mb-1">Tổng vốn</p>
-                        <p className="text-xl font-bold text-[#111827] font-mono tabular-nums tracking-tight">{totalBalance.toLocaleString('vi-VN')} ₫</p>
+                        <p className="text-xl font-bold text-[#111827] font-mono tabular-nums tracking-tight">{formatNumberVI(totalBalance)}</p>
                     </div>
                     <div className="group relative overflow-hidden rounded-xl bg-white border border-[#E5E7EB] pl-4 pr-4 py-4 shadow-sm hover:shadow-md hover:border-[#B45309]/30 transition-all duration-200 border-l-4 border-l-[#B45309]">
                         <p className="text-[10px] font-semibold uppercase tracking-widest text-[#6B7280] mb-1">Hạn mức rủi ro</p>
-                        <p className="text-xl font-bold text-[#111827] font-mono tabular-nums tracking-tight">{maxRiskAmount.toLocaleString('vi-VN')} ₫ <span className="text-sm font-semibold text-[#6B7280]">({maxRiskPercent}%)</span></p>
+                        <p className="text-xl font-bold text-[#111827] font-mono tabular-nums tracking-tight">{formatNumberVI(maxRiskAmount)} <span className="text-sm font-semibold text-[#6B7280]">({maxRiskPercent}%)</span></p>
                     </div>
                     <div className="group relative overflow-hidden rounded-xl bg-white border border-[#E5E7EB] pl-4 pr-4 py-4 shadow-sm hover:shadow-md hover:border-[#0B6E4B]/30 transition-all duration-200 border-l-4 border-l-[#0B6E4B]">
                         <p className="text-[10px] font-semibold uppercase tracking-widest text-[#6B7280] mb-1">Lãi kỳ vọng</p>
-                        <p className="text-xl font-bold text-[#111827] font-mono tabular-nums tracking-tight">{expectedReturnPercent}% <span className="text-sm font-medium text-[#6B7280]">≈ {(totalBalance * expectedReturnPercent / 100).toLocaleString('vi-VN')} ₫</span></p>
+                        <p className="text-xl font-bold text-[#111827] font-mono tabular-nums tracking-tight">{expectedReturnPercent}% <span className="text-sm font-medium text-[#6B7280]">≈ {formatNumberVI(totalBalance * expectedReturnPercent / 100)}</span></p>
                     </div>
                     <div className={`group relative overflow-hidden rounded-xl bg-white border pl-4 pr-4 py-4 shadow-sm hover:shadow-md transition-all duration-200 border-l-4 ${riskUsagePercent > 80 ? 'border-[#A63D3D] border-l-[#A63D3D] hover:border-[#A63D3D]/50' : 'border-[#E5E7EB] border-l-[#0B6E4B] hover:border-[#0B6E4B]/30'}`}>
                         <p className="text-[10px] font-semibold uppercase tracking-widest text-[#6B7280] mb-1">Rủi ro hiện tại</p>
-                        <p className="text-xl font-bold text-[#111827] font-mono tabular-nums tracking-tight">{currentRiskUsed.toLocaleString('vi-VN')} ₫</p>
+                        <p className="text-xl font-bold text-[#111827] font-mono tabular-nums tracking-tight">{formatNumberVI(currentRiskUsed)}</p>
                     </div>
                     <div className="group relative overflow-hidden rounded-xl bg-white border border-[#E5E7EB] pl-4 pr-4 py-4 shadow-sm hover:shadow-md hover:border-[#9CA3AF]/30 transition-all duration-200 border-l-4 border-l-[#9CA3AF] opacity-90">
                         <p className="text-[10px] font-semibold uppercase tracking-widest text-[#6B7280] mb-1">Lệnh mở</p>
-                        <p className="text-xl font-bold text-[#111827] font-mono tabular-nums">—</p>
+                        <p className="text-xl font-bold text-[#111827] font-mono tabular-nums">{openPositions.length}</p>
                     </div>
                 </div>
             </div>
@@ -2619,7 +3672,7 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
                         </div>
                         {marketData.length > 0 && (
                             <div className="text-right">
-                                <p className="text-lg font-semibold text-[#111827] font-mono">{marketData[marketData.length - 1].close.toLocaleString('vi-VN')} ₫</p>
+                                <p className="text-lg font-semibold text-[#111827] font-mono">{marketData[marketData.length - 1].close.toLocaleString(PRICE_LOCALE, PRICE_FRACTION_OPTIONS)}</p>
                                 <p className={`text-xs font-semibold ${
                                     marketData[marketData.length - 1]?.close > marketData[marketData.length - 2]?.close ? 'text-[#0B6E4B]' : 'text-[#A63D3D]'
                                 }`}>
@@ -2721,7 +3774,7 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
                             <div>
                                 <div className="flex justify-between text-xs mb-1">
                                     <span className="text-[#6B7280] font-medium">Đã dùng</span>
-                                    <span className="text-[#111827] font-semibold font-mono">{currentRiskUsed.toLocaleString('vi-VN')} ₫</span>
+                                    <span className="text-[#111827] font-semibold font-mono">{formatNumberVI(currentRiskUsed)}</span>
                                 </div>
                                 <div className="h-1.5 w-full bg-[#E5E7EB] rounded-full overflow-hidden">
                                     <div className="h-full bg-[#1E3A5F] rounded-full transition-all duration-300" style={{ width: `${Math.min(chartRiskPercentage, 100)}%` }}></div>
@@ -2730,7 +3783,7 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
                             <div>
                                 <div className="flex justify-between text-xs mb-1">
                                     <span className="text-[#6B7280] font-medium">Khả dụng</span>
-                                    <span className="text-[#0B6E4B] font-semibold font-mono">{availableRisk.toLocaleString('vi-VN')} ₫</span>
+                                    <span className="text-[#0B6E4B] font-semibold font-mono">{formatNumberVI(availableRisk)}</span>
                                 </div>
                                 <div className="h-1.5 w-full bg-[#E5E7EB] rounded-full overflow-hidden">
                                     <div className="h-full bg-[#E5E7EB] rounded-full" style={{ width: '100%' }}></div>
@@ -2741,9 +3794,98 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
                 </div>
             </div>
 
-            {/* Giao dịch / Vị thế đã ngừng */}
-            <div className="card-flat rounded-lg min-h-[200px] flex flex-col items-center justify-center p-8 text-center">
-              <p className="text-[#6B7280] text-sm">Chức năng vị thế (mở/đóng lệnh) đã ngừng.</p>
+            {/* Giao dịch: danh sách + Đặt lệnh */}
+            <div className="card-flat rounded-lg overflow-hidden">
+              <div className="flex justify-between items-center p-4 border-b border-[#E5E7EB]">
+                <h3 className="text-sm font-semibold text-[#111827]">Giao dịch</h3>
+                {portfolio?.id ? (
+                  <button
+                    onClick={() => setShowOpenPositionModal(true)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#1E3A5F] text-white hover:bg-[#1E3A5F]/90 text-sm font-medium transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                    Đặt lệnh
+                  </button>
+                ) : (
+                  <p className="text-[#6B7280] text-xs">Cần cấu hình danh mục để đặt lệnh.</p>
+                )}
+              </div>
+              {!portfolio?.id ? (
+                <div className="p-8 text-center text-[#6B7280] text-sm">Chọn hoặc tạo danh mục ở bước Cấu hình để quản lý giao dịch.</div>
+              ) : loadingPositions ? (
+                <div className="p-8 text-center text-[#6B7280] text-sm">Đang tải danh sách giao dịch...</div>
+              ) : positions.length === 0 ? (
+                <div className="p-8 text-center text-[#6B7280] text-sm">Chưa có giao dịch nào. Bấm &quot;Đặt lệnh&quot; để tạo.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-sm">
+                    <thead className="bg-[#F9FAFB] text-[#6B7280] text-[10px] uppercase font-semibold border-b border-[#E5E7EB]">
+                      <tr>
+                        <th className="px-4 py-3">Mã CK</th>
+                        <th className="px-4 py-3">Sàn</th>
+                        <th className="px-4 py-3 text-right">Giá vào</th>
+                        <th className="px-4 py-3 text-right">Dừng lỗ</th>
+                        <th className="px-4 py-3 text-right">Chốt lời</th>
+                        <th className="px-4 py-3 text-right">KL</th>
+                        <th className="px-4 py-3 text-right">Rủi ro</th>
+                        <th className="px-4 py-3 text-center">Trạng thái</th>
+                        <th className="px-4 py-3 text-center">Hành động</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#E5E7EB] text-[#374151]">
+                      {positions.map((pos) => {
+                        const p = pos as any;
+                        const entry = p.entry_price_points != null ? Number(p.entry_price_points) : Number(pos.entry_price);
+                        const stop = p.stop_loss_points != null ? Number(p.stop_loss_points) : Number(pos.stop_loss);
+                        const tp = p.take_profit_points != null ? Number(p.take_profit_points) : (pos.take_profit != null ? Number(pos.take_profit) : null);
+                        const risk = getPositionRiskVnd(pos);
+                        const isOpen = pos.status === 'OPEN';
+                        return (
+                          <tr key={pos.id} className="hover:bg-[#F9FAFB]">
+                            <td className="px-4 py-2.5 font-semibold text-[#111827]">{pos.symbol}</td>
+                            <td className="px-4 py-2.5 text-[#6B7280]">{pos.exchange}</td>
+                            <td className="px-4 py-2.5 text-right font-mono">{formatPricePoints(entry)}</td>
+                            <td className="px-4 py-2.5 text-right font-mono text-[#A63D3D]">{formatPricePoints(stop)}</td>
+                            <td className="px-4 py-2.5 text-right font-mono text-[#0B6E4B]">{tp != null ? formatPricePoints(tp) : '—'}</td>
+                            <td className="px-4 py-2.5 text-right font-mono">{formatNumberVI(Number(pos.quantity) || 0)}</td>
+                            <td className="px-4 py-2.5 text-right font-mono">{formatNumberVI(risk)}</td>
+                            <td className="px-4 py-2.5 text-center">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                                isOpen ? 'bg-[#DBEAFE] text-[#1E3A5F]' :
+                                pos.status === 'CLOSED_TP' ? 'bg-[#ECFDF5] text-[#0B6E4B]' :
+                                pos.status === 'CLOSED_SL' ? 'bg-[#FEF2F2] text-[#A63D3D]' : 'bg-[#F3F4F6] text-[#6B7280]'
+                              }`}>
+                                {pos.status === 'OPEN' ? 'Mở' : pos.status === 'CLOSED_TP' ? 'Chốt lời' : pos.status === 'CLOSED_SL' ? 'Cắt lỗ' : 'Đóng tay'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5 text-center">
+                              {isOpen && (
+                                <button
+                                  onClick={async () => {
+                                    if (!confirm(`Đóng lệnh ${pos.symbol} theo giá thị trường hiện tại (VPBS)?`)) return;
+                                    try {
+                                      await positionApi.close(portfolio!.id, pos.id, {
+                                        reason: 'CLOSED_MANUAL',
+                                        use_market_price: true,
+                                      });
+                                      await loadPositions();
+                                    } catch (e: any) {
+                                      alert(e?.response?.data?.message || 'Đóng lệnh thất bại.');
+                                    }
+                                  }}
+                                  className="text-[10px] border border-[#A63D3D] text-[#A63D3D] hover:bg-[#A63D3D] hover:text-white px-2 py-1 rounded font-semibold transition-colors"
+                                >
+                                  Đóng
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
           </div>
@@ -2751,19 +3893,6 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
 
         {/* Trang Tin tức - dữ liệu từ CafeF */}
         {currentView === 'market' && <MarketNewsView />}
-
-        {/* Placeholder Settings */}
-        {currentView === 'settings' && (
-           <div className="flex flex-col items-center justify-center h-full text-[#6B7280] animate-fade-in">
-              <div className="w-16 h-16 rounded-lg bg-white border border-[#E5E7EB] flex items-center justify-center mb-5">
-                  <svg className="w-8 h-8 text-[#1E3A5F]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                  </svg>
-              </div>
-              <h2 className="text-base font-semibold text-[#111827] mb-1">Tính năng đang phát triển</h2>
-              <p className="text-sm">Vui lòng quay lại sau.</p>
-           </div>
-        )}
 
       </main>
 

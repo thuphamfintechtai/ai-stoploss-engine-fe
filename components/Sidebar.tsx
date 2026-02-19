@@ -29,12 +29,6 @@ export const Sidebar: React.FC<Props> = ({ currentView, onChangeView, isOpen, on
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125v18.75c0 .621-.504 1.125-1.125 1.125h-3.375m0-3H21m-3.75 3H21m-3.75 3h-3.375m0-3H21" />
       </svg>
     )},
-    { id: 'settings', label: 'Cài Đặt', icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      </svg>
-    )},
   ];
 
   return (
@@ -68,15 +62,15 @@ export const Sidebar: React.FC<Props> = ({ currentView, onChangeView, isOpen, on
         )}
       </button>
 
-      <nav className="flex-1 py-4 space-y-1 overflow-y-auto">
+      <nav className={`flex-1 overflow-y-auto ${isOpen ? 'py-4 space-y-1' : 'py-3 flex flex-col items-center gap-1'}`}>
         {isOpen && <p className="px-4 text-[10px] font-semibold text-[#6B7280] uppercase tracking-wider mb-3">Menu</p>}
         {menuItems.map((item) => (
           <button
             key={item.id}
             onClick={() => onChangeView(item.id)}
             title={!isOpen ? item.label : ''}
-            className={`w-[calc(100%-16px)] mx-2 flex items-center rounded-lg text-sm font-medium transition-colors duration-150 ${
-              isOpen ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'
+            className={`flex items-center rounded-lg text-sm font-medium transition-colors duration-150 ${
+              isOpen ? 'w-[calc(100%-16px)] mx-2 gap-3 px-3 py-2.5' : 'w-9 h-9 min-w-9 min-h-9 justify-center'
             } ${
               currentView === item.id
                 ? 'bg-[#1E3A5F] text-white'
@@ -91,10 +85,14 @@ export const Sidebar: React.FC<Props> = ({ currentView, onChangeView, isOpen, on
         ))}
       </nav>
 
-      {/* User & Logout */}
-      <div className={`p-3 border-t border-[#E5E7EB] ${isOpen ? 'px-4' : 'flex flex-col items-center'}`}>
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-[#F3F4F6] border border-[#E5E7EB] flex items-center justify-center text-[10px] font-semibold text-[#374151] shrink-0">
+      {/* User & Logout — khi thu gọn: cột đều, cùng kích thước ô, căn giữa */}
+      <div
+        className={`shrink-0 border-t border-[#E5E7EB] ${isOpen ? 'p-3 px-4' : 'p-2 flex flex-col items-center gap-2'}`}
+      >
+        <div className={`flex min-w-0 ${isOpen ? 'items-center gap-3' : 'justify-center'}`}>
+          <div
+            className={`rounded-lg bg-[#F3F4F6] border border-[#E5E7EB] flex items-center justify-center text-[10px] font-semibold text-[#374151] shrink-0 ${isOpen ? 'w-8 h-8' : 'w-9 h-9'}`}
+          >
             {initials}
           </div>
           <div className={`min-w-0 transition-all duration-200 ${isOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'}`}>
@@ -109,10 +107,13 @@ export const Sidebar: React.FC<Props> = ({ currentView, onChangeView, isOpen, on
           <button
             type="button"
             onClick={() => onLogout()}
-            className={`mt-2 w-full py-2 rounded-lg border border-[#E5E7EB] text-[#6B7280] hover:bg-[#FEF2F2] hover:text-[#A63D3D] hover:border-[#FECACA] text-xs font-semibold transition-colors ${isOpen ? '' : 'max-w-[40px] mx-auto'}`}
+            title="Đăng xuất"
+            className={`rounded-lg border border-[#E5E7EB] text-[#6B7280] hover:bg-[#FEF2F2] hover:text-[#A63D3D] hover:border-[#FECACA] text-xs font-semibold transition-colors flex items-center justify-center ${
+              isOpen ? 'w-full py-2' : 'w-9 h-9 min-w-[36px] min-h-[36px]'
+            }`}
           >
             {isOpen ? 'Đăng xuất' : (
-              <svg className="w-4 h-4 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
             )}
