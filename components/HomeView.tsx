@@ -122,7 +122,10 @@ export const HomeView: React.FC<Props> = ({ onNavigate, totalBalance, riskUsed, 
           })));
         }
       })
-      .catch(() => setMarketIndexDetailList([]));
+      .catch((e: any) => {
+        if (e?.response?.status !== 503) console.error('Market index detail error:', e);
+        setMarketIndexDetailList([]);
+      });
     const t = setInterval(() => {
       marketApi.getMarketIndexDetail({ indexCode: MARKET_INDEX_DETAIL_CODES })
         .then((res) => {

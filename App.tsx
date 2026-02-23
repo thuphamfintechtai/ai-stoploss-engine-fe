@@ -1434,7 +1434,7 @@ const ChartModal = ({ isOpen, onClose, symbol, exchange, data, loading, stocks, 
                                     className="appearance-none bg-white border border-[#E5E7EB] rounded-lg pl-4 pr-10 py-2.5 text-lg font-bold text-[#111827] hover:border-[#1E3A5F] focus:outline-none focus:border-[#1E3A5F] focus:ring-2 focus:ring-[#1E3A5F]/10 cursor-pointer transition-all"
                                 >
                                     {stocks.map((stock) => (
-                                        <option key={`${stock.symbol}-${stock.exchange}`} value={`${stock.symbol}-${stock.exchange}`}>
+                                        <option key={`${stock.symbol}-${stock.exchange ?? 'NA'}`} value={`${stock.symbol}-${stock.exchange ?? 'NA'}`}>
                                             {stock.symbol} ({stock.exchange})
                                         </option>
                                     ))}
@@ -2685,8 +2685,12 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
         console.warn('No market data available');
         setMarketData([]);
       }
-    } catch (error) {
-      console.error('Load market data error:', error);
+    } catch (error: any) {
+      if (error?.response?.status === 503) {
+        console.warn('Market data temporarily unavailable (data provider may be down).');
+      } else {
+        console.error('Load market data error:', error);
+      }
       setMarketData([]); // Set empty array on error
     }
   }
@@ -2734,8 +2738,12 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
           setPriceChanges({});
         }, 1000);
       }
-    } catch (error) {
-      console.error('Load stocks error:', error);
+    } catch (error: any) {
+      if (error?.code === 'ERR_NETWORK' || error?.message?.includes('Network Error')) {
+        console.warn('Cannot connect to server. Is the backend running at localhost:3000?');
+      } else {
+        console.error('Load stocks error:', error);
+      }
     }
   }
 
@@ -3347,7 +3355,7 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
                                       const isCeiling = r.tran != null && matchPrice != null && matchPrice >= r.tran;
                                       const isFloor = r.san != null && matchPrice != null && matchPrice <= r.san;
                                       return (
-                                        <tr key={`${r.symbol}-${r.exchange}`} onClick={() => handleStockClick(r.symbol, r.exchange || 'HOSE')} className={`hover:bg-[#F0F9FF] cursor-pointer ${selectedSymbol === r.symbol ? 'bg-[#EFF6FF] ring-inset ring-1 ring-[#1E3A5F]/20' : ''}`}>
+                                        <tr key={`${r.symbol}-${r.exchange ?? 'NA'}`} onClick={() => handleStockClick(r.symbol, r.exchange || 'HOSE')} className={`hover:bg-[#F0F9FF] cursor-pointer ${selectedSymbol === r.symbol ? 'bg-[#EFF6FF] ring-inset ring-1 ring-[#1E3A5F]/20' : ''}`}>
                                           <td className="px-3 py-2 font-semibold text-[#1E3A5F] whitespace-nowrap">{r.symbol}</td>
                                           <td className="px-3 py-2 text-right font-mono text-[#374151]">{fmt(r.tc)}</td>
                                           <td className="px-3 py-2 text-right font-mono text-[#7C3AED]">{fmt(r.tran)}</td>
@@ -3533,7 +3541,7 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
                                   const isCeiling = r.tran != null && matchPrice != null && matchPrice >= r.tran;
                                   const isFloor = r.san != null && matchPrice != null && matchPrice <= r.san;
                                   return (
-                                    <tr key={`${r.symbol}-${r.exchange}`} onClick={() => handleStockClick(r.symbol, r.exchange || 'HOSE')} className={`hover:bg-[#F0F9FF] cursor-pointer transition-colors ${selectedSymbol === r.symbol ? 'bg-[#EFF6FF] ring-inset ring-1 ring-[#1E3A5F]/20' : ''}`}>
+                                    <tr key={`${r.symbol}-${r.exchange ?? 'NA'}`} onClick={() => handleStockClick(r.symbol, r.exchange || 'HOSE')} className={`hover:bg-[#F0F9FF] cursor-pointer transition-colors ${selectedSymbol === r.symbol ? 'bg-[#EFF6FF] ring-inset ring-1 ring-[#1E3A5F]/20' : ''}`}>
                                       <td className="px-3 py-2 font-semibold text-[#1E3A5F] whitespace-nowrap">{r.symbol}</td>
                                       <td className="px-3 py-2 text-right font-mono text-[#374151]">{fmt(ref)}</td>
                                       <td className="px-3 py-2 text-right font-mono text-[#7C3AED]">{fmt(r.tran)}</td>
@@ -3656,7 +3664,7 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
                                     className="appearance-none bg-white border border-[#E5E7EB] rounded-lg pl-3 pr-8 py-1.5 text-sm font-semibold text-[#111827] hover:border-[#1E3A5F] focus:outline-none focus:border-[#1E3A5F] focus:ring-1 focus:ring-[#1E3A5F]/10 cursor-pointer transition-all"
                                 >
                                     {stocks.map((stock) => (
-                                        <option key={`${stock.symbol}-${stock.exchange}`} value={`${stock.symbol}-${stock.exchange}`}>
+                                        <option key={`${stock.symbol}-${stock.exchange ?? 'NA'}`} value={`${stock.symbol}-${stock.exchange ?? 'NA'}`}>
                                             {stock.symbol} ({stock.exchange})
                                         </option>
                                     ))}
