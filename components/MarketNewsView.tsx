@@ -54,9 +54,9 @@ export const MarketNewsView: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6 animate-fade-in">
-      <div className="border-b border-[#E5E7EB] pb-4">
-        <h1 className="text-xl font-semibold text-[#111827] tracking-tight">Tin tức thị trường</h1>
-        <p className="text-[#6B7280] text-sm mt-0.5">Nguồn: CafeF (cafef.vn)</p>
+      <div className="border-b border-border-standard pb-4">
+        <h1 className="text-xl font-semibold text-text-main tracking-tight">Tin tức thị trường</h1>
+        <p className="text-text-muted text-sm mt-0.5">Nguồn: CafeF (cafef.vn)</p>
       </div>
 
       <form onSubmit={handleSearch} className="flex gap-2">
@@ -65,11 +65,11 @@ export const MarketNewsView: React.FC = () => {
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           placeholder="Tìm tin (VD: VN30, ngân hàng...)"
-          className="flex-1 px-4 py-2.5 border border-[#E5E7EB] rounded-lg text-sm focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] outline-none"
+          className="flex-1 px-4 py-2.5 border border-border-standard rounded-lg text-sm focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] outline-none"
         />
         <button
           type="submit"
-          className="px-4 py-2.5 rounded-lg bg-[#1E3A5F] hover:bg-[#2C4A6F] text-white text-sm font-medium transition-colors"
+          className="px-4 py-2.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors"
         >
           Tìm kiếm
         </button>
@@ -82,9 +82,9 @@ export const MarketNewsView: React.FC = () => {
       )}
 
       {loading ? (
-        <div className="py-12 text-center text-[#6B7280] text-sm">Đang tải tin tức...</div>
+        <div className="py-12 text-center text-text-muted text-sm">Đang tải tin tức...</div>
       ) : articles.length === 0 ? (
-        <div className="py-12 text-center text-[#6B7280] text-sm">
+        <div className="py-12 text-center text-text-muted text-sm">
           {search ? 'Không có tin nào phù hợp.' : 'Chưa có tin tức.'}
         </div>
       ) : (
@@ -95,13 +95,13 @@ export const MarketNewsView: React.FC = () => {
                 href={cleanArticleUrl(article.url)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block p-4 rounded-lg border border-[#E5E7EB] bg-white hover:border-[#1E3A5F]/40 hover:bg-[#F9FAFB] transition-colors"
+                className="block p-4 rounded-lg border border-border-standard bg-panel hover:border-[#1E3A5F]/40 hover:bg-panel transition-colors"
               >
-                <p className="text-sm font-medium text-[#111827] leading-snug">{article.title}</p>
+                <p className="text-sm font-medium text-text-main leading-snug">{article.title}</p>
                 {article.description && (
-                  <p className="text-xs text-[#6B7280] mt-1.5 line-clamp-2">{article.description}</p>
+                  <p className="text-xs text-text-muted mt-1.5 line-clamp-2">{article.description}</p>
                 )}
-                <p className="text-[10px] text-[#9CA3AF] mt-2">{article.date}</p>
+                <p className="text-[10px] text-text-muted mt-2">{article.date}</p>
               </a>
             </li>
           ))}
