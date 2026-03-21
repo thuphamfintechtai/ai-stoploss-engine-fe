@@ -79,26 +79,26 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA] p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm overflow-hidden">
-          <div className="px-6 py-5 border-b border-[#E5E7EB] bg-[#FAFAFA]">
-            <h1 className="text-xl font-semibold text-[#111827] text-center">AI Stop-Loss Engine</h1>
-            <p className="text-sm text-[#6B7280] text-center mt-1">Đăng nhập hoặc đăng ký để tiếp tục</p>
+        <div className="bg-panel rounded-2xl border border-border-standard shadow-sm overflow-hidden">
+          <div className="px-6 py-5 border-b border-border-standard bg-background-elevated">
+            <h1 className="text-xl font-semibold text-text-main text-center">AI Stop-Loss Engine</h1>
+            <p className="text-sm text-text-muted text-center mt-1">Đăng nhập hoặc đăng ký để tiếp tục</p>
           </div>
 
-          <div className="flex border-b border-[#E5E7EB]">
+          <div className="flex border-b border-border-standard">
             <button
               type="button"
               onClick={() => { setTab('login'); setError(null); }}
-              className={`flex-1 py-3 text-sm font-semibold transition-colors ${tab === 'login' ? 'text-[#1E3A5F] border-b-2 border-[#1E3A5F] bg-white' : 'text-[#6B7280] hover:text-[#111827]'}`}
+              className={`flex-1 py-3 text-sm font-semibold transition-colors ${tab === 'login' ? 'text-accent border-b-2 border-accent bg-panel' : 'text-text-muted hover:text-text-main'}`}
             >
               Đăng nhập
             </button>
             <button
               type="button"
               onClick={() => { setTab('register'); setError(null); }}
-              className={`flex-1 py-3 text-sm font-semibold transition-colors ${tab === 'register' ? 'text-[#1E3A5F] border-b-2 border-[#1E3A5F] bg-white' : 'text-[#6B7280] hover:text-[#111827]'}`}
+              className={`flex-1 py-3 text-sm font-semibold transition-colors ${tab === 'register' ? 'text-accent border-b-2 border-accent bg-panel' : 'text-text-muted hover:text-text-main'}`}
             >
               Đăng ký
             </button>
@@ -106,7 +106,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
 
           <div className="p-6">
             {error && (
-              <div className="mb-4 py-2.5 px-3 rounded-lg bg-[#FEF2F2] border border-[#FECACA] text-sm text-[#A63D3D]">
+              <div className="mb-4 py-2.5 px-3 rounded-lg bg-negative/10 border border-negative/30 text-sm text-negative">
                 {error}
               </div>
             )}
@@ -114,23 +114,23 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
             {tab === 'login' ? (
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-[#6B7280] uppercase tracking-wider mb-1.5">Email</label>
+                  <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">Email</label>
                   <input
                     type="email"
                     value={loginForm.email}
                     onChange={(e) => setLoginForm((p) => ({ ...p, email: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-[#E5E7EB] rounded-lg text-[#111827] focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] outline-none"
+                    className="w-full px-4 py-2.5 border border-border-standard rounded-lg text-text-main focus:ring-2 focus:ring-accent/25 focus:border-accent outline-none"
                     placeholder="email@example.com"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-[#6B7280] uppercase tracking-wider mb-1.5">Mật khẩu</label>
+                  <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">Mật khẩu</label>
                   <input
                     type="password"
                     value={loginForm.password}
                     onChange={(e) => setLoginForm((p) => ({ ...p, password: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-[#E5E7EB] rounded-lg text-[#111827] focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] outline-none"
+                    className="w-full px-4 py-2.5 border border-border-standard rounded-lg text-text-main focus:ring-2 focus:ring-accent/25 focus:border-accent outline-none"
                     placeholder="••••••••"
                     required
                   />
@@ -138,7 +138,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 rounded-lg bg-[#1E3A5F] hover:bg-[#2C4A6F] text-white font-semibold transition-colors disabled:opacity-60"
+                  className="w-full py-3 rounded-lg bg-accent hover:bg-accent-hover text-white font-semibold transition-colors disabled:opacity-60"
                 >
                   {loading ? 'Đang xử lý...' : 'Đăng nhập'}
                 </button>
@@ -146,23 +146,23 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
             ) : (
               <form onSubmit={handleRegister} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-[#6B7280] uppercase tracking-wider mb-1.5">Email</label>
+                  <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">Email</label>
                   <input
                     type="email"
                     value={registerForm.email}
                     onChange={(e) => setRegisterForm((p) => ({ ...p, email: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-[#E5E7EB] rounded-lg text-[#111827] focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] outline-none"
+                    className="w-full px-4 py-2.5 border border-border-standard rounded-lg text-text-main focus:ring-2 focus:ring-accent/25 focus:border-accent outline-none"
                     placeholder="email@example.com"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-[#6B7280] uppercase tracking-wider mb-1.5">Tên đăng nhập (3–50 ký tự)</label>
+                  <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">Tên đăng nhập (3–50 ký tự)</label>
                   <input
                     type="text"
                     value={registerForm.username}
                     onChange={(e) => setRegisterForm((p) => ({ ...p, username: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-[#E5E7EB] rounded-lg text-[#111827] focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] outline-none"
+                    className="w-full px-4 py-2.5 border border-border-standard rounded-lg text-text-main focus:ring-2 focus:ring-accent/25 focus:border-accent outline-none"
                     placeholder="username"
                     minLength={3}
                     maxLength={50}
@@ -170,22 +170,22 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-[#6B7280] uppercase tracking-wider mb-1.5">Họ tên (tùy chọn)</label>
+                  <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">Họ tên (tùy chọn)</label>
                   <input
                     type="text"
                     value={registerForm.fullName ?? ''}
                     onChange={(e) => setRegisterForm((p) => ({ ...p, fullName: e.target.value || undefined }))}
-                    className="w-full px-4 py-2.5 border border-[#E5E7EB] rounded-lg text-[#111827] focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] outline-none"
+                    className="w-full px-4 py-2.5 border border-border-standard rounded-lg text-text-main focus:ring-2 focus:ring-accent/25 focus:border-accent outline-none"
                     placeholder="Nguyễn Văn A"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-[#6B7280] uppercase tracking-wider mb-1.5">Mật khẩu (tối thiểu 6 ký tự)</label>
+                  <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">Mật khẩu (tối thiểu 6 ký tự)</label>
                   <input
                     type="password"
                     value={registerForm.password}
                     onChange={(e) => setRegisterForm((p) => ({ ...p, password: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-[#E5E7EB] rounded-lg text-[#111827] focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] outline-none"
+                    className="w-full px-4 py-2.5 border border-border-standard rounded-lg text-text-main focus:ring-2 focus:ring-accent/25 focus:border-accent outline-none"
                     placeholder="••••••••"
                     minLength={6}
                     required
@@ -194,7 +194,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 rounded-lg bg-[#1E3A5F] hover:bg-[#2C4A6F] text-white font-semibold transition-colors disabled:opacity-60"
+                  className="w-full py-3 rounded-lg bg-accent hover:bg-accent-hover text-white font-semibold transition-colors disabled:opacity-60"
                 >
                   {loading ? 'Đang xử lý...' : 'Đăng ký'}
                 </button>
