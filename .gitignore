@@ -27,7 +27,7 @@ Thumbs.db
 # Vite
 *.local
 .vite/
-
+.claude/
 # Backup
 *.bak
 *.bak2
