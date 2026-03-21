@@ -213,6 +213,110 @@ export const signalApi = {
   getById: (_id: string) => Promise.resolve({ data: { success: true, data: null } }),
 };
 
+// ─── AI API ─────────────────────────────────────────────────────────────────
+
+export interface SuggestSLTPRequest {
+  symbol: string;
+  exchange?: string;
+  current_price?: number;
+  rr_ratio?: number;
+  side?: 'LONG' | 'SHORT';
+  ohlcv_data?: Array<{ open: number; high: number; low: number; close: number; volume?: number }>;
+}
+
+export interface AnalyzeTrendRequest {
+  symbol: string;
+  exchange?: string;
+  ohlcv_data?: Array<{ open: number; high: number; low: number; close: number; volume?: number }>;
+  indicators?: Record<string, unknown>;
+}
+
+export interface EvaluateRiskRequest {
+  symbol: string;
+  exchange?: string;
+  portfolio_id: string;
+  entry_price: number;
+  stop_loss: number;
+  take_profit?: number;
+  quantity: number;
+}
+
+export interface GenerateSignalRequest {
+  symbol: string;
+  exchange?: string;
+}
+
+export const aiApi = {
+  /** AI gợi ý Stop Loss và Take Profit */
+  suggestSLTP: (data: SuggestSLTPRequest) =>
+    apiClient.post('/ai/suggest-sltp', data, { timeout: 60000 }),
+
+  /** Phân tích xu hướng thị trường */
+  analyzeTrend: (data: AnalyzeTrendRequest) =>
+    apiClient.post('/ai/analyze-trend', data, { timeout: 60000 }),
+
+  /** Đánh giá mức độ rủi ro giao dịch */
+  evaluateRisk: (data: EvaluateRiskRequest) =>
+    apiClient.post('/ai/evaluate-risk', data, { timeout: 60000 }),
+
+  /** AI tạo tín hiệu giao dịch */
+  generateSignal: (data: GenerateSignalRequest) =>
+    apiClient.post('/ai/generate-signal', data, { timeout: 60000 }),
+
+  /** Lấy danh sách tín hiệu AI */
+  getSignals: (params?: { symbol?: string; limit?: number; offset?: number }) =>
+    apiClient.get('/ai/signals', { params }),
+
+  /** Dashboard tổng hợp AI */
+  getDashboard: (portfolioId?: string) =>
+    apiClient.get('/ai/dashboard', { params: portfolioId ? { portfolio_id: portfolioId } : undefined, timeout: 60000 }),
+
+  /** Lịch sử đánh giá AI */
+  getEvaluations: (params?: { symbol?: string; limit?: number; offset?: number }) =>
+    apiClient.get('/ai/evaluations', { params }),
+};
+
+// ─── Notifications API ───────────────────────────────────────────────────────
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  type: string;
+  title: string;
+  message: string;
+  severity: 'INFO' | 'WARNING' | 'ERROR' | 'SUCCESS';
+  is_read: boolean;
+  metadata?: Record<string, unknown> | null;
+  created_at: string;
+  updated_at?: string;
+}
+
+export const notificationsApi = {
+  /** Lấy danh sách notifications */
+  getAll: (params?: { limit?: number; offset?: number; unread_only?: boolean }) =>
+    apiClient.get('/notifications', { params }),
+
+  /** Lấy số lượng chưa đọc */
+  getUnreadCount: () =>
+    apiClient.get('/notifications/unread-count'),
+
+  /** Đánh dấu 1 notification đã đọc */
+  markRead: (id: string) =>
+    apiClient.patch(`/notifications/${id}/read`, {}),
+
+  /** Đánh dấu tất cả đã đọc */
+  markAllRead: () =>
+    apiClient.post('/notifications/mark-all-read', {}),
+
+  /** Xóa 1 notification */
+  delete: (id: string) =>
+    apiClient.delete(`/notifications/${id}`),
+
+  /** Xóa tất cả đã đọc */
+  deleteRead: () =>
+    apiClient.delete('/notifications/read'),
+};
+
 // Market API
 export const marketApi = {
   getSymbols: (params?: { exchange?: string; is_enabled?: boolean }) =>
@@ -360,6 +464,78 @@ export const marketApi = {
   /** Chi tiết trái phiếu (Neopro corpBondInfo). */
   getCorpBondInfo: (symbol: string) =>
     apiClient.get(`/market/corp-bond-info/${encodeURIComponent(symbol.trim())}`, { timeout: 10000 }),
+};
+
+// ─── Watchlist API ───────────────────────────────────────────────────────────
+
+export interface WatchlistItem {
+  id: string;
+  symbol: string;
+  exchange: string;
+  created_at: string;
+}
+
+export const watchlistApi = {
+  /** Lấy watchlist từ BE */
+  getAll: () => apiClient.get('/watchlist'),
+
+  /** Thêm 1 mã */
+  add: (symbol: string, exchange: string) =>
+    apiClient.post('/watchlist', { symbol, exchange }),
+
+  /** Sync toàn bộ từ localStorage lên BE */
+  sync: (items: { symbol: string; exchange: string }[]) =>
+    apiClient.post('/watchlist/bulk', { items }),
+
+  /** Xóa 1 mã */
+  remove: (symbol: string) => apiClient.delete(`/watchlist/${symbol}`),
+};
+
+// ─── Price Alerts API ────────────────────────────────────────────────────────
+
+export type AlertCondition = 'ABOVE' | 'BELOW' | 'PERCENT_UP' | 'PERCENT_DOWN';
+
+export interface PriceAlert {
+  id: string;
+  user_id: string;
+  symbol: string;
+  exchange: string;
+  condition: AlertCondition;
+  target_value: number;
+  reference_price: number | null;
+  note: string | null;
+  is_active: boolean;
+  is_triggered: boolean;
+  triggered_at: string | null;
+  triggered_price: number | null;
+  created_at: string;
+}
+
+export interface CreateAlertRequest {
+  symbol: string;
+  exchange?: string;
+  condition: AlertCondition;
+  target_value: number;
+  reference_price?: number;
+  note?: string;
+}
+
+export const priceAlertsApi = {
+  /** Lấy tất cả alerts */
+  getAll: (params?: { symbol?: string; active_only?: boolean }) =>
+    apiClient.get('/price-alerts', { params }),
+
+  /** Tạo alert mới */
+  create: (data: CreateAlertRequest) => apiClient.post('/price-alerts', data),
+
+  /** Xóa alert */
+  delete: (id: string) => apiClient.delete(`/price-alerts/${id}`),
+
+  /** Bật/tắt alert */
+  toggle: (id: string) => apiClient.patch(`/price-alerts/${id}/toggle`, {}),
+
+  /** Reset alert đã triggered */
+  reset: (id: string) => apiClient.patch(`/price-alerts/${id}/reset`, {}),
 };
 
 // Export default client
