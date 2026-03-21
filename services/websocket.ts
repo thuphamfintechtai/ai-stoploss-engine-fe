@@ -136,6 +136,14 @@ class WebSocketService {
   }
 
   /**
+   * Listen to trade alerts (price alerts triggered, SL/TP approaching)
+   */
+  onTradeAlert(callback: (data: any) => void) {
+    if (!this.socket) return;
+    this.socket.on('trade_alert', callback);
+  }
+
+  /**
    * Remove all listeners for an event
    */
   off(event: string) {
