@@ -26,13 +26,31 @@ function calculateSMA(data: any[], period: number) {
   return result;
 }
 
+function getThemeColors(isLight: boolean) {
+  return isLight
+    ? {
+        bg: '#FFFFFF',
+        text: '#334155',
+        gridLine: 'rgba(0,0,0,0.06)',
+        border: 'rgba(0,0,0,0.10)',
+        crosshair: 'rgba(0,0,0,0.25)',
+      }
+    : {
+        bg: '#0D1526',
+        text: '#8896A4',
+        gridLine: 'rgba(255,255,255,0.04)',
+        border: 'rgba(255,255,255,0.08)',
+        crosshair: 'rgba(255,255,255,0.2)',
+      };
+}
+
 interface Props {
   data: any[];
   loading: boolean;
   bgColor?: string;
 }
 
-export const CandlestickChart: React.FC<Props> = ({ data, loading, bgColor = '#0D1526' }) => {
+export const CandlestickChart: React.FC<Props> = ({ data, loading }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<any>(null);
   const seriesRef = useRef<any>(null);
@@ -43,31 +61,34 @@ export const CandlestickChart: React.FC<Props> = ({ data, loading, bgColor = '#0
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    const colors = getThemeColors(isLight);
+
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
       height: chartContainerRef.current.clientHeight,
       layout: {
-        background: { type: ColorType.Solid, color: bgColor },
-        textColor: '#8896A4',
+        background: { type: ColorType.Solid, color: colors.bg },
+        textColor: colors.text,
       },
       grid: {
-        vertLines: { color: 'rgba(255, 255, 255, 0.04)' },
-        horzLines: { color: 'rgba(255, 255, 255, 0.04)' },
+        vertLines: { color: colors.gridLine },
+        horzLines: { color: colors.gridLine },
       },
       timeScale: {
-        borderColor: 'rgba(255, 255, 255, 0.08)',
+        borderColor: colors.border,
         timeVisible: true,
         secondsVisible: false,
         barSpacing: 10,
         minBarSpacing: 6,
       },
       rightPriceScale: {
-        borderColor: 'rgba(255, 255, 255, 0.08)',
+        borderColor: colors.border,
       },
       crosshair: {
         mode: 1,
-        vertLine: { color: 'rgba(255,255,255,0.2)', width: 1, style: 3 },
-        horzLine: { color: 'rgba(255,255,255,0.2)', width: 1, style: 3 },
+        vertLine: { color: colors.crosshair, width: 1, style: 3 },
+        horzLine: { color: colors.crosshair, width: 1, style: 3 },
       },
     });
 
@@ -106,11 +127,29 @@ export const CandlestickChart: React.FC<Props> = ({ data, loading, bgColor = '#0
     };
     window.addEventListener('resize', handleResize);
 
+    // Watch theme changes
+    const observer = new MutationObserver(() => {
+      const light = document.documentElement.getAttribute('data-theme') === 'light';
+      const c = getThemeColors(light);
+      chart.applyOptions({
+        layout: { background: { type: ColorType.Solid, color: c.bg }, textColor: c.text },
+        grid: { vertLines: { color: c.gridLine }, horzLines: { color: c.gridLine } },
+        timeScale: { borderColor: c.border },
+        rightPriceScale: { borderColor: c.border },
+        crosshair: {
+          vertLine: { color: c.crosshair },
+          horzLine: { color: c.crosshair },
+        },
+      });
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
     return () => {
       window.removeEventListener('resize', handleResize);
+      observer.disconnect();
       chart.remove();
     };
-  }, [bgColor]);
+  }, []);
 
   useEffect(() => {
     if (!seriesRef.current || !data || data.length === 0) return;
@@ -151,11 +190,14 @@ export const CandlestickChart: React.FC<Props> = ({ data, loading, bgColor = '#0
     }
   }, [data]);
 
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+
   return (
     <div className="relative w-full h-full">
       <div ref={chartContainerRef} className="w-full h-full" />
       {loading && (
-        <div className="absolute inset-0 flex items-center justify-center" style={{ background: bgColor }}>
+        <div className="absolute inset-0 flex items-center justify-center"
+          style={{ background: isLight ? '#FFFFFF' : '#0D1526' }}>
           <div className="flex items-center gap-2 text-text-muted text-sm">
             <div className="w-4 h-4 border-2 border-border-standard border-t-accent rounded-full animate-spin" />
             Đang tải...
