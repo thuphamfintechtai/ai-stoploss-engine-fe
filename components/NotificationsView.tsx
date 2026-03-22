@@ -304,7 +304,7 @@ export const NotificationsView: React.FC<Props> = ({ onUnreadCountChange, onNavi
   const handleDeleteRead = async () => {
     if (!window.confirm('Xoá tất cả thông báo đã đọc?')) return;
     try {
-      await notificationsApi.deleteRead?.();
+      await notificationsApi.deleteRead();
       await loadNotifications(0, true);
     } catch { /* ignore */ }
   };
