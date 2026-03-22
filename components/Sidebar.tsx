@@ -6,6 +6,7 @@ interface Props {
   isOpen: boolean;
   onToggle: () => void;
   onLogout?: () => void | Promise<void>;
+  unreadNotifications?: number;
 }
 
 const Icons = {
@@ -49,6 +50,11 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
     </svg>
   ),
+  notifications: (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+    </svg>
+  ),
   settings: (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
@@ -76,19 +82,17 @@ const NAV_SECTIONS = [
     items: [
       { id: 'watchlist', label: 'Theo Dõi', icon: Icons.watchlist },
       { id: 'market', label: 'Bảng Giá', icon: Icons.market },
-      { id: 'news', label: 'Tin Tức', icon: Icons.news },
     ],
   },
   {
     label: 'Phân tích',
     items: [
-      { id: 'signals', label: 'AI Signals', icon: Icons.signals },
-      { id: 'risk', label: 'Rủi Ro', icon: Icons.risk },
+      { id: 'notifications', label: 'Thông Báo', icon: Icons.notifications },
     ],
   },
 ];
 
-export const Sidebar: React.FC<Props> = ({ currentView, onChangeView, isOpen, onToggle, onLogout }) => {
+export const Sidebar: React.FC<Props> = ({ currentView, onChangeView, isOpen, onToggle, onLogout, unreadNotifications = 0 }) => {
   const userStr = typeof localStorage !== 'undefined' ? localStorage.getItem('user') : null;
   const user = userStr ? (() => { try { return JSON.parse(userStr); } catch { return null; } })() : null;
   const displayName = user?.username || user?.fullName || user?.email?.split('@')[0] || 'User';
@@ -105,19 +109,36 @@ export const Sidebar: React.FC<Props> = ({ currentView, onChangeView, isOpen, on
       style={{ background: 'var(--color-panel-secondary)' }}
     >
       {/* Brand / Logo */}
-      <div className={`h-12 flex items-center shrink-0 border-b border-border-standard ${isOpen ? 'px-4 gap-3' : 'justify-center'}`}>
-        <div
-          className="w-7 h-7 rounded-md flex items-center justify-center text-accent shrink-0"
-          style={{ background: 'var(--color-accent-subtle)', border: '1px solid var(--color-border-standard)' }}
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+      <div className={`h-14 flex items-center shrink-0 border-b border-border-standard ${isOpen ? 'px-3 gap-3' : 'justify-center'}`}>
+        {/* Icon — chevron up + protective arc */}
+        <div className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center"
+          style={{ background: '#080d1a', border: '1px solid rgba(59,130,246,0.2)', boxShadow: '0 0 12px rgba(59,130,246,0.15), inset 0 1px 0 rgba(255,255,255,0.06)' }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            {/* Chevron lên — trắng đậm */}
+            <path d="M4 17 L12 7 L20 17"
+              stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+            {/* Cung bảo vệ phía dưới — xanh lá */}
+            <path d="M3 21 Q12 27 21 21"
+              stroke="#22c55e" strokeWidth="2.2" strokeLinecap="round" fill="none"/>
+            {/* Dot tại đỉnh chevron */}
+            <circle cx="12" cy="7" r="2" fill="#22c55e"/>
           </svg>
         </div>
+
         {isOpen && (
-          <div>
-            <span className="block text-[13px] font-bold text-text-main leading-none">RiskGuard</span>
-            <span className="block text-[10px] text-text-muted font-medium leading-tight mt-0.5 tracking-wider">PRO TERMINAL</span>
+          <div className="min-w-0">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-[13px] font-black tracking-[0.05em] leading-none" style={{ color: '#f1f5f9' }}>
+                TRADEGUARD
+              </span>
+              <span className="text-[8px] font-bold px-1 py-0.5 rounded"
+                style={{ background: '#22c55e', color: '#000', lineHeight: 1, letterSpacing: '0.05em' }}>
+                AI
+              </span>
+            </div>
+            <span className="block text-[9px] tracking-[0.2em] uppercase mt-1" style={{ color: 'rgba(148,163,184,0.7)' }}>
+              Smart Terminal
+            </span>
           </div>
         )}
       </div>
@@ -125,7 +146,7 @@ export const Sidebar: React.FC<Props> = ({ currentView, onChangeView, isOpen, on
       {/* Collapse toggle */}
       <button
         onClick={onToggle}
-        className="absolute -right-3 top-[52px] w-6 h-6 rounded-full flex items-center justify-center z-50 transition-colors duration-150 hover:text-accent"
+        className="absolute -right-3 top-[58px] w-6 h-6 rounded-full flex items-center justify-center z-50 transition-colors duration-150 hover:text-accent"
         style={{
           background: 'var(--color-panel)',
           border: '1px solid var(--color-border-standard)',
@@ -164,7 +185,7 @@ export const Sidebar: React.FC<Props> = ({ currentView, onChangeView, isOpen, on
                     onClick={() => onChangeView(item.id)}
                     title={!isOpen ? item.label : undefined}
                     className={`
-                      flex items-center gap-2.5 rounded-md text-[13px] font-medium transition-all duration-150
+                      relative flex items-center gap-2.5 rounded-md text-[13px] font-medium transition-all duration-150
                       ${isOpen ? 'w-full px-3 py-2' : 'w-8 h-8 min-w-[32px] justify-center'}
                       ${isActive
                         ? 'text-accent border-l-2 border-accent'
@@ -173,8 +194,20 @@ export const Sidebar: React.FC<Props> = ({ currentView, onChangeView, isOpen, on
                     `}
                     style={isActive ? { background: 'var(--color-accent-subtle)', paddingLeft: isOpen ? '10px' : undefined } : {}}
                   >
-                    <span className="shrink-0">{item.icon}</span>
+                    <span className="shrink-0 relative">
+                      {item.icon}
+                      {item.id === 'notifications' && unreadNotifications > 0 && (
+                        <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-0.5">
+                          {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                        </span>
+                      )}
+                    </span>
                     {isOpen && <span className="truncate leading-none">{item.label}</span>}
+                    {isOpen && item.id === 'notifications' && unreadNotifications > 0 && (
+                      <span className="ml-auto min-w-[18px] h-[18px] rounded-full bg-red-500/20 text-red-400 text-[10px] font-bold flex items-center justify-center px-1 border border-red-500/30">
+                        {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                      </span>
+                    )}
                   </button>
                 );
               })}
