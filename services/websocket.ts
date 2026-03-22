@@ -144,11 +144,15 @@ class WebSocketService {
   }
 
   /**
-   * Remove all listeners for an event
+   * Remove listener for an event. If callback provided, removes only that listener.
    */
-  off(event: string) {
+  off(event: string, callback?: (...args: any[]) => void) {
     if (!this.socket) return;
-    this.socket.off(event);
+    if (callback) {
+      this.socket.off(event, callback);
+    } else {
+      this.socket.off(event);
+    }
   }
 
   /**
