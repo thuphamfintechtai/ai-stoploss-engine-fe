@@ -252,7 +252,7 @@ export const DashboardView: React.FC<Props> = ({
       );
     };
     wsService.onPriceUpdate(handler);
-    return () => { wsService.off('price_update'); };
+    return () => { wsService.off('price_update', handler); };
   }, []);
 
   useEffect(() => {
