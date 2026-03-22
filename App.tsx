@@ -15,6 +15,7 @@ import { PortfolioView } from './components/PortfolioView';
 import { WatchlistView } from './components/WatchlistView';
 import { AiSignalsView } from './components/AiSignalsView';
 import { NotificationsView } from './components/NotificationsView';
+import { SettingsView } from './components/SettingsView';
 import { analyzeTrader } from './services/geminiService';
 import { portfolioApi, positionApi, marketApi, authApi } from './services/api';
 import type { Position as PositionType, CreatePositionRequest } from './services/api';
@@ -71,26 +72,31 @@ const CandlestickChartLW = ({ data, loading }: { data: any[], loading: boolean }
     }
 
     console.log('CandlestickChartLW: Creating chart...');
+    const isLight = () => document.documentElement.getAttribute('data-theme') === 'light';
+    const chartColors = (light: boolean) => light
+      ? { bg: '#FFFFFF', text: '#334155', grid: 'rgba(0,0,0,0.06)', border: 'rgba(0,0,0,0.10)' }
+      : { bg: '#090812', text: '#9CA3AF', grid: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.1)' };
+    const c = chartColors(isLight());
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
       height: chartContainerRef.current.clientHeight,
       layout: {
-        background: { type: ColorType.Solid, color: '#090812' },
-        textColor: '#9CA3AF',
+        background: { type: ColorType.Solid, color: c.bg },
+        textColor: c.text,
       },
       grid: {
-        vertLines: { color: 'rgba(255, 255, 255, 0.05)' },
-        horzLines: { color: 'rgba(255, 255, 255, 0.05)' },
+        vertLines: { color: c.grid },
+        horzLines: { color: c.grid },
       },
       timeScale: {
-        borderColor: 'rgba(255, 255, 255, 0.1)',
+        borderColor: c.border,
         timeVisible: true,
         secondsVisible: false,
         barSpacing: 12,
         minBarSpacing: 8,
       },
       rightPriceScale: {
-        borderColor: 'rgba(255, 255, 255, 0.1)',
+        borderColor: c.border,
       },
     });
 
@@ -157,8 +163,21 @@ const CandlestickChartLW = ({ data, loading }: { data: any[], loading: boolean }
     };
     window.addEventListener('resize', handleResize);
 
+    // Watch theme changes
+    const themeObserver = new MutationObserver(() => {
+      const cc = chartColors(isLight());
+      chart.applyOptions({
+        layout: { background: { type: ColorType.Solid, color: cc.bg }, textColor: cc.text },
+        grid: { vertLines: { color: cc.grid }, horzLines: { color: cc.grid } },
+        timeScale: { borderColor: cc.border },
+        rightPriceScale: { borderColor: cc.border },
+      });
+    });
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
     return () => {
       window.removeEventListener('resize', handleResize);
+      themeObserver.disconnect();
       chart.remove();
     };
   }, []);
@@ -2405,7 +2424,7 @@ function ToastContainer({ toasts, onDismiss }: { toasts: ToastItem[]; onDismiss:
 
 function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
   const [currentView, setCurrentView] = useState('home');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => localStorage.getItem('sidebar_default') !== 'closed');
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
@@ -2503,10 +2522,11 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
   }, [currentView]);
 
   // Reload stocks when filters change + Auto refresh every 5s for real-time updates
+  const stocksLoadingRef = useRef(false);
   useEffect(() => {
     loadStocks();
     const interval = setInterval(() => {
-      if (!loading) {
+      if (!stocksLoadingRef.current) {
         loadStocks();
       }
     }, 5000);
@@ -2750,6 +2770,8 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
 
 
   async function loadStocks() {
+    if (stocksLoadingRef.current) return;
+    stocksLoadingRef.current = true;
     try {
       const res = await marketApi.getStocks(
         {
@@ -2797,6 +2819,8 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
       } else {
         console.error('Load stocks error:', error);
       }
+    } finally {
+      stocksLoadingRef.current = false;
     }
   }
 
@@ -4018,13 +4042,12 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
           <NotificationsView onUnreadCountChange={setUnreadNotifications} onNavigate={setCurrentView} />
         )}
 
-        {/* Settings placeholder */}
         {currentView === 'settings' && (
-          <div className="animate-fade-in">
-            <button onClick={() => setShowSetupModal(true)} className="px-4 py-2 rounded-md bg-accent text-white text-sm font-semibold">
-              Cấu hình Portfolio
-            </button>
-          </div>
+          <SettingsView
+            portfolio={portfolio}
+            onOpenSetup={() => setShowSetupModal(true)}
+            onPortfolioUpdated={loadData}
+          />
         )}
 
       </main>
