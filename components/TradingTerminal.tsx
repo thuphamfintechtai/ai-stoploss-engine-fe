@@ -154,7 +154,7 @@ export const TradingTerminal: React.FC<Props> = ({
         symbol: sym,
         exchange: orderExchange || exchange || 'HOSE',
         current_price: entryPts != null ? Math.round(entryPts * 1000) : (marketPrice != null ? Math.round(marketPrice * (marketPrice >= 1000 ? 1 : 1000)) : undefined),
-        rr_ratio: 2,
+        rr_ratio: parseFloat(localStorage.getItem('default_rr') ?? '2'),
         side: orderSide === 'BAN' ? 'SHORT' : 'LONG',
       });
       if (res.data?.success) {
