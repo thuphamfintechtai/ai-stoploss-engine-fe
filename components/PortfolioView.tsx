@@ -70,27 +70,7 @@ export const PortfolioView: React.FC<Props> = ({
   const [editing, setEditing] = useState(false);
   const [editMsg, setEditMsg] = useState('');
 
-  useEffect(() => {
-    if (!portfolioId) return;
-    loadClosed();
-  }, [portfolioId, closedPage]);
-
-  const loadOrders = useCallback(async () => {
-    if (!portfolioId) return;
-    setLoadingOrders(true);
-    try {
-      const res = await orderApi.list(portfolioId, { status: 'PENDING,PARTIALLY_FILLED', limit: 50 });
-      if (res.data?.success) setPendingOrders(res.data.data ?? []);
-    } catch { /* ignore */ } finally {
-      setLoadingOrders(false);
-    }
-  }, [portfolioId]);
-
-  useEffect(() => {
-    if (activeTab === 'orders') loadOrders();
-  }, [activeTab, loadOrders]);
-
-  const loadClosed = async () => {
+  const loadClosed = useCallback(async () => {
     if (!portfolioId) return;
     setLoadingClosed(true);
     try {
@@ -108,7 +88,27 @@ export const PortfolioView: React.FC<Props> = ({
     } finally {
       setLoadingClosed(false);
     }
-  };
+  }, [portfolioId, closedPage]);
+
+  useEffect(() => {
+    if (!portfolioId) return;
+    loadClosed();
+  }, [loadClosed]);
+
+  const loadOrders = useCallback(async () => {
+    if (!portfolioId) return;
+    setLoadingOrders(true);
+    try {
+      const res = await orderApi.list(portfolioId, { status: 'PENDING,PARTIALLY_FILLED', limit: 50 });
+      if (res.data?.success) setPendingOrders(res.data.data ?? []);
+    } catch { /* ignore */ } finally {
+      setLoadingOrders(false);
+    }
+  }, [portfolioId]);
+
+  useEffect(() => {
+    if (activeTab === 'orders') loadOrders();
+  }, [activeTab, loadOrders]);
 
   const loadPerformance = useCallback(async () => {
     if (!portfolioId) return;
