@@ -160,6 +160,12 @@ export const authApi = {
     }
     return apiClient.post('/auth/logout').then(() => clearStorage()).catch(() => clearStorage());
   },
+
+  updateProfile: (data: { fullName?: string; username?: string }) =>
+    apiClient.put('/auth/profile', data),
+
+  changePassword: (data: { current_password: string; new_password: string }) =>
+    apiClient.put('/auth/change-password', data),
 };
 
 // Portfolio API
