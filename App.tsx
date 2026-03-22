@@ -7,15 +7,14 @@ import { RiskProgressBar } from './components/RiskProgressBar';
 import { TraderCard } from './components/TraderCard';
 import { Sidebar } from './components/Sidebar';
 import { HomeView } from './components/HomeView';
-import { MarketNewsView } from './components/MarketNewsView';
 import { AuthView } from './components/AuthView';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { DashboardView } from './components/DashboardView';
 import { TradingTerminal } from './components/TradingTerminal';
 import { PortfolioView } from './components/PortfolioView';
 import { WatchlistView } from './components/WatchlistView';
-import { RiskManagerView } from './components/RiskManagerView';
 import { AiSignalsView } from './components/AiSignalsView';
+import { NotificationsView } from './components/NotificationsView';
 import { analyzeTrader } from './services/geminiService';
 import { portfolioApi, positionApi, marketApi, authApi } from './services/api';
 import type { Position as PositionType, CreatePositionRequest } from './services/api';
@@ -2370,9 +2369,45 @@ function getPositionRiskVnd(pos: any): number {
   return Number(p.risk_value_vnd) || 0;
 }
 
+// ─── Toast Notification System ─────────────────────────────────────────────
+interface ToastItem { id: string; title: string; message: string; severity: string; }
+
+let toastIdCounter = 0;
+function ToastContainer({ toasts, onDismiss }: { toasts: ToastItem[]; onDismiss: (id: string) => void }) {
+  const colors: Record<string, string> = {
+    SUCCESS: 'border-green-500/40 bg-green-500/10 text-green-300',
+    WARNING: 'border-yellow-500/40 bg-yellow-500/10 text-yellow-300',
+    DANGER:  'border-red-500/40 bg-red-500/10 text-red-300',
+    INFO:    'border-blue-500/40 bg-blue-500/10 text-blue-300',
+  };
+  if (toasts.length === 0) return null;
+  return createPortal(
+    <div className="fixed bottom-4 right-4 z-[999] flex flex-col gap-2 w-80 pointer-events-none">
+      {toasts.map(t => (
+        <div
+          key={t.id}
+          className={`pointer-events-auto flex gap-2.5 p-3 rounded-lg border text-[13px] shadow-lg animate-fade-in ${colors[t.severity] ?? colors.INFO}`}
+          style={{ background: 'var(--color-panel)' }}
+        >
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold leading-snug text-text-main">{t.title}</p>
+            <p className="text-[12px] text-text-muted mt-0.5 leading-snug">{t.message}</p>
+          </div>
+          <button onClick={() => onDismiss(t.id)} className="shrink-0 mt-0.5 opacity-50 hover:opacity-100 text-text-muted">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+      ))}
+    </div>,
+    document.body
+  );
+}
+
 function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
   const [currentView, setCurrentView] = useState('home');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
 
   // Core State
   const [portfolio, setPortfolio] = useState<any>(null);
@@ -2391,6 +2426,9 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
   const [stocksExchange, setStocksExchange] = useState('');
   const [selectedSymbol, setSelectedSymbol] = useState('ACB');
   const [selectedExchange, setSelectedExchange] = useState('HOSE');
+  const [terminalInitSL, setTerminalInitSL] = useState<number | undefined>(undefined);
+  const [terminalInitTP, setTerminalInitTP] = useState<number | undefined>(undefined);
+  const [terminalInitSide, setTerminalInitSide] = useState<'LONG' | 'SHORT' | undefined>(undefined);
   const [previousPrices, setPreviousPrices] = useState<{ [key: string]: number }>({});
   const [priceChanges, setPriceChanges] = useState<{ [key: string]: 'up' | 'down' | null }>({});
 
@@ -2444,6 +2482,13 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
   useEffect(() => {
     loadData();
     connectWebSocket();
+
+    // Load unread notification count
+    import('./services/api').then(({ notificationsApi }) => {
+      notificationsApi.getUnreadCount().then(res => {
+        if (res.data.success) setUnreadNotifications(res.data.data.count ?? 0);
+      }).catch(() => {});
+    });
 
     return () => {
       wsService.disconnect();
@@ -2774,7 +2819,6 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
     else if (timeframe === '1M') limit = 24;
 
     try {
-      console.log('Loading chart:', { symbol, exchange, timeframe, limit });
       const res = await marketApi.getOHLCV(symbol, { exchange, timeframe, limit });
       if (res.data.success && Array.isArray(res.data.data)) {
         const data = res.data.data.map((item: any) => ({
@@ -2787,9 +2831,13 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
         }));
         setChartModalData(data);
       }
-    } catch (error) {
-      console.error('Load chart error:', error);
-      console.error('Error details:', (error as any)?.response?.data);
+    } catch (error: any) {
+      // 404 thường gặp với 1m (dữ liệu intraday chỉ có trong giờ giao dịch)
+      if (error?.response?.status === 404 && timeframe === '1m') {
+        console.warn('1m chart not available (market closed or no intraday data)');
+      } else {
+        console.error('Load chart error:', error?.response?.data || error?.message);
+      }
     } finally {
       setLoadingChart(false);
     }
@@ -2842,8 +2890,12 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
     });
 
     wsService.onNotification((data) => {
-      console.log('Notification:', data);
-      alert(`${data.title}\n${data.message}`);
+      // Tăng badge unread
+      setUnreadNotifications(prev => prev + 1);
+      // Hiện toast nhỏ ở góc màn hình
+      const id = `toast_${++toastIdCounter}`;
+      setToasts(prev => [...prev.slice(-4), { id, title: data.title ?? 'Thông báo', message: data.message ?? '', severity: data.severity ?? 'INFO' }]);
+      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 6000);
     });
   }
 
@@ -2991,7 +3043,9 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
         isOpen={isSidebarOpen}
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
         onLogout={onLogout}
+        unreadNotifications={unreadNotifications}
       />
+      <ToastContainer toasts={toasts} onDismiss={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
 
       <MobileNav currentView={currentView} onChangeView={setCurrentView} />
 
@@ -3002,7 +3056,11 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
             portfolioId={portfolio?.id ?? null}
             initialSymbol={selectedSymbol}
             initialExchange={selectedExchange}
+            initialStopLoss={terminalInitSL}
+            initialTakeProfit={terminalInitTP}
+            initialSide={terminalInitSide}
             sidebarWidth={isSidebarOpen ? 220 : 64}
+            openPositions={openPositions}
             onOpenPosition={loadPositions}
           />
         </div>
@@ -3018,6 +3076,7 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
         {/* Dashboard (home / dashboard) */}
         {(currentView === 'dashboard' || currentView === 'home') && (
           <DashboardView
+            portfolioId={portfolio?.id ?? null}
             totalBalance={totalBalance}
             openPositions={openPositions}
             riskUsed={currentRiskUsed}
@@ -3044,22 +3103,14 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
         {currentView === 'watchlist' && (
           <WatchlistView
             onNavigate={setCurrentView}
-            onOpenTrading={(sym, exch) => {
+            onOpenTrading={(sym, exch, opts) => {
               setSelectedSymbol(sym);
               setSelectedExchange(exch);
+              setTerminalInitSL(opts?.stopLoss);
+              setTerminalInitTP(opts?.takeProfit);
+              setTerminalInitSide(opts?.side);
               setCurrentView('terminal');
             }}
-          />
-        )}
-
-        {/* Risk Manager View */}
-        {currentView === 'risk' && (
-          <RiskManagerView
-            portfolioId={portfolio?.id ?? null}
-            positions={positions}
-            totalBalance={totalBalance}
-            maxRiskPercent={maxRiskPercent}
-            onNavigate={setCurrentView}
           />
         )}
 
@@ -3963,8 +4014,9 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
           </div>
         )}
 
-        {/* Tin tức */}
-        {currentView === 'news' && <MarketNewsView />}
+{currentView === 'notifications' && (
+          <NotificationsView onUnreadCountChange={setUnreadNotifications} onNavigate={setCurrentView} />
+        )}
 
         {/* Settings placeholder */}
         {currentView === 'settings' && (
