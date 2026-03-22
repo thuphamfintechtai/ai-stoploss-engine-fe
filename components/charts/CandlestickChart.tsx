@@ -1,11 +1,18 @@
 import React, { useEffect, useRef } from 'react';
 import { createChart, ColorType, CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
 
-function convertToLightweightTime(dateStr: string): string {
-  const parts = dateStr.split('/');
-  if (parts.length !== 3) return dateStr;
-  const [day, month, year] = parts;
-  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+function convertToLightweightTime(dateVal: string | number): string | number {
+  // Unix timestamp (seconds) — intraday — trả về nguyên
+  if (typeof dateVal === 'number') return dateVal;
+  // yyyy-mm-dd — đã đúng format
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateVal)) return dateVal;
+  // dd/mm/yyyy — convert sang yyyy-mm-dd
+  const parts = dateVal.split('/');
+  if (parts.length === 3) {
+    const [day, month, year] = parts;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+  return dateVal;
 }
 
 function calculateSMA(data: any[], period: number) {
