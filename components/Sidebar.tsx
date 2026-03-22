@@ -112,11 +112,11 @@ export const Sidebar: React.FC<Props> = ({ currentView, onChangeView, isOpen, on
       <div className={`h-14 flex items-center shrink-0 border-b border-border-standard ${isOpen ? 'px-3 gap-3' : 'justify-center'}`}>
         {/* Icon — chevron up + protective arc */}
         <div className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center"
-          style={{ background: '#080d1a', border: '1px solid rgba(59,130,246,0.2)', boxShadow: '0 0 12px rgba(59,130,246,0.15), inset 0 1px 0 rgba(255,255,255,0.06)' }}>
+          style={{ background: 'var(--color-background)', border: '1px solid rgba(59,130,246,0.2)', boxShadow: '0 0 12px rgba(59,130,246,0.15), inset 0 1px 0 rgba(255,255,255,0.06)' }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-            {/* Chevron lên — trắng đậm */}
+            {/* Chevron lên */}
             <path d="M4 17 L12 7 L20 17"
-              stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+              stroke="var(--color-text-main)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
             {/* Cung bảo vệ phía dưới — xanh lá */}
             <path d="M3 21 Q12 27 21 21"
               stroke="#22c55e" strokeWidth="2.2" strokeLinecap="round" fill="none"/>
@@ -128,7 +128,7 @@ export const Sidebar: React.FC<Props> = ({ currentView, onChangeView, isOpen, on
         {isOpen && (
           <div className="min-w-0">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-[13px] font-black tracking-[0.05em] leading-none" style={{ color: '#f1f5f9' }}>
+              <span className="text-[13px] font-black tracking-[0.05em] leading-none text-text-main">
                 TRADEGUARD
               </span>
               <span className="text-[8px] font-bold px-1 py-0.5 rounded"
@@ -136,7 +136,7 @@ export const Sidebar: React.FC<Props> = ({ currentView, onChangeView, isOpen, on
                 AI
               </span>
             </div>
-            <span className="block text-[9px] tracking-[0.2em] uppercase mt-1" style={{ color: 'rgba(148,163,184,0.7)' }}>
+            <span className="block text-[9px] tracking-[0.2em] uppercase mt-1 text-text-muted opacity-70">
               Smart Terminal
             </span>
           </div>
