@@ -101,6 +101,8 @@ export interface Position {
 export interface CreatePositionRequest {
   symbol: string;
   exchange: string;
+  side?: 'LONG' | 'SHORT';
+  order_type?: 'LO' | 'ATO' | 'ATC' | 'MP' | 'MOK' | 'MAK';
   /** Khi true (mặc định), BE lấy giá từ VPBS; không cần gửi entry_price. */
   use_market_entry?: boolean;
   entry_price?: number;
@@ -195,7 +197,7 @@ export const positionApi = {
   create: (portfolioId: string, body: CreatePositionRequest) =>
     apiClient.post(`/portfolios/${portfolioId}/positions`, body),
 
-  update: (portfolioId: string, positionId: string, body: { trailing_current_stop?: number }) =>
+  update: (portfolioId: string, positionId: string, body: { trailing_current_stop?: number; stop_loss?: number; take_profit?: number; notes?: string }) =>
     apiClient.patch(`/portfolios/${portfolioId}/positions/${positionId}`, body),
 
   close: (portfolioId: string, positionId: string, payload: ClosePositionPayload) =>
@@ -241,10 +243,64 @@ export interface EvaluateRiskRequest {
   quantity: number;
 }
 
-export interface GenerateSignalRequest {
+// ─── Order API (paper trading order lifecycle) ─────────────────────────────
+
+export type OrderType = 'LO' | 'ATO' | 'ATC' | 'MP';
+export type OrderSide = 'BUY' | 'SELL';
+export type OrderStatus = 'PENDING' | 'FILLED' | 'PARTIALLY_FILLED' | 'CANCELLED' | 'EXPIRED' | 'REJECTED';
+
+export interface CreateOrderRequest {
   symbol: string;
-  exchange?: string;
+  exchange: 'HOSE' | 'HNX' | 'UPCOM' | 'DERIVATIVE';
+  side: OrderSide;
+  order_type?: OrderType;
+  /** Bắt buộc khi order_type = 'LO' (điểm, BE nhân 1000 nếu cần) */
+  limit_price?: number;
+  quantity: number;
+  simulation_mode?: 'INSTANT' | 'REALISTIC';
+  stop_price?: number;
+  stop_type?: StopType;
+  stop_params?: Record<string, unknown>;
+  take_profit_price?: number;
+  take_profit_type?: TakeProfitType;
+  notes?: string;
 }
+
+export interface Order {
+  id: string;
+  portfolio_id: string;
+  symbol: string;
+  exchange: string;
+  side: OrderSide;
+  order_type: OrderType;
+  limit_price: number | null;
+  quantity: number;
+  filled_quantity: number;
+  status: OrderStatus;
+  stop_loss_vnd: number | null;
+  take_profit_vnd: number | null;
+  expired_at: string | null;
+  created_at: string;
+  notes?: string | null;
+}
+
+export const orderApi = {
+  /** POST /portfolios/:portfolioId/orders — Đặt lệnh */
+  create: (portfolioId: string, body: CreateOrderRequest) =>
+    apiClient.post<{ success: boolean; data: { order: Order; position: Position | null }; warnings?: string[] }>(
+      `/portfolios/${portfolioId}/orders`, body
+    ),
+
+  /** GET /portfolios/:portfolioId/orders */
+  list: (portfolioId: string, params?: { status?: string; limit?: number }) =>
+    apiClient.get<{ success: boolean; data: Order[]; count: number }>(
+      `/portfolios/${portfolioId}/orders`, { params }
+    ),
+
+  /** DELETE /portfolios/:portfolioId/orders/:id — Hủy lệnh */
+  cancel: (portfolioId: string, orderId: string) =>
+    apiClient.delete(`/portfolios/${portfolioId}/orders/${orderId}`),
+};
 
 export const aiApi = {
   /** AI gợi ý Stop Loss và Take Profit */
@@ -259,10 +315,6 @@ export const aiApi = {
   evaluateRisk: (data: EvaluateRiskRequest) =>
     apiClient.post('/ai/evaluate-risk', data, { timeout: 60000 }),
 
-  /** AI tạo tín hiệu giao dịch */
-  generateSignal: (data: GenerateSignalRequest) =>
-    apiClient.post('/ai/generate-signal', data, { timeout: 60000 }),
-
   /** Lấy danh sách tín hiệu AI */
   getSignals: (params?: { symbol?: string; limit?: number; offset?: number }) =>
     apiClient.get('/ai/signals', { params }),
@@ -274,6 +326,42 @@ export const aiApi = {
   /** Lịch sử đánh giá AI */
   getEvaluations: (params?: { symbol?: string; limit?: number; offset?: number }) =>
     apiClient.get('/ai/evaluations', { params }),
+
+  /** Phân tích AI on-demand cho mã trong watchlist */
+  analyzeWatchlistSymbol: (symbol: string, exchange = 'HOSE') =>
+    apiClient.post('/ai/watchlist-analysis', { symbol, exchange }, { timeout: 60000 }),
+
+  /** Lịch sử phân tích AI cho một mã */
+  getWatchlistHistory: (symbol: string, exchange = 'HOSE', limit = 20) =>
+    apiClient.get('/ai/watchlist-history', { params: { symbol, exchange, limit } }),
+
+  /** AI review tất cả vị thế đang mở, đề xuất điều chỉnh SL/TP */
+  reviewPositions: (portfolioId: string) =>
+    apiClient.post('/ai/position-review', { portfolio_id: portfolioId }, { timeout: 90000 }),
+
+  /** Phát hiện chế độ thị trường (BULL/BEAR/SIDEWAYS/VOLATILE) */
+  getMarketRegime: (forceRefresh = false) =>
+    apiClient.post('/ai/market-regime', { force_refresh: forceRefresh }, { timeout: 60000 }),
+
+  /** Lịch sử AI review vị thế của portfolio */
+  getPositionReviewHistory: (portfolioId: string, limit = 20) =>
+    apiClient.get('/ai/position-review-history', { params: { portfolio_id: portfolioId, limit } }),
+
+  /** Đánh dấu đã áp dụng đề xuất từ một lần review */
+  markReviewApplied: (reviewId: string) =>
+    apiClient.patch(`/ai/position-review-history/${reviewId}/applied`),
+
+  /** Lấy danh sách AI recommendations của user */
+  listRecommendations: (params?: { limit?: number }) =>
+    apiClient.get('/ai/recommendations', { params }),
+
+  /** Chi tiết một recommendation */
+  getRecommendation: (id: string) =>
+    apiClient.get(`/ai/recommendations/${id}`),
+
+  /** Đánh dấu user đã áp dụng recommendation */
+  applyRecommendation: (id: string, selectedLevel: 'aggressive' | 'moderate' | 'conservative') =>
+    apiClient.post(`/ai/recommendations/${id}/apply`, { selected_level: selectedLevel }),
 };
 
 // ─── Notifications API ───────────────────────────────────────────────────────
