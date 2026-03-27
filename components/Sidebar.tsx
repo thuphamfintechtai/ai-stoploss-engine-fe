@@ -17,7 +17,12 @@ const Icons = {
   ),
   portfolio: (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
+    </svg>
+  ),
+  paperTrading: (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1 1 .03 2.699-1.329 2.699H4.13c-1.36 0-2.333-1.7-1.329-2.699L5 14.5" />
     </svg>
   ),
   terminal: (
@@ -68,12 +73,14 @@ const Icons = {
   ),
 };
 
+// colorVariant: 'blue' cho Portfolio Thật, 'violet' cho Mô Phỏng
 const NAV_SECTIONS = [
   {
     label: 'Danh mục',
     items: [
       { id: 'dashboard', label: 'Tổng Quan', icon: Icons.dashboard },
-      { id: 'portfolio', label: 'Portfolio', icon: Icons.portfolio },
+      { id: 'portfolio', label: 'Portfolio Thật', icon: Icons.portfolio, colorVariant: 'blue' as const },
+      { id: 'paper-trading', label: 'Mô Phỏng', icon: Icons.paperTrading, colorVariant: 'violet' as const },
       { id: 'terminal', label: 'Terminal', icon: Icons.terminal },
     ],
   },
@@ -179,6 +186,30 @@ export const Sidebar: React.FC<Props> = ({ currentView, onChangeView, isOpen, on
             <div className={`space-y-0.5 ${isOpen ? 'px-2' : 'px-2 flex flex-col items-center'}`}>
               {section.items.map((item) => {
                 const isActive = activeId === item.id;
+                const colorVariant = (item as any).colorVariant as 'blue' | 'violet' | undefined;
+
+                // Style cho variant màu (Portfolio Thật = blue, Mô Phỏng = violet)
+                const variantActiveColor = colorVariant === 'blue'
+                  ? '#2563EB'
+                  : colorVariant === 'violet'
+                  ? '#7C3AED'
+                  : undefined;
+                const variantActiveBg = colorVariant === 'blue'
+                  ? 'rgba(37,99,235,0.1)'
+                  : colorVariant === 'violet'
+                  ? 'rgba(124,58,237,0.1)'
+                  : undefined;
+                const variantTextClass = isActive
+                  ? (colorVariant === 'blue'
+                    ? 'text-blue-400'
+                    : colorVariant === 'violet'
+                    ? 'text-violet-400'
+                    : 'text-accent')
+                  : 'text-text-muted hover:text-text-main';
+
+                const activeBorderColor = variantActiveColor || 'var(--color-accent)';
+                const activeBg = isActive ? (variantActiveBg || 'var(--color-accent-subtle)') : undefined;
+
                 return (
                   <button
                     key={item.id}
@@ -188,11 +219,14 @@ export const Sidebar: React.FC<Props> = ({ currentView, onChangeView, isOpen, on
                       relative flex items-center gap-2.5 rounded-md text-[13px] font-medium transition-all duration-150
                       ${isOpen ? 'w-full px-3 py-2' : 'w-8 h-8 min-w-[32px] justify-center'}
                       ${isActive
-                        ? 'text-accent border-l-2 border-accent'
+                        ? `${variantTextClass} border-l-2`
                         : 'text-text-muted hover:text-text-main border-l-2 border-transparent hover:bg-white/5'
                       }
                     `}
-                    style={isActive ? { background: 'var(--color-accent-subtle)', paddingLeft: isOpen ? '10px' : undefined } : {}}
+                    style={isActive
+                      ? { background: activeBg, borderLeftColor: activeBorderColor, paddingLeft: isOpen ? '10px' : undefined }
+                      : {}
+                    }
                   >
                     <span className="shrink-0 relative">
                       {item.icon}

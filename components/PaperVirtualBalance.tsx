@@ -111,7 +111,13 @@ export const PaperVirtualBalance: React.FC<PaperVirtualBalanceProps> = ({
   ];
 
   return (
-    <div className="panel-section p-4">
+    <div className="panel-section p-4 border-l-4 border-violet-600">
+      {/* Badge Mô Phỏng */}
+      <div className="flex items-center gap-2 mb-3">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-violet-600/10 text-violet-400">
+          MO PHONG
+        </span>
+      </div>
       <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="text-[13px] font-black text-text-main">Số Dư Ảo (Paper Trading)</h3>

@@ -16,6 +16,9 @@ import { WatchlistView } from './components/WatchlistView';
 import { AiSignalsView } from './components/AiSignalsView';
 import { NotificationsView } from './components/NotificationsView';
 import { SettingsView } from './components/SettingsView';
+import { PaperOrderManager } from './components/PaperOrderManager';
+import { PaperVirtualBalance } from './components/PaperVirtualBalance';
+import { PaperPerformanceReport } from './components/PaperPerformanceReport';
 import { analyzeTrader } from './services/geminiService';
 import { portfolioApi, positionApi, marketApi, authApi } from './services/api';
 import type { Position as PositionType, CreatePositionRequest } from './services/api';
@@ -3121,6 +3124,29 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
             onRefreshPositions={loadPositions}
             onOpenSetup={() => setShowSetupModal(true)}
           />
+        )}
+
+        {/* Paper Trading View */}
+        {currentView === 'paper-trading' && (
+          <div className="space-y-4 animate-fade-in border-l-4 border-violet-600 pl-3">
+            <div className="flex items-center gap-2 pt-1">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-violet-600/10 text-violet-400">
+                MO PHONG
+              </span>
+              <span className="text-[11px] text-text-muted">Giao dịch mô phỏng — Không ảnh hưởng portfolio thật</span>
+            </div>
+            {portfolio?.id ? (
+              <>
+                <PaperVirtualBalance portfolioId={portfolio.id} />
+                <PaperOrderManager portfolioId={portfolio.id} orders={[]} onRefresh={() => {}} />
+                <PaperPerformanceReport portfolioId={portfolio.id} />
+              </>
+            ) : (
+              <div className="panel-section p-6 text-center text-text-muted text-[12px]">
+                Chưa có portfolio. Vui lòng thiết lập portfolio trước.
+              </div>
+            )}
+          </div>
         )}
 
         {/* Watchlist View */}

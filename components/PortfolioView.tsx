@@ -323,7 +323,14 @@ export const PortfolioView: React.FC<Props> = ({
   ];
 
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="space-y-4 animate-fade-in border-l-4 border-blue-600 pl-3">
+      {/* Badge Portfolio Thật */}
+      <div className="flex items-center gap-2 pt-1">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-600/10 text-blue-400">
+          THẬT
+        </span>
+        <span className="text-[11px] text-text-muted">Portfolio Thật — Giao dịch thực tế</span>
+      </div>
       {/* ── MAIN TAB: REAL / PAPER ── */}
       <div className="flex gap-2 mb-2">
         <button

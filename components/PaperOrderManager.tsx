@@ -44,6 +44,9 @@ export const PaperOrderManager: React.FC<PaperOrderManagerProps> = ({
 
   const handleSubmitEdit = async () => {
     if (!editingOrder) return;
+    // Confirmation dialog per D-04: nhắc nhở đây là giao dịch mo phong
+    const confirmed = window.confirm('Day la giao dich mo phong. Khong anh huong toi portfolio that. Ban co muon tiep tuc?');
+    if (!confirmed) return;
     const data: { limit_price?: number; quantity?: number } = {};
 
     if (editLimitPrice.trim()) {
@@ -101,7 +104,14 @@ export const PaperOrderManager: React.FC<PaperOrderManagerProps> = ({
   };
 
   return (
-    <div className="panel-section p-4">
+    <div className="panel-section p-4 border-l-4 border-violet-600">
+      {/* Badge Mô Phỏng */}
+      <div className="flex items-center gap-2 mb-3">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-violet-600/10 text-violet-400">
+          MO PHONG
+        </span>
+        <span className="text-[10px] text-text-muted">Giao dịch mô phỏng — Không ảnh hưởng portfolio thật</span>
+      </div>
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-[13px] font-black text-text-main">Lệnh Chờ Khớp (Paper)</h3>

@@ -134,7 +134,13 @@ export const PaperPerformanceReport: React.FC<PaperPerformanceReportProps> = ({
   ];
 
   return (
-    <div className="panel-section p-4">
+    <div className="panel-section p-4 border-l-4 border-violet-600">
+      {/* Badge Mô Phỏng */}
+      <div className="flex items-center gap-2 mb-3">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-violet-600/10 text-violet-400">
+          MO PHONG
+        </span>
+      </div>
       {/* Header + Period Selector */}
       <div className="flex items-center justify-between mb-4">
         <div>
