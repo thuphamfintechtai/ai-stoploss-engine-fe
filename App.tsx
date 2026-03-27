@@ -18,7 +18,8 @@ import { NotificationsView } from './components/NotificationsView';
 import { SettingsView } from './components/SettingsView';
 import { PaperOrderManager } from './components/PaperOrderManager';
 import { PaperVirtualBalance } from './components/PaperVirtualBalance';
-import { PaperPerformanceReport } from './components/PaperPerformanceReport';
+// Heavy components — lazy loaded để giảm initial bundle size
+const PaperPerformanceReport = React.lazy(() => import('./components/PaperPerformanceReport').then(m => ({ default: m.PaperPerformanceReport })));
 import { analyzeTrader } from './services/geminiService';
 import { portfolioApi, positionApi, marketApi, authApi } from './services/api';
 import type { Position as PositionType, CreatePositionRequest } from './services/api';
@@ -3172,7 +3173,9 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
               <>
                 <PaperVirtualBalance portfolioId={portfolio.id} />
                 <PaperOrderManager portfolioId={portfolio.id} orders={[]} onRefresh={() => {}} />
-                <PaperPerformanceReport portfolioId={portfolio.id} />
+                <React.Suspense fallback={<div className="flex items-center justify-center h-64"><span className="text-text-muted text-sm">Dang tai...</span></div>}>
+                  <PaperPerformanceReport portfolioId={portfolio.id} />
+                </React.Suspense>
               </>
             ) : (
               <div className="panel-section p-6 text-center text-text-muted text-[12px]">

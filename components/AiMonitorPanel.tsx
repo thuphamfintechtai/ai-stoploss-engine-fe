@@ -13,6 +13,7 @@ interface DynamicSLUpdate {
   atr_multiplier?: number;
   narrative: string;
   timestamp: string;
+  ai_source?: 'gemini' | 'rule_based';
 }
 
 interface PositionReview {
@@ -492,6 +493,11 @@ export const AiMonitorPanel: React.FC<Props> = ({ portfolioId, openPositions, on
                       <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full border ${regimeCfg.color} ${regimeCfg.borderColor} ${regimeCfg.bgColor}`}>
                         {regimeCfg.label}
                       </span>
+                      {update.ai_source && (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${update.ai_source === 'gemini' ? 'bg-blue-500/10 text-blue-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                          {update.ai_source === 'gemini' ? 'Gemini AI' : 'Rule-based'}
+                        </span>
+                      )}
                     </div>
                     <span className="text-[9px] text-text-dim font-mono">
                       {new Date(update.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}

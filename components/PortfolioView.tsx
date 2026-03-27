@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, ReferenceLine } from 'recharts';
 import { positionApi, portfolioApi, orderApi, realPortfolioApi } from '../services/api';
 import type { Position, Order, RealPosition } from '../services/api';
@@ -6,7 +6,8 @@ import { PaperVirtualBalance } from './PaperVirtualBalance';
 import { PaperOrderManager } from './PaperOrderManager';
 import { PaperPerformanceReport } from './PaperPerformanceReport';
 import { formatNumberVI, PRICE_LOCALE, PRICE_FRACTION_OPTIONS, STOCK_PRICE_DISPLAY_SCALE } from '../constants';
-import { RiskManagerView } from './RiskManagerView';
+// Heavy components — lazy loaded để giảm initial bundle size
+const RiskManagerView = React.lazy(() => import('./RiskManagerView').then(m => ({ default: m.RiskManagerView })));
 import { AiMonitorPanel } from './AiMonitorPanel';
 import { CashBalanceCard } from './portfolio/CashBalanceCard';
 import { RealOrderForm } from './portfolio/RealOrderForm';
@@ -79,6 +80,7 @@ export const PortfolioView: React.FC<Props> = ({
   const [loadingClosed, setLoadingClosed] = useState(false);
   const [closedPage, setClosedPage] = useState(1);
   const [closedTotal, setClosedTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const CLOSED_PAGE_SIZE = 20;
 
   // ── Pending Orders ──
@@ -115,7 +117,9 @@ export const PortfolioView: React.FC<Props> = ({
       } as any);
       if (res.data?.success) {
         setClosedPositions(res.data.data ?? []);
-        setClosedTotal(res.data.total ?? 0);
+        const pagination = res.data.pagination;
+        setClosedTotal(pagination?.total ?? res.data.total ?? 0);
+        setTotalPages(pagination?.totalPages ?? Math.max(1, Math.ceil((pagination?.total ?? res.data.total ?? 0) / CLOSED_PAGE_SIZE)));
       }
     } catch {
       // fallback
@@ -457,13 +461,15 @@ export const PortfolioView: React.FC<Props> = ({
 
       {/* ── RISK TAB ── */}
       {activeTab === 'risk' && (
-        <RiskManagerView
-          portfolioId={portfolioId}
-          positions={openPositions}
-          totalBalance={totalBalance}
-          maxRiskPercent={maxRiskPercent}
-          onNavigate={onNavigate}
-        />
+        <Suspense fallback={<div className="flex items-center justify-center h-64"><span className="text-text-muted text-sm">Dang tai...</span></div>}>
+          <RiskManagerView
+            portfolioId={portfolioId}
+            positions={openPositions}
+            totalBalance={totalBalance}
+            maxRiskPercent={maxRiskPercent}
+            onNavigate={onNavigate}
+          />
+        </Suspense>
       )}
 
       {/* ── AI MONITOR TAB ── */}
@@ -718,9 +724,10 @@ export const PortfolioView: React.FC<Props> = ({
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-subtle">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Lịch Sử Lệnh Đóng</span>
           <div className="flex items-center gap-2 text-[10px] text-text-muted">
-            <button onClick={() => setClosedPage(Math.max(1, closedPage - 1))} disabled={closedPage <= 1} className="px-2 py-0.5 rounded border border-border-standard disabled:opacity-40">‹</button>
-            <span>Trang {closedPage} / {Math.max(1, Math.ceil((closedTotal || closedPositions.length) / CLOSED_PAGE_SIZE))}</span>
-            <button onClick={() => setClosedPage(closedPage + 1)} disabled={closedPage * CLOSED_PAGE_SIZE >= (closedTotal || closedPositions.length)} className="px-2 py-0.5 rounded border border-border-standard disabled:opacity-40">›</button>
+            <span className="text-[10px] text-text-dim">{closedTotal} vi the</span>
+            <button onClick={() => setClosedPage(Math.max(1, closedPage - 1))} disabled={closedPage <= 1} className="px-2 py-0.5 rounded border border-border-standard disabled:opacity-40">Truoc</button>
+            <span>{closedPage}/{totalPages}</span>
+            <button onClick={() => setClosedPage(p => Math.min(totalPages, p + 1))} disabled={closedPage >= totalPages} className="px-2 py-0.5 rounded border border-border-standard disabled:opacity-40">Sau</button>
           </div>
         </div>
         <div className="overflow-x-auto">

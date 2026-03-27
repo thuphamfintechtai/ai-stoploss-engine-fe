@@ -1539,6 +1539,11 @@ export const TradingTerminal: React.FC<Props> = ({
                           <div className="flex justify-between items-center">
                             <div className="flex items-center gap-2">
                               <span className="text-[8px] text-accent font-bold uppercase tracking-wider">AI gợi ý cho {aiSuggestions.symbol}</span>
+                              {aiSuggestions.ai_source && (
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded ${aiSuggestions.ai_source === 'gemini' ? 'bg-blue-500/10 text-blue-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                                  {aiSuggestions.ai_source === 'gemini' ? 'Gemini AI' : 'Rule-based'}
+                                </span>
+                              )}
                               {aiSuggestions.technical_score != null && (
                                 <span className={`text-[7px] font-bold px-1.5 py-0.5 rounded ${
                                   aiSuggestions.technical_score >= 70 ? 'bg-positive/15 text-positive'
