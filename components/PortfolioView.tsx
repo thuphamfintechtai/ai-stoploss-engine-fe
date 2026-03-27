@@ -2,6 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, ReferenceLine } from 'recharts';
 import { positionApi, portfolioApi, orderApi, realPortfolioApi } from '../services/api';
 import type { Position, Order, RealPosition } from '../services/api';
+import { PaperVirtualBalance } from './PaperVirtualBalance';
+import { PaperOrderManager } from './PaperOrderManager';
+import { PaperPerformanceReport } from './PaperPerformanceReport';
 import { formatNumberVI, PRICE_LOCALE, PRICE_FRACTION_OPTIONS, STOCK_PRICE_DISPLAY_SCALE } from '../constants';
 import { RiskManagerView } from './RiskManagerView';
 import { AiMonitorPanel } from './AiMonitorPanel';
@@ -96,6 +99,10 @@ export const PortfolioView: React.FC<Props> = ({
   const [editModal, setEditModal] = useState<{ pos: Position; stopLoss: string; takeProfit: string } | null>(null);
   const [editing, setEditing] = useState(false);
   const [editMsg, setEditMsg] = useState('');
+
+  // ── Paper Trading extras ──
+  const [simulationMode, setSimulationMode] = useState<'INSTANT' | 'REALISTIC'>('REALISTIC');
+  const [paperBalanceRefresh, setPaperBalanceRefresh] = useState(0);
 
   const loadClosed = useCallback(async () => {
     if (!portfolioId) return;
@@ -389,6 +396,38 @@ export const PortfolioView: React.FC<Props> = ({
       {/* ── PAPER TAB CONTENT (existing content) ── */}
       {mainTab === 'PAPER' && (<>
 
+      {/* ── PAPER: Virtual Balance + Simulation Mode ── */}
+      {portfolioId && (
+        <div className="space-y-3">
+          <PaperVirtualBalance portfolioId={portfolioId} refreshTrigger={paperBalanceRefresh} />
+          <div className="panel-section px-4 py-3 flex items-center gap-3">
+            <p className="text-[11px] font-semibold text-text-muted">Chế Độ Đặt Lệnh:</p>
+            <div className="flex gap-1">
+              {(['REALISTIC', 'INSTANT'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setSimulationMode(mode)}
+                  className={`px-3 py-1.5 rounded text-[10px] font-semibold transition-colors ${
+                    simulationMode === mode
+                      ? mode === 'REALISTIC'
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-orange-600 text-white'
+                      : 'bg-white/5 text-text-muted hover:bg-white/10'
+                  }`}
+                >
+                  {mode === 'REALISTIC' ? 'REALISTIC (Chờ Khớp)' : 'INSTANT (Khớp Ngay)'}
+                </button>
+              ))}
+            </div>
+            <span className="text-[9px] text-text-dim">
+              {simulationMode === 'REALISTIC'
+                ? 'Lệnh LO sẽ chờ giá thị trường; MP có slippage thực tế'
+                : 'Mọi lệnh khớp ngay lập tức theo giá thị trường'}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* ── TAB BAR ── */}
       <div className="flex gap-1 border-b border-border-standard">
         {TABS.map((tab) => (
@@ -430,85 +469,18 @@ export const PortfolioView: React.FC<Props> = ({
       )}
 
       {/* ── PENDING ORDERS TAB ── */}
-      {activeTab === 'orders' && (
-        <div className="panel-section p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-[13px] font-black text-text-main">Lệnh Chờ Khớp</h3>
-              <p className="text-[10px] text-text-muted mt-0.5">Các lệnh đang chờ điều kiện khớp (LO, ATO, ATC)</p>
-            </div>
-            <button onClick={loadOrders} disabled={loadingOrders} className="text-[10px] text-accent hover:underline disabled:opacity-40">
-              {loadingOrders ? 'Đang tải...' : '↻ Làm mới'}
-            </button>
-          </div>
-          {loadingOrders ? (
-            <div className="text-center py-8 text-text-dim text-[11px] animate-pulse">Đang tải...</div>
-          ) : pendingOrders.length === 0 ? (
-            <div className="text-center py-8 text-text-muted text-[11px]">Không có lệnh chờ nào</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="table-terminal w-full">
-                <thead>
-                  <tr>
-                    <th className="text-left px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-text-dim">Mã</th>
-                    <th className="text-left px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-text-dim">Loại</th>
-                    <th className="text-right px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-text-dim">Giá</th>
-                    <th className="text-right px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-text-dim">Khối lượng</th>
-                    <th className="text-left px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-text-dim">Trạng thái</th>
-                    <th className="text-left px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-text-dim">Hết hạn</th>
-                    <th className="px-3 py-2" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendingOrders.map((order) => {
-                    const isBuy = order.side === 'BUY';
-                    const limitPts = order.limit_price != null ? toPoint(Number(order.limit_price)) : null;
-                    const expiry = order.expired_at ? new Date(order.expired_at) : null;
-                    const expStr = expiry ? expiry.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '—';
-                    return (
-                      <tr key={order.id} className="border-b border-border-subtle/30 hover:bg-white/[0.02]">
-                        <td className="px-3 py-2.5">
-                          <span className="text-[12px] font-bold text-text-main font-mono">{order.symbol}</span>
-                          <span className="ml-1 text-[9px] text-text-dim">{order.exchange}</span>
-                        </td>
-                        <td className="px-3 py-2.5">
-                          <span className={`text-[10px] font-bold mr-1.5 ${isBuy ? 'text-positive' : 'text-negative'}`}>{isBuy ? 'MUA' : 'BÁN'}</span>
-                          <span className="text-[9px] text-text-muted bg-white/5 px-1 py-0.5 rounded">{order.order_type}</span>
-                        </td>
-                        <td className="px-3 py-2.5 text-right font-mono text-[11px]">
-                          {limitPts != null ? limitPts.toFixed(2) : <span className="text-text-dim">Giá TT</span>}
-                        </td>
-                        <td className="px-3 py-2.5 text-right font-mono text-[11px]">
-                          {Number(order.quantity).toLocaleString()}
-                          {Number(order.filled_quantity) > 0 && (
-                            <span className="text-text-dim"> / {Number(order.filled_quantity).toLocaleString()}</span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2.5">
-                          <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${
-                            order.status === 'PARTIALLY_FILLED' ? 'text-warning bg-warning/10' : 'text-accent bg-accent/10'
-                          }`}>
-                            {order.status === 'PARTIALLY_FILLED' ? 'Khớp Một Phần' : 'Chờ Khớp'}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2.5 text-[9px] text-text-muted">{expStr}</td>
-                        <td className="px-3 py-2.5 text-right">
-                          <button
-                            onClick={() => handleCancelOrder(order.id)}
-                            disabled={cancellingOrderId === order.id}
-                            className="text-[9px] font-semibold text-negative/70 hover:text-negative transition-colors disabled:opacity-40"
-                          >
-                            {cancellingOrderId === order.id ? '...' : 'Hủy'}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+      {activeTab === 'orders' && portfolioId && (
+        <PaperOrderManager
+          portfolioId={portfolioId}
+          orders={pendingOrders}
+          onRefresh={() => {
+            loadOrders();
+            setPaperBalanceRefresh((n) => n + 1);
+          }}
+        />
+      )}
+      {activeTab === 'orders' && !portfolioId && (
+        <div className="text-center py-12 text-gray-500 text-[12px]">Vui lòng chọn portfolio để xem</div>
       )}
 
       {activeTab === 'portfolio' && (<>
@@ -815,6 +787,11 @@ export const PortfolioView: React.FC<Props> = ({
           )}
         </div>
       </div>
+
+      {/* ── PAPER PERFORMANCE REPORT ── */}
+      {portfolioId && (
+        <PaperPerformanceReport portfolioId={portfolioId} refreshTrigger={paperBalanceRefresh} />
+      )}
       </>)}
 
       {/* ── CLOSE POSITION MODAL ── */}
