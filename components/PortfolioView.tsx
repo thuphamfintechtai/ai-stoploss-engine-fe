@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, ReferenceLine } from 'recharts';
-import { positionApi, portfolioApi, orderApi } from '../services/api';
-import type { Position, Order } from '../services/api';
+import { positionApi, portfolioApi, orderApi, realPortfolioApi } from '../services/api';
+import type { Position, Order, RealPosition } from '../services/api';
 import { formatNumberVI, PRICE_LOCALE, PRICE_FRACTION_OPTIONS, STOCK_PRICE_DISPLAY_SCALE } from '../constants';
 import { RiskManagerView } from './RiskManagerView';
 import { AiMonitorPanel } from './AiMonitorPanel';
+import { CashBalanceCard } from './portfolio/CashBalanceCard';
+import { RealOrderForm } from './portfolio/RealOrderForm';
+import { RealPositionsTable } from './portfolio/RealPositionsTable';
+import { ClosePositionModal } from './portfolio/ClosePositionModal';
+import { TransactionHistory } from './portfolio/TransactionHistory';
 
 interface Props {
   portfolioId: string | null;
@@ -18,6 +23,7 @@ interface Props {
 }
 
 type PortfolioTab = 'portfolio' | 'orders' | 'risk' | 'ai_monitor';
+type MainTab = 'REAL' | 'PAPER';
 
 const toPoint = (v: number) => (v >= 1000 ? v / 1000 : v);
 
@@ -45,6 +51,18 @@ export const PortfolioView: React.FC<Props> = ({
   onOpenSetup,
 }) => {
   const [activeTab, setActiveTab] = useState<PortfolioTab>('portfolio');
+
+  // ── Main Real/Paper tab ──
+  const [mainTab, setMainTab] = useState<MainTab>('REAL');
+  const [realPositions, setRealPositions] = useState<RealPosition[]>([]);
+  const [realPositionsLoading, setRealPositionsLoading] = useState(false);
+  const [closingPosition, setClosingPosition] = useState<RealPosition | null>(null);
+  const [cashBalance, setCashBalance] = useState({
+    total_balance: 0,
+    available_cash: 0,
+    pending_settlement_cash: 0,
+  });
+
   const [closedPositions, setClosedPositions] = useState<Position[]>([]);
   const [loadingClosed, setLoadingClosed] = useState(false);
   const [closedPage, setClosedPage] = useState(1);
@@ -122,6 +140,39 @@ export const PortfolioView: React.FC<Props> = ({
   }, [portfolioId]);
 
   useEffect(() => { loadPerformance(); }, [loadPerformance]);
+
+  // ── Fetch Real Portfolio Data ──
+  const fetchRealData = useCallback(async () => {
+    if (!portfolioId) return;
+    setRealPositionsLoading(true);
+    try {
+      const [posRes, portRes] = await Promise.all([
+        realPortfolioApi.getOpenPositions(portfolioId),
+        portfolioApi.getById(portfolioId),
+      ]);
+      if (posRes.data?.success) {
+        setRealPositions(posRes.data.data ?? []);
+      }
+      if (portRes.data?.success && portRes.data?.data) {
+        const p = portRes.data.data;
+        setCashBalance({
+          total_balance: Number(p.total_balance ?? totalBalance ?? 0),
+          available_cash: Number(p.available_cash ?? 0),
+          pending_settlement_cash: Number(p.pending_settlement_cash ?? 0),
+        });
+      }
+    } catch {
+      // fallback
+    } finally {
+      setRealPositionsLoading(false);
+    }
+  }, [portfolioId, totalBalance]);
+
+  useEffect(() => {
+    if (mainTab === 'REAL' && portfolioId) {
+      fetchRealData();
+    }
+  }, [mainTab, portfolioId, fetchRealData]);
 
   // ── Close Position ──
   const handleClosePosition = async () => {
@@ -244,6 +295,68 @@ export const PortfolioView: React.FC<Props> = ({
 
   return (
     <div className="space-y-4 animate-fade-in">
+      {/* ── MAIN TAB: REAL / PAPER ── */}
+      <div className="flex gap-2 mb-2">
+        <button
+          onClick={() => setMainTab('REAL')}
+          className={`px-4 py-2 rounded-lg text-[12px] font-semibold transition-colors ${
+            mainTab === 'REAL'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
+        >
+          Portfolio That
+        </button>
+        <button
+          onClick={() => setMainTab('PAPER')}
+          className={`px-4 py-2 rounded-lg text-[12px] font-semibold transition-colors ${
+            mainTab === 'PAPER'
+              ? 'bg-purple-600 text-white'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
+        >
+          Paper Trading
+        </button>
+      </div>
+
+      {/* ── REAL TAB CONTENT ── */}
+      {mainTab === 'REAL' && portfolioId && (
+        <div className="space-y-4">
+          <CashBalanceCard
+            totalBalance={cashBalance.total_balance || totalBalance}
+            availableCash={cashBalance.available_cash}
+            pendingSettlement={cashBalance.pending_settlement_cash}
+          />
+          <RealOrderForm
+            portfolioId={portfolioId}
+            availableCash={cashBalance.available_cash}
+            onSuccess={fetchRealData}
+          />
+          <RealPositionsTable
+            positions={realPositions}
+            onClosePosition={setClosingPosition}
+            loading={realPositionsLoading}
+          />
+          <TransactionHistory portfolioId={portfolioId} />
+          <ClosePositionModal
+            position={closingPosition}
+            portfolioId={portfolioId}
+            isOpen={!!closingPosition}
+            onClose={() => setClosingPosition(null)}
+            onSuccess={fetchRealData}
+          />
+        </div>
+      )}
+
+      {mainTab === 'REAL' && !portfolioId && (
+        <div className="text-center py-12 text-gray-500 text-[12px]">
+          Vui long chon portfolio de xem
+        </div>
+      )}
+
+      {/* ── PAPER TAB CONTENT (existing content) ── */}
+      {mainTab === 'PAPER' && (<>
+
       {/* ── TAB BAR ── */}
       <div className="flex gap-1 border-b border-border-standard">
         {TABS.map((tab) => (
@@ -763,6 +876,7 @@ export const PortfolioView: React.FC<Props> = ({
           </div>
         </div>
       )}
+      </>)}
     </div>
   );
 };
