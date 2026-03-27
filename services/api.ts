@@ -738,5 +738,59 @@ export const realPortfolioApi = {
     apiClient.get(`/portfolios/${portfolioId}/real-summary`),
 };
 
+// ─── New AI Interfaces ────────────────────────────────────────────────────────
+
+export interface TPLevel {
+  price: number;
+  probability: number;
+  timeframe_days: number;
+  label: string;
+}
+
+export interface PositionSizingResult {
+  kelly: {
+    kelly_fraction: number;
+    half_kelly: number;
+    recommended_percent: number;
+    interpretation: string;
+  };
+  stats: any;
+}
+
+export interface RiskBudgetResult {
+  usedRiskVnd: number;
+  usedRiskPercent: number;
+  maxRiskVnd: number;
+  remainingBudget: number;
+  positions: any[];
+  sectorConcentration: any[];
+}
+
+// ─── New AI API Functions ────────────────────────────────────────────────────
+
+/**
+ * Gợi ý kích thước vị thế dựa trên Kelly Criterion và thống kê lịch sử
+ */
+export async function getPositionSizing(portfolioId: string): Promise<PositionSizingResult> {
+  const response = await apiClient.post('/ai/position-sizing', { portfolio_id: portfolioId });
+  return response.data.data;
+}
+
+/**
+ * Lấy thông tin ngân sách rủi ro của portfolio
+ */
+export async function getRiskBudget(portfolioId: string): Promise<RiskBudgetResult> {
+  const response = await apiClient.get('/ai/risk-budget', { params: { portfolio_id: portfolioId } });
+  return response.data.data;
+}
+
+/**
+ * Lấy gợi ý tái cân bằng danh mục
+ */
+export async function getRebalancingSuggestions(portfolioId: string): Promise<any> {
+  const response = await apiClient.get('/ai/rebalancing', { params: { portfolio_id: portfolioId } });
+  return response.data.data;
+}
+
 // Export default client
 export default apiClient;
