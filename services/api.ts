@@ -689,6 +689,9 @@ export const realPortfolioApi = {
 
   closePosition: (portfolioId: string, positionId: string, data: CloseRealPositionRequest) =>
     apiClient.post(`/portfolios/${portfolioId}/real-positions/${positionId}/close`, data),
+
+  getSummary: (portfolioId: string) =>
+    apiClient.get(`/portfolios/${portfolioId}/real-summary`),
 };
 
 // Export default client
