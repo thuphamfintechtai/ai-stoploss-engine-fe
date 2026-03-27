@@ -1,7 +1,19 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { aiApi, positionApi } from '../services/api';
 import type { Position } from '../services/api';
 import { formatNumberVI } from '../constants';
+import wsService from '../services/websocket';
+
+interface DynamicSLUpdate {
+  symbol: string;
+  old_sl: number;
+  new_sl: number;
+  regime: 'VOLATILE' | 'BULLISH' | 'BEARISH' | 'SIDEWAYS';
+  atr_value?: number;
+  atr_multiplier?: number;
+  narrative: string;
+  timestamp: string;
+}
 
 interface PositionReview {
   position_id: string;
@@ -285,6 +297,13 @@ function HistoryTab({ portfolioId }: { portfolioId: string }) {
   );
 }
 
+const REGIME_CONFIG: Record<string, { label: string; color: string; borderColor: string; bgColor: string }> = {
+  VOLATILE:  { label: 'Bien dong',  color: 'text-negative',  borderColor: 'border-negative',  bgColor: 'bg-negative/5' },
+  BULLISH:   { label: 'Tang',       color: 'text-positive',  borderColor: 'border-positive',  bgColor: 'bg-positive/5' },
+  BEARISH:   { label: 'Giam',       color: 'text-orange-500', borderColor: 'border-orange-400', bgColor: 'bg-orange-500/5' },
+  SIDEWAYS:  { label: 'Di ngang',  color: 'text-text-muted', borderColor: 'border-border-standard', bgColor: 'bg-background/50' },
+};
+
 export const AiMonitorPanel: React.FC<Props> = ({ portfolioId, openPositions, onNavigate }) => {
   const [activeTab, setActiveTab] = useState<'current' | 'history'>('current');
   const [result, setResult] = useState<ReviewResult | null>(null);
@@ -292,6 +311,29 @@ export const AiMonitorPanel: React.FC<Props> = ({ portfolioId, openPositions, on
   const [error, setError] = useState<string | null>(null);
   const [applying, setApplying] = useState<string | null>(null);
   const [applied, setApplied] = useState<Set<string>>(new Set());
+
+  // Dynamic SL Updates (WebSocket)
+  const [dynamicSLUpdates, setDynamicSLUpdates] = useState<DynamicSLUpdate[]>([]);
+  const dynamicSLRef = useRef<((data: DynamicSLUpdate) => void) | null>(null);
+
+  useEffect(() => {
+    const handler = (data: DynamicSLUpdate) => {
+      setDynamicSLUpdates(prev => {
+        const next = [{ ...data, timestamp: data.timestamp || new Date().toISOString() }, ...prev];
+        return next.slice(0, 20); // giu toi da 20 updates
+      });
+    };
+    dynamicSLRef.current = handler;
+    wsService.off('DYNAMIC_SL_UPDATE');
+    wsService.off('dynamic_sl_update');
+    // Listen ca 2 event name (uppercase va lowercase)
+    (wsService as any).socket?.on('DYNAMIC_SL_UPDATE', handler);
+    (wsService as any).socket?.on('dynamic_sl_update', handler);
+    return () => {
+      (wsService as any).socket?.off('DYNAMIC_SL_UPDATE', handler);
+      (wsService as any).socket?.off('dynamic_sl_update', handler);
+    };
+  }, []);
 
   const runReview = useCallback(async () => {
     if (!portfolioId) return;
@@ -419,6 +461,63 @@ export const AiMonitorPanel: React.FC<Props> = ({ portfolioId, openPositions, on
         <div className="panel-section p-3 border border-negative/30 bg-negative/5 text-[12px] text-negative flex items-center justify-between">
           <span>{error}</span>
           <button onClick={() => setError(null)} className="text-text-dim hover:text-text-muted ml-3 shrink-0">✕</button>
+        </div>
+      )}
+
+      {/* ── Dynamic SL Updates ── */}
+      {dynamicSLUpdates.length > 0 && (
+        <div className="panel-section">
+          <div className="px-4 py-2.5 border-b border-border-subtle flex items-center justify-between">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Cap Nhat SL Dong (Dynamic SL)</span>
+            <button
+              onClick={() => setDynamicSLUpdates([])}
+              className="text-[9px] text-text-dim hover:text-text-muted"
+            >
+              Xoa tat ca
+            </button>
+          </div>
+          <div className="p-3 space-y-2 max-h-72 overflow-y-auto dense-scroll">
+            {dynamicSLUpdates.map((update, i) => {
+              const regimeCfg = REGIME_CONFIG[update.regime] ?? REGIME_CONFIG.SIDEWAYS;
+              const slOld = typeof update.old_sl === 'number' ? (update.old_sl >= 1000 ? update.old_sl / 1000 : update.old_sl) : null;
+              const slNew = typeof update.new_sl === 'number' ? (update.new_sl >= 1000 ? update.new_sl / 1000 : update.new_sl) : null;
+              return (
+                <div
+                  key={i}
+                  className={`p-3 rounded-lg border-l-4 ${regimeCfg.borderColor} ${regimeCfg.bgColor} border border-border-subtle`}
+                >
+                  <div className="flex items-center justify-between mb-1.5 gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[13px] font-bold text-text-main">{update.symbol}</span>
+                      <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full border ${regimeCfg.color} ${regimeCfg.borderColor} ${regimeCfg.bgColor}`}>
+                        {regimeCfg.label}
+                      </span>
+                    </div>
+                    <span className="text-[9px] text-text-dim font-mono">
+                      {new Date(update.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    </span>
+                  </div>
+                  {slOld !== null && slNew !== null && (
+                    <div className="flex items-center gap-2 mb-1.5 text-[10px] font-mono">
+                      <span className="text-text-dim">SL:</span>
+                      <span className="text-negative">{slOld.toFixed(2)}</span>
+                      <span className="text-text-dim">→</span>
+                      <span className="text-negative font-bold">{slNew.toFixed(2)}</span>
+                    </div>
+                  )}
+                  {(update.atr_value || update.atr_multiplier) && (
+                    <p className="text-[8px] text-text-dim mb-1">
+                      ATR: {update.atr_value?.toFixed(2) ?? '—'}
+                      {update.atr_multiplier && ` × ${update.atr_multiplier}`}
+                    </p>
+                  )}
+                  {update.narrative && (
+                    <p className="text-[9px] text-text-muted leading-relaxed">{update.narrative}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 

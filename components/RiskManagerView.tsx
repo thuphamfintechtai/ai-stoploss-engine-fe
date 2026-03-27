@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
-import type { Position } from '../services/api';
+import React, { useMemo, useState, useEffect } from 'react';
+import type { Position, RiskBudgetResult } from '../services/api';
+import { getRiskBudget, getRebalancingSuggestions } from '../services/api';
 import { formatNumberVI, STOCK_PRICE_DISPLAY_SCALE } from '../constants';
 
 interface Props {
@@ -84,6 +85,27 @@ export const RiskManagerView: React.FC<Props> = ({
 }) => {
   const openPositions = positions.filter((p) => p.status === 'OPEN');
   const maxRiskAmount = (totalBalance * maxRiskPercent) / 100;
+
+  // Risk budget + rebalancing state
+  const [riskBudget, setRiskBudget] = useState<RiskBudgetResult | null>(null);
+  const [riskBudgetLoading, setRiskBudgetLoading] = useState(false);
+  const [rebalancing, setRebalancing] = useState<any>(null);
+
+  useEffect(() => {
+    if (!portfolioId) {
+      setRiskBudget(null);
+      setRebalancing(null);
+      return;
+    }
+    setRiskBudgetLoading(true);
+    Promise.all([
+      getRiskBudget(portfolioId).catch(() => null),
+      getRebalancingSuggestions(portfolioId).catch(() => null),
+    ]).then(([budget, rebal]) => {
+      setRiskBudget(budget);
+      setRebalancing(rebal);
+    }).finally(() => setRiskBudgetLoading(false));
+  }, [portfolioId]);
 
   const positionsWithRisk = useMemo(() => {
     return openPositions.map((pos) => {
@@ -201,6 +223,104 @@ export const RiskManagerView: React.FC<Props> = ({
           </div>
         </div>
       </div>
+
+      {/* ── Ngan sach rui ro (Risk Budget AI) ── */}
+      {portfolioId && (riskBudgetLoading || riskBudget) && (
+        <div className="panel-section">
+          <div className="px-4 py-2.5 border-b border-border-subtle">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Ngan Sach Rui Ro</span>
+          </div>
+          {riskBudgetLoading && (
+            <div className="p-4 text-center text-[11px] text-text-dim flex items-center justify-center gap-2">
+              <div className="w-3 h-3 border border-accent border-t-transparent rounded-full animate-spin" />
+              Dang tinh ngan sach rui ro...
+            </div>
+          )}
+          {riskBudget && !riskBudgetLoading && (
+            <div className="p-4 space-y-4">
+              {/* Risk budget gauge */}
+              <div className="flex flex-col items-center">
+                <p className="text-[10px] text-text-muted mb-2">
+                  Da dung {riskBudget.usedRiskPercent?.toFixed(1) ?? 0}% ngan sach rui ro
+                </p>
+                <RiskGauge percent={riskBudget.usedRiskPercent ?? 0} />
+                <div className="mt-2 text-[10px] text-text-dim grid grid-cols-2 gap-x-4 gap-y-1 text-center">
+                  <div>
+                    <span className="text-text-muted font-semibold">Da dung</span>
+                    <p className="font-mono text-negative">{formatNumberVI(riskBudget.usedRiskVnd ?? 0)}</p>
+                  </div>
+                  <div>
+                    <span className="text-text-muted font-semibold">Con lai</span>
+                    <p className="font-mono text-positive">{formatNumberVI(riskBudget.remainingBudget ?? 0)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sector Concentration */}
+              {Array.isArray(riskBudget.sectorConcentration) && riskBudget.sectorConcentration.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-semibold text-text-muted mb-2 uppercase tracking-wider">Tap trung nganh</p>
+                  <div className="space-y-2">
+                    {riskBudget.sectorConcentration.map((sector: any, i: number) => {
+                      const pct = typeof sector.percent === 'number' ? sector.percent : 0;
+                      const isHigh = pct > 30;
+                      return (
+                        <div key={i}>
+                          <div className="flex justify-between items-center mb-0.5">
+                            <span className="text-[10px] text-text-main">{sector.sectorLabel ?? sector.sector ?? 'Khac'}</span>
+                            <span className={`text-[10px] font-mono font-bold ${isHigh ? 'text-negative' : 'text-text-muted'}`}>{pct.toFixed(1)}%</span>
+                          </div>
+                          <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--color-border-subtle)' }}>
+                            <div
+                              className={`h-full rounded-full transition-all ${isHigh ? 'bg-negative' : 'bg-accent'}`}
+                              style={{ width: `${Math.min(100, pct)}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Rebalancing warnings */}
+              {rebalancing && (
+                <div>
+                  {Array.isArray(rebalancing.warnings) && rebalancing.warnings.length > 0 && (
+                    <div className="space-y-1.5 mb-3">
+                      <p className="text-[10px] font-semibold text-warning uppercase tracking-wider">Canh bao tai can bang</p>
+                      {rebalancing.warnings.map((w: string, i: number) => (
+                        <div key={i} className="px-2.5 py-1.5 rounded bg-warning/5 border border-warning/20 text-[9px] text-warning/90 flex items-start gap-1.5">
+                          <span className="shrink-0">⚠</span><span>{w}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {Array.isArray(rebalancing.suggestions) && rebalancing.suggestions.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-1.5">De xuat tai can bang</p>
+                      <div className="space-y-1.5">
+                        {rebalancing.suggestions.map((s: any, i: number) => (
+                          <div key={i} className="panel-section p-2.5">
+                            <p className="text-[10px] font-semibold text-text-main mb-0.5">{s.symbol ?? `De xuat ${i + 1}`}</p>
+                            {s.narrative && <p className="text-[9px] text-text-muted leading-relaxed">{s.narrative}</p>}
+                            {!s.narrative && s.action && <p className="text-[9px] text-text-muted">{s.action}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {rebalancing.narrative && (
+                    <div className="panel-section p-3 mt-2">
+                      <p className="text-[9px] text-text-muted leading-relaxed">{rebalancing.narrative}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Position Risk Table ── */}
       <div className="panel-section">
