@@ -10,6 +10,7 @@ import { RealOrderForm } from './portfolio/RealOrderForm';
 import { RealPositionsTable } from './portfolio/RealPositionsTable';
 import { ClosePositionModal } from './portfolio/ClosePositionModal';
 import { TransactionHistory } from './portfolio/TransactionHistory';
+import { PortfolioSummaryCard } from './portfolio/PortfolioSummaryCard';
 
 interface Props {
   portfolioId: string | null;
@@ -62,6 +63,14 @@ export const PortfolioView: React.FC<Props> = ({
     available_cash: 0,
     pending_settlement_cash: 0,
   });
+  const [realSummary, setRealSummary] = useState<{
+    total_value: number;
+    total_pnl: number;
+    percent_return: number;
+    position_count: number;
+    closed_count: number;
+  } | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
 
   const [closedPositions, setClosedPositions] = useState<Position[]>([]);
   const [loadingClosed, setLoadingClosed] = useState(false);
@@ -145,10 +154,12 @@ export const PortfolioView: React.FC<Props> = ({
   const fetchRealData = useCallback(async () => {
     if (!portfolioId) return;
     setRealPositionsLoading(true);
+    setSummaryLoading(true);
     try {
-      const [posRes, portRes] = await Promise.all([
+      const [posRes, portRes, summaryRes] = await Promise.all([
         realPortfolioApi.getOpenPositions(portfolioId),
         portfolioApi.getById(portfolioId),
+        realPortfolioApi.getSummary(portfolioId),
       ]);
       if (posRes.data?.success) {
         setRealPositions(posRes.data.data ?? []);
@@ -161,10 +172,21 @@ export const PortfolioView: React.FC<Props> = ({
           pending_settlement_cash: Number(p.pending_settlement_cash ?? 0),
         });
       }
+      if (summaryRes.data?.success && summaryRes.data?.data) {
+        const s = summaryRes.data.data;
+        setRealSummary({
+          total_value: Number(s.total_value ?? 0),
+          total_pnl: Number(s.total_pnl ?? 0),
+          percent_return: Number(s.percent_return ?? 0),
+          position_count: Number(s.position_count ?? 0),
+          closed_count: Number(s.closed_count ?? 0),
+        });
+      }
     } catch {
       // fallback
     } finally {
       setRealPositionsLoading(false);
+      setSummaryLoading(false);
     }
   }, [portfolioId, totalBalance]);
 
@@ -327,6 +349,16 @@ export const PortfolioView: React.FC<Props> = ({
             availableCash={cashBalance.available_cash}
             pendingSettlement={cashBalance.pending_settlement_cash}
           />
+          {realSummary !== null && (
+            <PortfolioSummaryCard
+              totalValue={realSummary.total_value}
+              totalPnl={realSummary.total_pnl}
+              percentReturn={realSummary.percent_return}
+              positionCount={realSummary.position_count}
+              closedCount={realSummary.closed_count}
+              loading={summaryLoading}
+            />
+          )}
           <RealOrderForm
             portfolioId={portfolioId}
             availableCash={cashBalance.available_cash}
