@@ -792,5 +792,87 @@ export async function getRebalancingSuggestions(portfolioId: string): Promise<an
   return response.data.data;
 }
 
+// ─── Risk Simulation Types ──────────────────────────────────────────────────
+
+export interface VaRResult {
+  portfolioVaR: {
+    varVnd: number;
+    varPercent: number;
+    confidenceLevel: number;
+    summary: string;
+  };
+  positionVaRs: Array<{
+    symbol: string;
+    varVnd: number;
+    varPercent: number;
+  }>;
+}
+
+export interface MonteCarloResult {
+  percentileBands: {
+    p5: number[];
+    p25: number[];
+    p50: number[];
+    p75: number[];
+    p95: number[];
+  };
+  probabilityOfLoss: number;
+  initialValue: number;
+}
+
+export interface StressTestScenario {
+  dropPercent: number;
+  totalImpactVnd: number;
+  totalImpactPercent: number;
+  positions: Array<{
+    symbol: string;
+    sector: string;
+    beta: number;
+    positionValue: number;
+    impactVnd: number;
+    impactPercent: number;
+  }>;
+}
+
+export interface StressTestResult {
+  scenarios: StressTestScenario[];
+}
+
+export interface SectorConcentrationResult {
+  sectors: Array<{
+    sector: string;
+    sectorLabel: string;
+    totalValueVnd: number;
+    percent: number;
+    warningLevel: 'RED' | 'YELLOW' | 'GREEN';
+  }>;
+  warnings: string[];
+  totalPortfolioValue: number;
+}
+
+// ─── Risk Simulation API ────────────────────────────────────────────────────
+
+export async function getVaR(portfolioId: string): Promise<VaRResult> {
+  const response = await apiClient.get('/ai/var', { params: { portfolio_id: portfolioId } });
+  return response.data.data;
+}
+
+export async function getMonteCarloSimulation(portfolioId: string): Promise<MonteCarloResult> {
+  const response = await apiClient.post('/ai/monte-carlo', { portfolio_id: portfolioId });
+  return response.data.data;
+}
+
+export async function getStressTest(portfolioId: string, customScenario?: number): Promise<StressTestResult> {
+  const body: any = { portfolio_id: portfolioId };
+  if (customScenario != null) body.custom_scenario = customScenario;
+  const response = await apiClient.post('/ai/stress-test', body);
+  return response.data.data;
+}
+
+export async function getSectorConcentration(portfolioId: string): Promise<SectorConcentrationResult> {
+  const response = await apiClient.get('/ai/sector-concentration', { params: { portfolio_id: portfolioId } });
+  return response.data.data;
+}
+
 // Export default client
 export default apiClient;
