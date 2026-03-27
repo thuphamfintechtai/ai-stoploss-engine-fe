@@ -632,5 +632,64 @@ export const priceAlertsApi = {
   reset: (id: string) => apiClient.patch(`/price-alerts/${id}/reset`, {}),
 };
 
+// ─── Real Portfolio API ───────────────────────────────────────────────────────
+
+export interface CreateRealOrderRequest {
+  symbol: string;
+  exchange: string;
+  side: 'BUY' | 'SELL';
+  quantity: number;
+  filled_price: number;
+  filled_date: string;
+  notes?: string;
+}
+
+export interface RealOrder {
+  id: string;
+  portfolio_id: string;
+  symbol: string;
+  exchange: string;
+  side: 'BUY' | 'SELL';
+  quantity: number;
+  filled_price: number;
+  filled_date: string;
+  fee?: number;
+  notes?: string | null;
+  created_at: string;
+}
+
+export interface RealPosition {
+  id: string;
+  portfolio_id: string;
+  symbol: string;
+  exchange: string;
+  entry_price: number;
+  quantity: number;
+  status: string;
+  created_at: string;
+  current_price?: number;
+  unrealized_pnl?: number;
+}
+
+export interface CloseRealPositionRequest {
+  sell_price: number;
+  sell_date: string;
+  notes?: string;
+}
+
+export const realPortfolioApi = {
+  createOrder: (portfolioId: string, data: CreateRealOrderRequest) =>
+    apiClient.post(`/portfolios/${portfolioId}/real-orders`, data),
+
+  getTransactionHistory: (portfolioId: string, page = 1, limit = 50) =>
+    apiClient.get(`/portfolios/${portfolioId}/real-orders`, { params: { page, limit } }),
+
+  getOpenPositions: (portfolioId: string) =>
+    apiClient.get(`/portfolios/${portfolioId}/real-positions`),
+
+  closePosition: (portfolioId: string, positionId: string, data: CloseRealPositionRequest) =>
+    apiClient.post(`/portfolios/${portfolioId}/real-positions/${positionId}/close`, data),
+};
+
 // Export default client
 export default apiClient;
