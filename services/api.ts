@@ -3,6 +3,67 @@ import axios, { AxiosInstance, AxiosError } from 'axios';
 // API Configuration
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
+// ── Toast Helper (custom, không cần thư viện ngoài) ──────────────────────────
+let _toastContainer: HTMLDivElement | null = null;
+
+function getToastContainer(): HTMLDivElement {
+  if (!_toastContainer || !document.body.contains(_toastContainer)) {
+    _toastContainer = document.createElement('div');
+    _toastContainer.id = 'api-toast-container';
+    _toastContainer.style.cssText = [
+      'position:fixed',
+      'bottom:20px',
+      'right:20px',
+      'z-index:99999',
+      'display:flex',
+      'flex-direction:column',
+      'gap:8px',
+      'pointer-events:none',
+    ].join(';');
+    document.body.appendChild(_toastContainer);
+  }
+  return _toastContainer;
+}
+
+export function showToast(message: string, type: 'error' | 'warning' | 'info' = 'info'): void {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+  const container = getToastContainer();
+
+  const colorMap: Record<string, string> = {
+    error: 'background:#3f1212;border-color:#dc2626;color:#fca5a5',
+    warning: 'background:#2d1f00;border-color:#d97706;color:#fcd34d',
+    info: 'background:#0f1f3d;border-color:#3b82f6;color:#93c5fd',
+  };
+
+  const toast = document.createElement('div');
+  toast.style.cssText = [
+    'pointer-events:auto',
+    'padding:10px 14px',
+    'border-radius:8px',
+    'border:1px solid',
+    'font-size:12px',
+    'font-weight:500',
+    'max-width:320px',
+    'line-height:1.4',
+    'box-shadow:0 4px 16px rgba(0,0,0,0.5)',
+    'opacity:1',
+    'transition:opacity 0.3s ease',
+    colorMap[type] || colorMap.info,
+  ].join(';');
+  toast.textContent = message;
+
+  container.appendChild(toast);
+
+  // Auto-dismiss sau 5 giây
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => {
+      if (container.contains(toast)) container.removeChild(toast);
+    }, 300);
+  }, 5000);
+}
+
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -30,13 +91,45 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status;
+    const responseData = error.response?.data as Record<string, any> | undefined;
+
+    if (status === 401) {
+      // Đăng xuất khi token hết hạn hoặc không hợp lệ
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user');
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('auth:logout'));
       }
+    } else if (status === 422) {
+      // Validation errors — hiện thị toast warning + dispatch event
+      const errors: string[] = [];
+      if (responseData?.errors && typeof responseData.errors === 'object') {
+        const errObj = responseData.errors;
+        if (Array.isArray(errObj)) {
+          errObj.forEach((e: any) => errors.push(typeof e === 'string' ? e : e.message || String(e)));
+        } else {
+          Object.values(errObj).forEach((v: any) => errors.push(typeof v === 'string' ? v : String(v)));
+        }
+      } else if (responseData?.message) {
+        errors.push(responseData.message);
+      } else {
+        errors.push('Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.');
+      }
+      const validationMessage = errors.join(' | ');
+      showToast(`Lỗi nhập liệu: ${validationMessage}`, 'warning');
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('api:validation-error', { detail: { errors } }));
+      }
+    } else if (status === 500) {
+      // Server error — hiện thị toast error + dispatch event
+      const serverMessage = responseData?.message || 'Lỗi hệ thống. Vui lòng thử lại sau.';
+      showToast(`Lỗi máy chủ: ${serverMessage}`, 'error');
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('api:server-error', { detail: { message: serverMessage } }));
+      }
     }
+
     return Promise.reject(error);
   }
 );

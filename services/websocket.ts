@@ -39,8 +39,13 @@ class WebSocketService {
     if (!this.socket) return;
 
     this.socket.on('connect', () => {
+      const wasDisconnected = this.reconnectAttempts > 0;
       this.reconnectAttempts = 0;
       this.hasLoggedConnectionRefused = false;
+      // Thông báo reconnect thành công nếu trước đó bị mất kết nối
+      if (wasDisconnected && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('ws:reconnected'));
+      }
     });
 
     this.socket.on('disconnect', (reason) => {
@@ -57,6 +62,10 @@ class WebSocketService {
       }
       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
         this.socket?.removeAllListeners();
+        // Dispatch event để App hiện banner "Mất kết nối"
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('ws:disconnected'));
+        }
       }
     });
 
