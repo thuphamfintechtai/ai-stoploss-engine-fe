@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { CandlestickChart } from './charts/CandlestickChart';
-import { marketApi, positionApi, orderApi, watchlistApi, aiApi } from '../services/api';
-import type { Position } from '../services/api';
+import { marketApi, positionApi, orderApi, watchlistApi, aiApi, getPositionSizing } from '../services/api';
+import type { Position, PositionSizingResult } from '../services/api';
 import { STOCK_PRICE_DISPLAY_SCALE, PRICE_FRACTION_OPTIONS, PRICE_LOCALE, formatNumberVI, formatPricePoints } from '../constants';
 import {
   getPriceStep, snapToTickSize, stepPriceUp, stepPriceDown,
@@ -122,6 +122,10 @@ export const TradingTerminal: React.FC<Props> = ({
   const [riskEval, setRiskEval] = useState<any>(null);
   const [riskEvalLoading, setRiskEvalLoading] = useState(false);
   const riskEvalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Position Sizing AI
+  const [positionSizing, setPositionSizing] = useState<PositionSizingResult | null>(null);
+  const [positionSizingLoading, setPositionSizingLoading] = useState(false);
 
   // Derived order values — declared early so useEffect can reference them
   const parseQty = () => {
@@ -443,6 +447,19 @@ export const TradingTerminal: React.FC<Props> = ({
   }, []);
 
   useEffect(() => { checkWatchlist(symbol); }, [symbol]);
+
+  // Goi position sizing khi co portfolioId
+  useEffect(() => {
+    if (!portfolioId) {
+      setPositionSizing(null);
+      return;
+    }
+    setPositionSizingLoading(true);
+    getPositionSizing(portfolioId)
+      .then(data => setPositionSizing(data))
+      .catch(() => setPositionSizing(null))
+      .finally(() => setPositionSizingLoading(false));
+  }, [portfolioId]);
 
   const toggleWatchlist = async () => {
     if (watchlistLoading) return;
@@ -1555,6 +1572,47 @@ export const TradingTerminal: React.FC<Props> = ({
                           {aiSuggestions.analysis_text && (
                             <p className="text-[9px] text-text-muted leading-relaxed px-0.5">{aiSuggestions.analysis_text}</p>
                           )}
+
+                          {/* Probability TP Levels (moi) */}
+                          {Array.isArray(aiSuggestions.take_profit_levels) && aiSuggestions.take_profit_levels.length > 0 && (
+                            <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/40 overflow-hidden">
+                              <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-blue-200 dark:border-blue-800/40">
+                                <span className="text-[8px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Muc chot loi xac suat</span>
+                                <span className="bg-yellow-100 text-yellow-800 text-[7px] font-semibold px-2 py-0.5 rounded">Thuc nghiem</span>
+                              </div>
+                              {aiSuggestions.data_quality?.days_used && (
+                                <p className="text-[7px] text-text-dim px-2.5 pt-1.5">Du lieu: {aiSuggestions.data_quality.days_used} ngay giao dich</p>
+                              )}
+                              <table className="w-full text-[8px] mt-1">
+                                <thead>
+                                  <tr className="text-text-dim">
+                                    <th className="px-2.5 py-0.5 text-left font-semibold">Muc gia</th>
+                                    <th className="px-2.5 py-0.5 text-center font-semibold">Xac suat</th>
+                                    <th className="px-2.5 py-0.5 text-right font-semibold">Thoi gian</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {aiSuggestions.take_profit_levels.map((tp: any, i: number) => (
+                                    <tr key={i} className="border-t border-blue-100 dark:border-blue-900/30">
+                                      <td className="px-2.5 py-1 font-mono text-positive font-bold">{tp.price >= 1000 ? (tp.price / 1000).toFixed(2) : tp.price?.toFixed(2)}</td>
+                                      <td className="px-2.5 py-1 text-center">
+                                        <span className={`font-bold ${tp.probability >= 70 ? 'text-positive' : tp.probability >= 50 ? 'text-warning' : 'text-negative'}`}>{tp.probability}%</span>
+                                      </td>
+                                      <td className="px-2.5 py-1 text-right text-text-muted">{tp.timeframe_days} ngay</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+
+                          {/* Fallback: ATR-based TP warning */}
+                          {aiSuggestions.take_profit_method === 'atr_rr' && aiSuggestions.take_profit_warning && (
+                            <div className="px-2.5 py-1.5 rounded bg-warning/5 border border-warning/20">
+                              <p className="text-[7.5px] text-warning/90 leading-relaxed">⚠ {aiSuggestions.take_profit_warning}</p>
+                            </div>
+                          )}
+
                           {/* Disclaimer bắt buộc */}
                           {aiSuggestions.disclaimer && (
                             <div className="px-2 py-1.5 rounded bg-warning/5 border border-warning/20">
@@ -1577,6 +1635,35 @@ export const TradingTerminal: React.FC<Props> = ({
                               {riskEval.risk_percent_of_portfolio > 0 && <span className="text-[9px] font-mono text-text-dim">Rủi ro <span className={riskEval.risk_percent_of_portfolio > 3 ? 'text-negative' : 'text-text-main'}>{riskEval.risk_percent_of_portfolio.toFixed(1)}%</span> vốn</span>}
                             </>
                           )}
+                        </div>
+                      )}
+
+                      {/* Position sizing suggestion */}
+                      {portfolioId && (positionSizingLoading || positionSizing) && (
+                        <div className="p-2.5 rounded-lg border border-border-subtle bg-background/50">
+                          {positionSizingLoading && (
+                            <div className="flex items-center gap-1.5 text-[8px] text-text-dim">
+                              <div className="w-2.5 h-2.5 border border-accent border-t-transparent rounded-full animate-spin" />
+                              Dang tinh kich thuoc vi the...
+                            </div>
+                          )}
+                          {positionSizing && !positionSizingLoading && (() => {
+                            const kelly = positionSizing.kelly;
+                            const isNegative = kelly.kelly_fraction <= 0;
+                            return (
+                              <div className="space-y-1">
+                                <p className={`text-[8px] font-semibold ${isNegative ? 'text-negative' : 'text-text-muted'}`}>
+                                  {isNegative
+                                    ? 'AI khuyen nghi: Khong nen dat lenh (Kelly am — win rate qua thap)'
+                                    : `AI goi y: dat ${kelly.recommended_percent.toFixed(1)}% von (${kelly.interpretation})`
+                                  }
+                                </p>
+                                {positionSizing.stats?.warning && (
+                                  <p className="text-[7px] text-warning/80">* {positionSizing.stats.warning}</p>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>
