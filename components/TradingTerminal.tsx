@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { FinancialTooltip } from './ui/Tooltip';
 import { CandlestickChart } from './charts/CandlestickChart';
 import { marketApi, positionApi, orderApi, watchlistApi, aiApi, getPositionSizing } from '../services/api';
 import type { Position, PositionSizingResult } from '../services/api';
@@ -78,6 +79,7 @@ export const TradingTerminal: React.FC<Props> = ({
   const [sidebarTab, setSidebarTab] = useState<'matching' | 'orderbook' | 'valuation'>('matching');
   const [showOrderModal, setShowOrderModal] = useState(false);
 
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [showLeftPanel, setShowLeftPanel] = useState(true);
   const [inWatchlist, setInWatchlist] = useState(false);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
@@ -1319,11 +1321,22 @@ export const TradingTerminal: React.FC<Props> = ({
                   </div>
                 )}
 
+                {/* Toggle nang cao */}
+                <button
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  className="flex items-center gap-1.5 text-[11px] text-text-muted hover:text-accent transition-colors py-1"
+                >
+                  <svg className={`w-3 h-3 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                  {showAdvanced ? 'An tuy chon nang cao' : 'Hien tuy chon nang cao'}
+                </button>
+
                 {/* 3. Loại lệnh */}
                 <div>
                   <div className="text-[8px] font-bold uppercase tracking-wider text-text-dim mb-1.5">Loại lệnh</div>
                   <div className="flex gap-1 flex-wrap">
-                    {availableOrderTypes.map((t) => {
+                    {(showAdvanced ? availableOrderTypes : availableOrderTypes.filter(t => t === 'LO' || t === 'MP')).map((t) => {
                       const info = ORDER_TYPE_INFO[t];
                       const sel = effectiveOrderType === t;
                       return (
@@ -1475,7 +1488,7 @@ export const TradingTerminal: React.FC<Props> = ({
                     className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-white/3 transition-colors"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-text-dim">Quản lý rủi ro SL/TP</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-text-dim">Quan ly rui ro <FinancialTooltip term="Stop Loss" /> / <FinancialTooltip term="Take Profit" /></span>
                       <span className="text-[7px] bg-accent/10 text-accent px-1.5 py-0.5 rounded font-bold">Ứng dụng</span>
                       {(stopPrice || stopPercent || stopMaxLossVnd) && (
                         <span className="text-[7px] bg-negative/15 text-negative px-1.5 py-0.5 rounded font-bold">SL đã đặt</span>
@@ -1492,7 +1505,7 @@ export const TradingTerminal: React.FC<Props> = ({
                       {/* Stop Loss */}
                       <div className="pt-3">
                         <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-[9px] font-bold text-negative">Cắt lỗ (SL)</span>
+                          <span className="text-[9px] font-bold text-negative"><FinancialTooltip term="Stop Loss" /></span>
                           <div className="flex gap-0.5">
                             {(['FIXED', 'PERCENT', 'MAX_LOSS'] as const).map((t) => (
                               <button key={t} onClick={() => setStopType(t)}
@@ -1510,7 +1523,7 @@ export const TradingTerminal: React.FC<Props> = ({
                       {/* Take Profit */}
                       <div>
                         <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-[9px] font-bold text-positive">Chốt lời (TP)</span>
+                          <span className="text-[9px] font-bold text-positive"><FinancialTooltip term="Take Profit" /></span>
                           <div className="flex gap-0.5">
                             {(['' , 'FIXED', 'PERCENT', 'R_RATIO'] as const).map((t) => (
                               <button key={t} onClick={() => setTakeProfitType(t)}
@@ -1573,13 +1586,13 @@ export const TradingTerminal: React.FC<Props> = ({
                               );
                             })}
                           </div>
-                          {/* AI phân tích text */}
-                          {aiSuggestions.analysis_text && (
+                          {/* AI phân tích text — advanced only */}
+                          {showAdvanced && aiSuggestions.analysis_text && (
                             <p className="text-[9px] text-text-muted leading-relaxed px-0.5">{aiSuggestions.analysis_text}</p>
                           )}
 
-                          {/* Probability TP Levels (moi) */}
-                          {Array.isArray(aiSuggestions.take_profit_levels) && aiSuggestions.take_profit_levels.length > 0 && (
+                          {/* Probability TP Levels (moi) — advanced only */}
+                          {showAdvanced && Array.isArray(aiSuggestions.take_profit_levels) && aiSuggestions.take_profit_levels.length > 0 && (
                             <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/40 overflow-hidden">
                               <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-blue-200 dark:border-blue-800/40">
                                 <span className="text-[8px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Muc chot loi xac suat</span>
@@ -1636,15 +1649,15 @@ export const TradingTerminal: React.FC<Props> = ({
                               <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${riskEval.risk_level === 'LOW' ? 'text-positive bg-positive/10' : riskEval.risk_level === 'MEDIUM' ? 'text-warning bg-warning/10' : 'text-negative bg-negative/10'}`}>
                                 {riskEval.risk_level === 'LOW' ? 'RỦI RO THẤP' : riskEval.risk_level === 'MEDIUM' ? 'TRUNG BÌNH' : 'CAO'}
                               </span>
-                              {riskEval.risk_reward_ratio > 0 && <span className="text-[9px] font-mono text-text-dim">R:R <span className={riskEval.risk_reward_ratio >= 2 ? 'text-positive' : 'text-warning'}>{riskEval.risk_reward_ratio.toFixed(1)}</span></span>}
+                              {riskEval.risk_reward_ratio > 0 && <span className="text-[9px] font-mono text-text-dim"><FinancialTooltip term="R:R Ratio" /> <span className={riskEval.risk_reward_ratio >= 2 ? 'text-positive' : 'text-warning'}>{riskEval.risk_reward_ratio.toFixed(1)}</span></span>}
                               {riskEval.risk_percent_of_portfolio > 0 && <span className="text-[9px] font-mono text-text-dim">Rủi ro <span className={riskEval.risk_percent_of_portfolio > 3 ? 'text-negative' : 'text-text-main'}>{riskEval.risk_percent_of_portfolio.toFixed(1)}%</span> vốn</span>}
                             </>
                           )}
                         </div>
                       )}
 
-                      {/* Position sizing suggestion */}
-                      {portfolioId && (positionSizingLoading || positionSizing) && (
+                      {/* Position sizing suggestion — advanced only */}
+                      {showAdvanced && portfolioId && (positionSizingLoading || positionSizing) && (
                         <div className="p-2.5 rounded-lg border border-border-subtle bg-background/50">
                           {positionSizingLoading && (
                             <div className="flex items-center gap-1.5 text-[8px] text-text-dim">
