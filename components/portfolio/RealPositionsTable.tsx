@@ -24,55 +24,57 @@ export const RealPositionsTable: React.FC<RealPositionsTableProps> = ({
 }) => {
   if (loading) {
     return (
-      <div className="bg-gray-800 rounded-xl shadow-lg p-5">
-        <h3 className="text-sm font-bold text-white mb-4">Vi The Dang Mo</h3>
-        <div className="text-center py-8 text-gray-500 text-[11px] animate-pulse">
-          Dang tai...
+      <div className="panel-section">
+        <div className="px-4 py-2.5 border-b border-[var(--color-divider)]">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Vị thế đang mở</span>
+        </div>
+        <div className="text-center py-8 text-[var(--color-text-disabled)] text-[11px] animate-pulse">
+          Đang tải...
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-gray-800 rounded-xl shadow-lg p-5">
-      <h3 className="text-sm font-bold text-white mb-4">
-        Vi The Dang Mo
+    <div className="panel-section">
+      <div className="px-4 py-2.5 border-b border-[var(--color-divider)]">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+          Vị thế đang mở
+        </span>
         {positions.length > 0 && (
-          <span className="ml-2 text-[10px] font-normal text-gray-400">
-            ({positions.length} vi the)
-          </span>
+          <span className="ml-2 text-[10px] text-[var(--color-text-dim)]">({positions.length})</span>
         )}
-      </h3>
+      </div>
 
       {positions.length === 0 ? (
-        <div className="text-center py-8 text-gray-500 text-[11px]">
-          Chua co vi the nao
+        <div className="text-center py-8 text-[var(--color-text-disabled)] text-[11px]">
+          Chưa có vị thế nào
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-[11px]">
+          <table className="table-terminal w-full text-[11px]">
             <thead>
-              <tr className="border-b border-gray-700">
-                <th className="text-left px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-gray-500">
-                  Ma CK
+              <tr className="border-b border-[var(--color-border-subtle)]">
+                <th className="text-left px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-[var(--color-text-dim)]">
+                  Mã CK
                 </th>
-                <th className="text-left px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-gray-500">
-                  San
+                <th className="text-left px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-[var(--color-text-dim)]">
+                  Sàn
                 </th>
-                <th className="text-right px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-gray-500">
-                  Gia Vao
+                <th className="text-right px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-[var(--color-text-dim)]">
+                  Giá vào
                 </th>
-                <th className="text-right px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-gray-500">
-                  So Luong
+                <th className="text-right px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-[var(--color-text-dim)]">
+                  Số lượng
                 </th>
-                <th className="text-right px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-gray-500">
-                  Gia HT
+                <th className="text-right px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-[var(--color-text-dim)]">
+                  Giá HT
                 </th>
-                <th className="text-right px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-gray-500">
+                <th className="text-right px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-[var(--color-text-dim)]">
                   P&L
                 </th>
-                <th className="text-left px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-gray-500">
-                  Ngay Mo
+                <th className="text-left px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-[var(--color-text-dim)]">
+                  Ngày mở
                 </th>
                 <th className="px-3 py-2" />
               </tr>
@@ -84,54 +86,54 @@ export const RealPositionsTable: React.FC<RealPositionsTableProps> = ({
                 return (
                   <tr
                     key={pos.id}
-                    className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors"
+                    className="border-b border-[var(--color-divider)] hover:bg-[var(--color-panel-hover)] transition-colors"
                   >
                     <td className="px-3 py-2.5">
-                      <span className="font-bold text-white font-mono">
+                      <span className="font-bold text-[var(--color-text-main)] font-mono">
                         {pos.symbol}
                       </span>
                     </td>
                     <td className="px-3 py-2.5">
-                      <span className="text-gray-400">{pos.exchange}</span>
+                      <span className="text-[var(--color-text-muted)]">{pos.exchange}</span>
                     </td>
-                    <td className="px-3 py-2.5 text-right font-mono text-gray-300">
+                    <td className="px-3 py-2.5 text-right font-mono text-[var(--color-text-muted)]">
                       {formatVND(Number(pos.entry_price))}
                     </td>
-                    <td className="px-3 py-2.5 text-right font-mono text-gray-300">
+                    <td className="px-3 py-2.5 text-right font-mono text-[var(--color-text-muted)]">
                       {Number(pos.quantity).toLocaleString()}
                     </td>
                     <td className="px-3 py-2.5 text-right font-mono">
                       {pos.current_price != null ? (
-                        <span className="text-gray-300">
+                        <span className="text-[var(--color-text-muted)]">
                           {formatVND(Number(pos.current_price))}
                         </span>
                       ) : (
-                        <span className="text-gray-600">—</span>
+                        <span className="text-[var(--color-text-disabled)]">—</span>
                       )}
                     </td>
                     <td className="px-3 py-2.5 text-right font-mono">
                       {hasPnl ? (
                         <span
                           className={`font-semibold ${
-                            pnl >= 0 ? 'text-green-400' : 'text-red-400'
+                            pnl >= 0 ? 'text-[var(--color-positive)]' : 'text-[var(--color-negative)]'
                           }`}
                         >
                           {pnl >= 0 ? '+' : ''}
                           {formatVND(pnl)}
                         </span>
                       ) : (
-                        <span className="text-gray-600">—</span>
+                        <span className="text-[var(--color-text-disabled)]">—</span>
                       )}
                     </td>
-                    <td className="px-3 py-2.5 text-gray-400">
+                    <td className="px-3 py-2.5 text-[var(--color-text-muted)]">
                       {formatDate(pos.created_at)}
                     </td>
                     <td className="px-3 py-2.5 text-right">
                       <button
                         onClick={() => onClosePosition(pos)}
-                        className="text-[9px] font-semibold text-red-400 hover:text-red-300 border border-red-500/30 hover:border-red-400 px-2 py-1 rounded transition-colors"
+                        className="text-[9px] font-semibold bg-[var(--color-negative)]/15 text-[var(--color-negative)] hover:bg-[var(--color-negative)]/25 px-2 py-1 rounded transition-colors"
                       >
-                        Dong vi the
+                        Đóng vị thế
                       </button>
                     </td>
                   </tr>

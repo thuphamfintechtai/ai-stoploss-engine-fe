@@ -27,12 +27,12 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [collapsed, setCollapsed] = useState(false);
 
   const qty = parseFloat(quantity) || 0;
   const price = parseFloat(filledPrice) || 0;
   const totalValue = qty * price;
 
-  // Phi giao dich: mua 0.15%, ban 0.15% + 0.1% thue
   const buyFeeRate = 0.0015;
   const sellFeeRate = 0.0025;
   const fee = side === 'BUY' ? totalValue * buyFeeRate : totalValue * sellFeeRate;
@@ -45,11 +45,11 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
     setError('');
     setSuccess('');
 
-    if (!symbol.trim()) { setError('Vui long nhap ma chung khoan'); return; }
-    if (!exchange) { setError('Vui long chon san'); return; }
-    if (qty <= 0) { setError('So luong phai lon hon 0'); return; }
-    if (price <= 0) { setError('Gia khop phai lon hon 0'); return; }
-    if (!filledDate) { setError('Vui long chon ngay khop'); return; }
+    if (!symbol.trim()) { setError('Vui lòng nhập mã chứng khoán'); return; }
+    if (!exchange) { setError('Vui lòng chọn sàn'); return; }
+    if (qty <= 0) { setError('Số lượng phải lớn hơn 0'); return; }
+    if (price <= 0) { setError('Giá khớp phải lớn hơn 0'); return; }
+    if (!filledDate) { setError('Vui lòng chọn ngày khớp'); return; }
 
     setLoading(true);
     try {
@@ -62,7 +62,7 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
         filled_date: filledDate,
         notes: notes.trim() || undefined,
       });
-      setSuccess('Ghi nhan lenh thanh cong!');
+      setSuccess('Ghi nhận lệnh thành công!');
       setSymbol('');
       setQuantity('');
       setFilledPrice('');
@@ -73,40 +73,98 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
       setError(
         err?.response?.data?.message ||
         err?.response?.data?.error ||
-        'Ghi nhan lenh that bai'
+        'Ghi nhận lệnh thất bại'
       );
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="bg-gray-800 rounded-xl shadow-lg p-5">
-      <h3 className="text-sm font-bold text-white mb-4">Ghi Nhan Lenh That</h3>
+  const inputCls =
+    'w-full bg-[var(--color-background)] text-[var(--color-text-main)] text-[12px] font-mono rounded-md px-3 py-2 border border-[var(--color-border-subtle)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-subtle)] transition-colors placeholder:text-[var(--color-text-disabled)]';
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Ma CK + San */}
-        <div className="grid grid-cols-2 gap-3">
+  const labelCls =
+    'block text-[10px] font-medium text-[var(--color-text-muted)] mb-1 uppercase tracking-wider';
+
+  if (collapsed) {
+    return (
+      <button
+        onClick={() => setCollapsed(false)}
+        className="w-full panel-section px-4 py-3 flex items-center justify-between hover:bg-[var(--color-panel-hover)] transition-colors cursor-pointer"
+      >
+        <div className="flex items-center gap-2">
+          <svg className="w-4 h-4 text-[var(--color-accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          <span className="text-[13px] font-semibold text-[var(--color-text-main)]">Ghi nhận lệnh thật</span>
+        </div>
+        <svg className="w-4 h-4 text-[var(--color-text-dim)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+        </svg>
+      </button>
+    );
+  }
+
+  return (
+    <div className="panel-section">
+      {/* Header */}
+      <button
+        onClick={() => setCollapsed(true)}
+        className="w-full px-4 py-3 flex items-center justify-between border-b border-[var(--color-divider)] hover:bg-[var(--color-panel-hover)] transition-colors cursor-pointer"
+      >
+        <span className="text-[13px] font-semibold text-[var(--color-text-main)]">Ghi nhận lệnh thật</span>
+        <svg className="w-4 h-4 text-[var(--color-text-dim)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
+        </svg>
+      </button>
+
+      <form onSubmit={handleSubmit} className="p-4 space-y-3">
+        {/* Row 1: Side toggle + Mã CK + Sàn */}
+        <div className="grid grid-cols-[auto_1fr_100px] gap-2 items-end">
+          {/* MUA/BÁN compact toggle */}
           <div>
-            <label className="block text-[11px] font-semibold text-gray-400 mb-1">
-              Ma Chung Khoan
-            </label>
+            <label className={labelCls}>Lệnh</label>
+            <div className="inline-flex rounded-md overflow-hidden border border-[var(--color-border-subtle)] h-[34px]">
+              <button
+                type="button"
+                onClick={() => setSide('BUY')}
+                className={`px-3 text-[11px] font-bold transition-all ${
+                  side === 'BUY'
+                    ? 'bg-[var(--color-positive)] text-white'
+                    : 'bg-[var(--color-background)] text-[var(--color-text-dim)] hover:text-[var(--color-positive)]'
+                }`}
+              >MUA</button>
+              <button
+                type="button"
+                onClick={() => setSide('SELL')}
+                className={`px-3 text-[11px] font-bold transition-all border-l border-[var(--color-border-subtle)] ${
+                  side === 'SELL'
+                    ? 'bg-[var(--color-negative)] text-white'
+                    : 'bg-[var(--color-background)] text-[var(--color-text-dim)] hover:text-[var(--color-negative)]'
+                }`}
+              >BÁN</button>
+            </div>
+          </div>
+
+          {/* Mã CK */}
+          <div>
+            <label className={labelCls}>Mã CK</label>
             <input
               type="text"
               value={symbol}
               onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-              placeholder="VD: VNM"
-              className="w-full bg-gray-700 text-white text-sm rounded-lg px-3 py-2 border border-gray-600 focus:border-blue-500 focus:outline-none uppercase placeholder-gray-500"
+              placeholder="VNM"
+              className={`${inputCls} uppercase`}
             />
           </div>
+
+          {/* Sàn */}
           <div>
-            <label className="block text-[11px] font-semibold text-gray-400 mb-1">
-              San Giao Dich
-            </label>
+            <label className={labelCls}>Sàn</label>
             <select
               value={exchange}
               onChange={(e) => setExchange(e.target.value as 'HOSE' | 'HNX' | 'UPCOM')}
-              className="w-full bg-gray-700 text-white text-sm rounded-lg px-3 py-2 border border-gray-600 focus:border-blue-500 focus:outline-none"
+              className={inputCls}
             >
               <option value="HOSE">HOSE</option>
               <option value="HNX">HNX</option>
@@ -115,43 +173,10 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
           </div>
         </div>
 
-        {/* Loai lenh */}
-        <div>
-          <label className="block text-[11px] font-semibold text-gray-400 mb-1">
-            Loai Lenh
-          </label>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setSide('BUY')}
-              className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors ${
-                side === 'BUY'
-                  ? 'bg-green-600 text-white'
-                  : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
-              }`}
-            >
-              MUA
-            </button>
-            <button
-              type="button"
-              onClick={() => setSide('SELL')}
-              className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors ${
-                side === 'SELL'
-                  ? 'bg-red-600 text-white'
-                  : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
-              }`}
-            >
-              BAN
-            </button>
-          </div>
-        </div>
-
-        {/* So luong + Gia khop */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Row 2: SL + Giá + Ngày */}
+        <div className="grid grid-cols-2 xl:grid-cols-3 gap-2">
           <div>
-            <label className="block text-[11px] font-semibold text-gray-400 mb-1">
-              So Luong
-            </label>
+            <label className={labelCls}>Số lượng</label>
             <input
               type="number"
               value={quantity}
@@ -159,101 +184,84 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
               min={100}
               step={100}
               placeholder="100"
-              className="w-full bg-gray-700 text-white text-sm rounded-lg px-3 py-2 border border-gray-600 focus:border-blue-500 focus:outline-none"
+              className={inputCls}
             />
           </div>
           <div>
-            <label className="block text-[11px] font-semibold text-gray-400 mb-1">
-              Gia Khop (VND)
-            </label>
+            <label className={labelCls}>Giá khớp (VND)</label>
             <input
               type="number"
               value={filledPrice}
               onChange={(e) => setFilledPrice(e.target.value)}
               min={0}
               step={100}
-              placeholder="0"
-              className="w-full bg-gray-700 text-white text-sm rounded-lg px-3 py-2 border border-gray-600 focus:border-blue-500 focus:outline-none"
+              placeholder="72500"
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Ngày khớp</label>
+            <input
+              type="date"
+              value={filledDate}
+              onChange={(e) => setFilledDate(e.target.value)}
+              max={today()}
+              className={inputCls}
             />
           </div>
         </div>
 
-        {/* Ngay khop */}
-        <div>
-          <label className="block text-[11px] font-semibold text-gray-400 mb-1">
-            Ngay Khop
-          </label>
-          <input
-            type="date"
-            value={filledDate}
-            onChange={(e) => setFilledDate(e.target.value)}
-            max={today()}
-            className="w-full bg-gray-700 text-white text-sm rounded-lg px-3 py-2 border border-gray-600 focus:border-blue-500 focus:outline-none"
-          />
-        </div>
-
-        {/* Auto-calculate summary */}
+        {/* Summary inline */}
         {totalValue > 0 && (
-          <div className="bg-gray-750 rounded-lg p-3 space-y-1.5 border border-gray-700">
-            <div className="flex justify-between text-[11px]">
-              <span className="text-gray-400">Tong gia tri:</span>
-              <span className="text-white font-mono">{formatVND(totalValue)} VND</span>
-            </div>
-            <div className="flex justify-between text-[11px]">
-              <span className="text-gray-400">
-                Phi ({side === 'BUY' ? '0.15%' : '0.25%'}):
-              </span>
-              <span className="text-yellow-400 font-mono">{formatVND(fee)} VND</span>
-            </div>
+          <div className="flex items-center gap-4 text-[10px] px-1">
+            <span className="text-[var(--color-text-dim)]">
+              Giá trị: <span className="text-[var(--color-text-main)] font-mono">{formatVND(totalValue)}</span>
+            </span>
+            <span className="text-[var(--color-text-dim)]">
+              Phí: <span className="text-[var(--color-warning)] font-mono">{formatVND(fee)}</span>
+            </span>
             {remainingCash !== null && (
-              <div className="flex justify-between text-[11px] border-t border-gray-700 pt-1.5">
-                <span className="text-gray-400">Con lai sau GD:</span>
-                <span
-                  className={`font-mono font-bold ${
-                    remainingCash >= 0 ? 'text-green-400' : 'text-red-400'
-                  }`}
-                >
-                  {formatVND(remainingCash)} VND
+              <span className="text-[var(--color-text-dim)]">
+                Còn lại: <span className={`font-mono font-semibold ${remainingCash >= 0 ? 'text-[var(--color-positive)]' : 'text-[var(--color-negative)]'}`}>
+                  {formatVND(remainingCash)}
                 </span>
-              </div>
+              </span>
             )}
           </div>
         )}
 
-        {/* Ghi chu */}
-        <div>
-          <label className="block text-[11px] font-semibold text-gray-400 mb-1">
-            Ghi Chu (tuy chon)
-          </label>
-          <input
-            type="text"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Ghi chu them..."
-            className="w-full bg-gray-700 text-white text-sm rounded-lg px-3 py-2 border border-gray-600 focus:border-blue-500 focus:outline-none"
-          />
+        {/* Row 3: Ghi chú + Submit */}
+        <div className="grid grid-cols-[1fr_auto] gap-2 items-end">
+          <div>
+            <label className={labelCls}>Ghi chú</label>
+            <input
+              type="text"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Tùy chọn..."
+              className={inputCls}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className={`h-[34px] px-5 rounded-md text-[12px] font-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+              side === 'BUY'
+                ? 'bg-[var(--color-positive)] hover:brightness-110'
+                : 'bg-[var(--color-negative)] hover:brightness-110'
+            }`}
+          >
+            {loading ? '...' : 'Ghi nhận'}
+          </button>
         </div>
 
-        {/* Error / Success */}
+        {/* Messages */}
         {error && (
-          <p className="text-red-400 text-[11px] bg-red-900/20 rounded px-3 py-2">{error}</p>
+          <p className="text-[var(--color-negative)] text-[10px] px-1">{error}</p>
         )}
         {success && (
-          <p className="text-green-400 text-[11px] bg-green-900/20 rounded px-3 py-2">{success}</p>
+          <p className="text-[var(--color-positive)] text-[10px] px-1">{success}</p>
         )}
-
-        {/* Submit */}
-        <button
-          type="submit"
-          disabled={loading}
-          className={`w-full py-2.5 rounded-lg text-sm font-bold transition-colors disabled:opacity-50 ${
-            side === 'BUY'
-              ? 'bg-green-600 hover:bg-green-700 text-white'
-              : 'bg-red-600 hover:bg-red-700 text-white'
-          }`}
-        >
-          {loading ? 'Dang ghi nhan...' : 'Ghi Nhan Lenh'}
-        </button>
       </form>
     </div>
   );

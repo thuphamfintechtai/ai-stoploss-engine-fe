@@ -13,12 +13,11 @@ import { formatNumberVI, PRICE_LOCALE, PRICE_FRACTION_OPTIONS, STOCK_PRICE_DISPL
 // Heavy components — lazy loaded để giảm initial bundle size
 const RiskManagerView = React.lazy(() => import('./RiskManagerView').then(m => ({ default: m.RiskManagerView })));
 import { AiMonitorPanel } from './AiMonitorPanel';
-import { CashBalanceCard } from './portfolio/CashBalanceCard';
+import { PortfolioHeroCard } from './portfolio/PortfolioHeroCard';
 import { RealOrderForm } from './portfolio/RealOrderForm';
 import { RealPositionsTable } from './portfolio/RealPositionsTable';
 import { ClosePositionModal } from './portfolio/ClosePositionModal';
 import { TransactionHistory } from './portfolio/TransactionHistory';
-import { PortfolioSummaryCard } from './portfolio/PortfolioSummaryCard';
 
 interface Props {
   portfolioId: string | null;
@@ -31,8 +30,7 @@ interface Props {
   onOpenSetup: () => void;
 }
 
-type PortfolioTab = 'portfolio' | 'orders' | 'risk' | 'ai_monitor';
-type MainTab = 'REAL' | 'PAPER';
+type PortfolioTab = 'real' | 'paper' | 'orders' | 'risk' | 'ai_monitor';
 
 const toPoint = (v: number) => (v >= 1000 ? v / 1000 : v);
 
@@ -59,10 +57,7 @@ export const PortfolioView: React.FC<Props> = ({
   onRefreshPositions,
   onOpenSetup,
 }) => {
-  const [activeTab, setActiveTab] = useState<PortfolioTab>('portfolio');
-
-  // ── Main Real/Paper tab ──
-  const [mainTab, setMainTab] = useState<MainTab>('REAL');
+  const [activeTab, setActiveTab] = useState<PortfolioTab>('real');
   const [realPositions, setRealPositions] = useState<RealPosition[]>([]);
   const [realPositionsLoading, setRealPositionsLoading] = useState(false);
   const [closingPosition, setClosingPosition] = useState<RealPosition | null>(null);
@@ -206,10 +201,10 @@ export const PortfolioView: React.FC<Props> = ({
   }, [portfolioId, totalBalance]);
 
   useEffect(() => {
-    if (mainTab === 'REAL' && portfolioId) {
+    if (activeTab === 'real' && portfolioId) {
       fetchRealData();
     }
-  }, [mainTab, portfolioId, fetchRealData]);
+  }, [activeTab, portfolioId, fetchRealData]);
 
   // ── Close Position ──
   const handleClosePosition = async () => {
@@ -324,74 +319,128 @@ export const PortfolioView: React.FC<Props> = ({
   };
 
   const TABS: { id: PortfolioTab; label: string; badge?: number }[] = [
-    { id: 'portfolio', label: 'Danh Mục' },
-    { id: 'orders', label: 'Lệnh Chờ', badge: pendingOrders.length || undefined },
-    { id: 'risk', label: 'Quản Lý Rủi Ro' },
-    { id: 'ai_monitor', label: 'AI Giám Sát' },
+    { id: 'real', label: 'Danh mục thật' },
+    { id: 'paper', label: 'Mô phỏng' },
+    { id: 'orders', label: 'Lệnh chờ', badge: pendingOrders.length || undefined },
+    { id: 'risk', label: 'Rủi ro' },
+    { id: 'ai_monitor', label: 'AI Giám sát' },
   ];
 
   return (
-    <div className="space-y-4 animate-fade-in border-l-4 border-blue-600 pl-3">
-      {/* Badge Portfolio Thật */}
-      <div className="flex items-center gap-2 pt-1">
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-600/10 text-blue-400">
-          THẬT
-        </span>
-        <span className="text-[11px] text-text-muted">Portfolio Thật — Giao dịch thực tế</span>
+    <div className="space-y-5 animate-fade-in">
+      {/* ── HEADER ── */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-[18px] font-semibold text-[var(--color-text-main)]">Quản lý vốn</h1>
+          <p className="text-[11px] text-[var(--color-text-dim)] mt-0.5">Theo dõi danh mục, vị thế và hiệu suất giao dịch</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onNavigate('terminal')}
+            className="px-4 py-2 rounded-lg text-[12px] font-semibold bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] transition-colors"
+          >
+            + Đặt lệnh
+          </button>
+          <button
+            onClick={onOpenSetup}
+            className="px-3 py-2 rounded-lg text-[12px] border border-[var(--color-border-standard)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] hover:bg-[var(--color-panel-hover)] transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
+        </div>
       </div>
-      {/* ── MAIN TAB: REAL / PAPER ── */}
-      <div className="flex gap-2 mb-2">
-        <button
-          onClick={() => setMainTab('REAL')}
-          className={`px-4 py-2 rounded-lg text-[12px] font-semibold transition-colors ${
-            mainTab === 'REAL'
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-          }`}
-        >
-          Portfolio That
-        </button>
-        <button
-          onClick={() => setMainTab('PAPER')}
-          className={`px-4 py-2 rounded-lg text-[12px] font-semibold transition-colors ${
-            mainTab === 'PAPER'
-              ? 'bg-purple-600 text-white'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-          }`}
-        >
-          Paper Trading
-        </button>
+
+      {/* ── TAB BAR (unified) ── */}
+      <div className="flex gap-0.5 border-b border-[var(--color-divider)] -mt-1 overflow-x-auto">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-1.5 px-4 py-2.5 text-[12px] font-semibold transition-colors border-b-2 -mb-px whitespace-nowrap ${
+              activeTab === tab.id
+                ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+                : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-main)]'
+            }`}
+          >
+            {tab.label}
+            {tab.badge != null && tab.badge > 0 && (
+              <span className="text-[9px] font-black px-1 py-0.5 rounded bg-[var(--color-warning)]/20 text-[var(--color-warning)] leading-none">{tab.badge}</span>
+            )}
+          </button>
+        ))}
       </div>
 
       {/* ── REAL TAB CONTENT ── */}
-      {mainTab === 'REAL' && portfolioId && (
+      {activeTab === 'real' && portfolioId && (
         <div className="space-y-4">
-          <CashBalanceCard
+          {/* Hero Card — tổng quan dòng tiền + P&L */}
+          <PortfolioHeroCard
             totalBalance={cashBalance.total_balance || totalBalance}
             availableCash={cashBalance.available_cash}
             pendingSettlement={cashBalance.pending_settlement_cash}
+            totalPnl={realSummary?.total_pnl ?? 0}
+            percentReturn={realSummary?.percent_return ?? 0}
+            positionCount={realSummary?.position_count ?? 0}
+            closedCount={realSummary?.closed_count ?? 0}
+            loading={summaryLoading}
           />
-          {realSummary !== null && (
-            <PortfolioSummaryCard
-              totalValue={realSummary.total_value}
-              totalPnl={realSummary.total_pnl}
-              percentReturn={realSummary.percent_return}
-              positionCount={realSummary.position_count}
-              closedCount={realSummary.closed_count}
-              loading={summaryLoading}
-            />
-          )}
-          <RealOrderForm
-            portfolioId={portfolioId}
-            availableCash={cashBalance.available_cash}
-            onSuccess={fetchRealData}
-          />
-          <RealPositionsTable
-            positions={realPositions}
-            onClosePosition={setClosingPosition}
-            loading={realPositionsLoading}
-          />
-          <TransactionHistory portfolioId={portfolioId} />
+
+          {/* 2-column layout: Left (positions + history) | Right (form + stats) */}
+          <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-4">
+            {/* Left column */}
+            <div className="space-y-4 min-w-0">
+              <RealPositionsTable
+                positions={realPositions}
+                onClosePosition={setClosingPosition}
+                loading={realPositionsLoading}
+              />
+              <TransactionHistory portfolioId={portfolioId} />
+            </div>
+
+            {/* Right column — form + quick stats */}
+            <div className="space-y-4">
+              <RealOrderForm
+                portfolioId={portfolioId}
+                availableCash={cashBalance.available_cash}
+                onSuccess={fetchRealData}
+              />
+
+              {/* Quick Stats */}
+              <div className="panel-section p-4">
+                <p className="text-[10px] font-semibold text-[var(--color-text-dim)] uppercase tracking-wider mb-3">Thống kê nhanh</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-[var(--color-background)] rounded-md p-2.5">
+                    <p className="text-[9px] text-[var(--color-text-dim)] uppercase tracking-wider">Khả dụng</p>
+                    <p className="text-[14px] font-bold tabular-nums text-[var(--color-positive)]">
+                      {(cashBalance.available_cash / (cashBalance.total_balance || totalBalance || 1) * 100).toFixed(0)}%
+                    </p>
+                  </div>
+                  <div className="bg-[var(--color-background)] rounded-md p-2.5">
+                    <p className="text-[9px] text-[var(--color-text-dim)] uppercase tracking-wider">Đã phân bổ</p>
+                    <p className="text-[14px] font-bold tabular-nums text-[var(--color-accent)]">
+                      {(Math.max(0, (cashBalance.total_balance || totalBalance) - cashBalance.available_cash - cashBalance.pending_settlement_cash) / (cashBalance.total_balance || totalBalance || 1) * 100).toFixed(0)}%
+                    </p>
+                  </div>
+                  <div className="bg-[var(--color-background)] rounded-md p-2.5">
+                    <p className="text-[9px] text-[var(--color-text-dim)] uppercase tracking-wider">Vị thế mở</p>
+                    <p className="text-[14px] font-bold tabular-nums text-[var(--color-text-main)]">
+                      {realSummary?.position_count ?? 0}
+                    </p>
+                  </div>
+                  <div className="bg-[var(--color-background)] rounded-md p-2.5">
+                    <p className="text-[9px] text-[var(--color-text-dim)] uppercase tracking-wider">Đã đóng</p>
+                    <p className="text-[14px] font-bold tabular-nums text-[var(--color-text-muted)]">
+                      {realSummary?.closed_count ?? 0}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <ClosePositionModal
             position={closingPosition}
             portfolioId={portfolioId}
@@ -402,70 +451,55 @@ export const PortfolioView: React.FC<Props> = ({
         </div>
       )}
 
-      {mainTab === 'REAL' && !portfolioId && (
-        <div className="text-center py-12 text-gray-500 text-[12px]">
-          Vui long chon portfolio de xem
-        </div>
+      {activeTab === 'real' && !portfolioId && (
+        <EmptyState
+          title="Chưa chọn danh mục"
+          description="Vui lòng chọn hoặc tạo danh mục để bắt đầu quản lý vốn."
+          actionLabel="Tạo danh mục"
+          onAction={onOpenSetup}
+        />
       )}
 
-      {/* ── PAPER TAB CONTENT (existing content) ── */}
-      {mainTab === 'PAPER' && (<>
+      {/* ── PAPER TAB CONTENT ── */}
+      {activeTab === 'paper' && (<>
 
       {/* ── PAPER: Virtual Balance + Simulation Mode ── */}
       {portfolioId && (
         <div className="space-y-3">
           <PaperVirtualBalance portfolioId={portfolioId} refreshTrigger={paperBalanceRefresh} />
-          <div className="panel-section px-4 py-3 flex items-center gap-3">
-            <p className="text-[11px] font-semibold text-text-muted">Chế Độ Đặt Lệnh:</p>
-            <div className="flex gap-1">
+          <div className="panel-section px-4 py-3 flex flex-wrap items-center gap-3">
+            <p className="text-[11px] font-semibold text-[var(--color-text-muted)]">Chế độ khớp lệnh:</p>
+            <div className="inline-flex p-0.5 rounded-md bg-[var(--color-background)] border border-[var(--color-border-subtle)]">
               {(['REALISTIC', 'INSTANT'] as const).map((mode) => (
                 <button
                   key={mode}
                   onClick={() => setSimulationMode(mode)}
-                  className={`px-3 py-1.5 rounded text-[10px] font-semibold transition-colors ${
+                  className={`px-3 py-1.5 rounded text-[10px] font-semibold transition-all ${
                     simulationMode === mode
                       ? mode === 'REALISTIC'
-                        ? 'bg-purple-600 text-white'
-                        : 'bg-orange-600 text-white'
-                      : 'bg-white/5 text-text-muted hover:bg-white/10'
+                        ? 'bg-[var(--color-secondary)] text-white shadow-sm'
+                        : 'bg-[var(--color-warning)] text-[var(--color-text-inverse)] shadow-sm'
+                      : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-main)]'
                   }`}
                 >
-                  {mode === 'REALISTIC' ? 'REALISTIC (Chờ Khớp)' : 'INSTANT (Khớp Ngay)'}
+                  {mode === 'REALISTIC' ? 'Chờ khớp' : 'Khớp ngay'}
                 </button>
               ))}
             </div>
-            <span className="text-[9px] text-text-dim">
+            <span className="text-[9px] text-[var(--color-text-dim)]">
               {simulationMode === 'REALISTIC'
-                ? 'Lệnh LO sẽ chờ giá thị trường; MP có slippage thực tế'
-                : 'Mọi lệnh khớp ngay lập tức theo giá thị trường'}
+                ? 'Lệnh LO chờ giá thị trường · MP có slippage thực tế'
+                : 'Mọi lệnh khớp ngay theo giá thị trường'}
             </span>
           </div>
         </div>
       )}
 
-      {/* ── TAB BAR ── */}
-      <div className="flex gap-1 border-b border-border-standard">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold transition-colors border-b-2 -mb-px ${
-              activeTab === tab.id
-                ? 'border-accent text-accent'
-                : 'border-transparent text-text-muted hover:text-text-main'
-            }`}
-          >
-            {tab.label}
-            {tab.badge != null && tab.badge > 0 && (
-              <span className="text-[9px] font-black px-1 py-0.5 rounded bg-warning/20 text-warning leading-none">{tab.badge}</span>
-            )}
-          </button>
-        ))}
-      </div>
+      </>)}
 
       {/* ── RISK TAB ── */}
       {activeTab === 'risk' && (
-        <Suspense fallback={<div className="flex items-center justify-center h-64"><span className="text-text-muted text-sm">Dang tai...</span></div>}>
+        <Suspense fallback={<div className="flex items-center justify-center h-64"><span className="text-[var(--color-text-muted)] text-sm">Đang tải...</span></div>}>
           <RiskManagerView
             portfolioId={portfolioId}
             positions={openPositions}
@@ -497,10 +531,11 @@ export const PortfolioView: React.FC<Props> = ({
         />
       )}
       {activeTab === 'orders' && !portfolioId && (
-        <div className="text-center py-12 text-gray-500 text-[12px]">Vui lòng chọn portfolio để xem</div>
+        <EmptyState title="Chưa chọn danh mục" description="Vui lòng chọn danh mục để xem lệnh chờ." />
       )}
 
-      {activeTab === 'portfolio' && (<>
+      {/* ── PAPER PORTFOLIO (stats + positions + equity + closed trades) ── */}
+      {activeTab === 'paper' && portfolioId && (<>
       {/* ── HEADER BAR ── */}
       {perfLoading ? (
         <div className="space-y-3">
@@ -513,72 +548,58 @@ export const PortfolioView: React.FC<Props> = ({
       <div className="space-y-3">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <StatCard
-            label="Tong Von"
+            label="Tổng vốn"
             value={formatNumberVI(totalBalance)}
             suffix=" VND"
-            tooltip="Tong so von dau tu ban dau"
+            tooltip="Tổng số vốn đầu tư ban đầu"
             size="md"
           />
           <StatCard
-            label="P&L Mo"
+            label="Lãi/Lỗ chưa chốt"
             value={totalOpenPnl !== 0 ? formatNumberVI(totalOpenPnl, { maximumFractionDigits: 0 }) : '0'}
             change={totalOpenPnl}
             suffix=" VND"
-            tooltip="Lai/lo chua hien thuc tu cac vi the dang mo"
+            tooltip="Lãi/lỗ chưa hiện thực từ các vị thế đang mở"
             size="md"
           />
           <StatCard
-            label="P&L Da Chot"
+            label="Lãi/Lỗ đã chốt"
             value={performance?.total_pnl_vnd != null
               ? formatNumberVI(performance.total_pnl_vnd, { maximumFractionDigits: 0 })
               : totalClosedPnl !== 0 ? formatNumberVI(totalClosedPnl, { maximumFractionDigits: 0 }) : '0'}
             change={performance?.total_pnl_vnd ?? totalClosedPnl}
             suffix=" VND"
-            tooltip="Lai/lo da hien thuc tu cac lenh da dong"
+            tooltip="Lãi/lỗ đã hiện thực từ các lệnh đã đóng"
             size="md"
           />
           <StatCard
-            label="Ti Le Thang"
+            label="Tỷ lệ thắng"
             value={performance?.win_rate != null
               ? Number(performance.win_rate).toFixed(1)
               : closedPositions.length > 0 ? winRate.toFixed(1) : '0'}
             change={performance?.win_rate != null ? Number(performance.win_rate) - 50 : winRate - 50}
             suffix="%"
-            tooltip="Ti le lenh co lai tren tong so lenh da dong"
+            tooltip="Tỷ lệ lệnh có lãi trên tổng số lệnh đã đóng"
             size="md"
           />
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <StatCard
-            label="Profit Factor"
+            label="Hệ số lợi nhuận"
             value={(performance?.profit_factor ?? 0) > 0
               ? Number(performance!.profit_factor).toFixed(2)
               : '0'}
             change={(performance?.profit_factor ?? 0) > 0 ? (performance!.profit_factor >= 1 ? 1 : -1) : undefined}
-            tooltip="Ti so giua tong lai va tong lo. > 1.5 la xuat sac"
+            tooltip="Tỷ số giữa tổng lãi và tổng lỗ. > 1.5 là xuất sắc"
             size="sm"
           />
           <StatCard
-            label="Han Muc Rui Ro"
+            label="Hạn mức rủi ro"
             value={maxRiskPercent.toFixed(0)}
             suffix="%"
-            tooltip="Phan tram von toi da co the mat"
+            tooltip="Phần trăm vốn tối đa có thể mất"
             size="sm"
           />
-          <div className="col-span-2 flex items-center justify-end gap-2">
-            <button
-              onClick={() => onNavigate('terminal')}
-              className="px-4 py-2 rounded-md text-[12px] font-semibold bg-positive text-white hover:bg-green-600 transition-colors"
-            >
-              + Dat Lenh Moi
-            </button>
-            <button
-              onClick={onOpenSetup}
-              className="px-4 py-2 rounded-md text-[12px] font-semibold border border-border-standard text-text-muted hover:text-text-main hover:bg-white/5 transition-colors"
-            >
-              Cau Hinh
-            </button>
-          </div>
         </div>
       </div>
       )}
@@ -588,14 +609,14 @@ export const PortfolioView: React.FC<Props> = ({
         {/* Holdings Table */}
         <div className="xl:col-span-3 panel-section flex flex-col" style={{ maxHeight: 420 }}>
           <div className="px-4 py-2.5 border-b border-border-subtle shrink-0">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Vị Thế Đang Mở ({openPositions.length})</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Vị thế đang mở ({openPositions.length})</span>
           </div>
           <div className="flex-1 overflow-y-auto dense-scroll">
             {openPositions.length === 0 ? (
               <EmptyState
-                title="Chua co vi the nao"
-                description="Nhap lenh dau tien de bat dau theo doi danh muc cua ban."
-                actionLabel="Nhap Lenh Moi"
+                title="Chưa có vị thế nào"
+                description="Nhập lệnh đầu tiên để bắt đầu theo dõi danh mục của bạn."
+                actionLabel="Nhập lệnh mới"
                 onAction={() => onNavigate('terminal')}
               />
             ) : (<>
@@ -604,16 +625,16 @@ export const PortfolioView: React.FC<Props> = ({
               <table className="table-terminal w-full">
                 <thead>
                   <tr>
-                    <th className="text-left">Ma</th>
-                    <th className="text-left">S/L</th>
-                    <th>Gia Vao</th>
-                    <th>Hien Tai</th>
+                    <th className="text-left">Mã</th>
+                    <th className="text-left">Sàn</th>
+                    <th>Giá vào</th>
+                    <th>Hiện tại</th>
                     <th>KL</th>
                     <th><FinancialTooltip term="P&L" /> (VND)</th>
                     <th><FinancialTooltip term="P&L" /> (%)</th>
                     <th><FinancialTooltip term="Stop Loss" /></th>
                     <th><FinancialTooltip term="Take Profit" /></th>
-                    <th className="text-left">Hanh Dong</th>
+                    <th className="text-left">Hành động</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -718,11 +739,11 @@ export const PortfolioView: React.FC<Props> = ({
                             });
                           }}
                           className="px-2 py-1 rounded text-[10px] font-bold bg-accent/15 text-accent hover:bg-accent/30 transition-colors"
-                        >Sua SL/TP</button>
+                        >Sửa SL/TP</button>
                         <button
                           onClick={() => { setCloseMsg(''); setCloseModal({ pos, reason: 'CLOSED_MANUAL' }); }}
                           className="px-2 py-1 rounded text-[10px] font-bold bg-negative/15 text-negative hover:bg-negative/30 transition-colors"
-                        >Dong</button>
+                        >Đóng</button>
                       </div>
                     </div>
                   );
@@ -749,11 +770,11 @@ export const PortfolioView: React.FC<Props> = ({
             ) : (
               <ResponsiveContainer width="100%" height={180}>
                 <LineChart data={equityCurve}>
-                  <CartesianGrid strokeDasharray="2 2" stroke="rgba(255,255,255,0.04)" />
-                  <XAxis dataKey="date" tick={{ fill: '#8896A4', fontSize: 9 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-                  <YAxis tick={{ fill: '#8896A4', fontSize: 9 }} tickLine={false} axisLine={false} width={55}
+                  <CartesianGrid strokeDasharray="2 2" stroke="var(--color-divider)" />
+                  <XAxis dataKey="date" tick={{ fill: 'var(--color-text-dim)', fontSize: 9 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                  <YAxis tick={{ fill: 'var(--color-text-dim)', fontSize: 9 }} tickLine={false} axisLine={false} width={55}
                     tickFormatter={(v) => (v / 1e6).toFixed(0) + 'M'} />
-                  <ReferenceLine y={totalBalance} stroke="rgba(255,255,255,0.15)" strokeDasharray="3 3" />
+                  <ReferenceLine y={totalBalance} stroke="var(--color-border-standard)" strokeDasharray="3 3" />
                   <Tooltip
                     contentStyle={{ background: 'var(--color-panel)', border: '1px solid var(--color-border-standard)', borderRadius: 6, fontSize: 11 }}
                     labelStyle={{ color: 'var(--color-text-muted)' }}
@@ -762,7 +783,7 @@ export const PortfolioView: React.FC<Props> = ({
                       name === 'value' ? 'Tổng vốn' : 'P&L ngày'
                     ]}
                   />
-                  <Line type="monotone" dataKey="value" stroke="#3B82F6" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="value" stroke="var(--color-accent)" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             )}
@@ -791,8 +812,8 @@ export const PortfolioView: React.FC<Props> = ({
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-subtle">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Lịch Sử Lệnh Đóng</span>
           <div className="flex items-center gap-2 text-[10px] text-text-muted">
-            <span className="text-[10px] text-text-dim">{closedTotal} vi the</span>
-            <button onClick={() => setClosedPage(Math.max(1, closedPage - 1))} disabled={closedPage <= 1} className="px-2 py-0.5 rounded border border-border-standard disabled:opacity-40">Truoc</button>
+            <span className="text-[10px] text-text-dim">{closedTotal} vị thế</span>
+            <button onClick={() => setClosedPage(Math.max(1, closedPage - 1))} disabled={closedPage <= 1} className="px-2 py-0.5 rounded border border-border-standard disabled:opacity-40">Trước</button>
             <span>{closedPage}/{totalPages}</span>
             <button onClick={() => setClosedPage(p => Math.min(totalPages, p + 1))} disabled={closedPage >= totalPages} className="px-2 py-0.5 rounded border border-border-standard disabled:opacity-40">Sau</button>
           </div>
@@ -813,7 +834,7 @@ export const PortfolioView: React.FC<Props> = ({
                   <th>KL</th>
                   <th><FinancialTooltip term="P&L" /> (VND)</th>
                   <th><FinancialTooltip term="P&L" /> (%)</th>
-                  <th className="text-left">Ly Do</th>
+                  <th className="text-left">Lý do</th>
                 </tr>
               </thead>
               <tbody>
@@ -877,9 +898,9 @@ export const PortfolioView: React.FC<Props> = ({
 
       {/* ── CLOSE POSITION MODAL ── */}
       {closeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="panel-section w-full max-w-sm p-5 rounded-xl border border-border-standard shadow-2xl">
-            <h3 className="text-[13px] font-semibold text-text-main mb-1">Đóng Vị Thế</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-overlay)] backdrop-blur-sm animate-fade-in">
+          <div className="bg-[var(--color-panel)] w-full max-w-sm p-5 rounded-xl border border-[var(--color-border-standard)] shadow-2xl">
+            <h3 className="text-[14px] font-semibold text-[var(--color-text-main)] mb-1">Đóng vị thế</h3>
             <p className="text-[11px] text-text-dim mb-4">
               {closeModal.pos.symbol} · {(closeModal.pos.side ?? 'LONG').toUpperCase()} · {Number(closeModal.pos.quantity ?? 0).toLocaleString('vi-VN')} CP
             </p>
@@ -913,8 +934,8 @@ export const PortfolioView: React.FC<Props> = ({
               <button
                 onClick={handleClosePosition}
                 disabled={closing}
-                className="px-4 py-2 rounded text-[12px] font-semibold bg-negative text-white hover:bg-red-600 transition-colors disabled:opacity-50"
-              >{closing ? 'Đang đóng...' : 'Xác Nhận Đóng'}</button>
+                className="px-4 py-2 rounded-lg text-[12px] font-semibold bg-[var(--color-negative)] text-white hover:opacity-90 transition-colors disabled:opacity-50"
+              >{closing ? 'Đang đóng...' : 'Xác nhận đóng'}</button>
             </div>
           </div>
         </div>
@@ -922,30 +943,30 @@ export const PortfolioView: React.FC<Props> = ({
 
       {/* ── EDIT SL/TP MODAL ── */}
       {editModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="panel-section w-full max-w-sm p-5 rounded-xl border border-border-standard shadow-2xl">
-            <h3 className="text-[13px] font-semibold text-text-main mb-1">Sửa Stop Loss / Take Profit</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-overlay)] backdrop-blur-sm animate-fade-in">
+          <div className="bg-[var(--color-panel)] w-full max-w-sm p-5 rounded-xl border border-[var(--color-border-standard)] shadow-2xl">
+            <h3 className="text-[14px] font-semibold text-[var(--color-text-main)] mb-1">Sửa cắt lỗ / chốt lời</h3>
             <p className="text-[11px] text-text-dim mb-4">
               {editModal.pos.symbol} · Giá vào: {toPoint(Number(editModal.pos.entry_price ?? 0) / 1000).toFixed(2)}
             </p>
 
             <div className="space-y-3 mb-4">
               <div>
-                <label className="text-[10px] font-semibold uppercase tracking-widest text-text-muted block mb-1">Stop Loss (nghìn ₫)</label>
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)] block mb-1">Cắt lỗ (nghìn ₫)</label>
                 <input
                   value={editModal.stopLoss}
                   onChange={(e) => setEditModal({ ...editModal, stopLoss: e.target.value })}
                   placeholder="VD: 22.50"
-                  className="w-full bg-background border border-negative/40 rounded px-3 py-2 text-[12px] font-mono text-negative outline-none focus:border-negative"
+                  className="w-full bg-[var(--color-background)] border border-[var(--color-negative)]/40 rounded-lg px-3 py-2.5 text-[12px] font-mono text-[var(--color-negative)] outline-none focus:border-[var(--color-negative)] focus:ring-1 focus:ring-[var(--color-negative)]/20"
                 />
               </div>
               <div>
-                <label className="text-[10px] font-semibold uppercase tracking-widest text-text-muted block mb-1">Take Profit (nghìn ₫)</label>
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)] block mb-1">Chốt lời (nghìn ₫)</label>
                 <input
                   value={editModal.takeProfit}
                   onChange={(e) => setEditModal({ ...editModal, takeProfit: e.target.value })}
                   placeholder="VD: 26.00"
-                  className="w-full bg-background border border-positive/40 rounded px-3 py-2 text-[12px] font-mono text-positive outline-none focus:border-positive"
+                  className="w-full bg-[var(--color-background)] border border-[var(--color-positive)]/40 rounded-lg px-3 py-2.5 text-[12px] font-mono text-[var(--color-positive)] outline-none focus:border-[var(--color-positive)] focus:ring-1 focus:ring-[var(--color-positive)]/20"
                 />
               </div>
             </div>
@@ -955,18 +976,17 @@ export const PortfolioView: React.FC<Props> = ({
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setEditModal(null)}
-                className="px-4 py-2 rounded text-[12px] border border-border-standard text-text-muted hover:bg-white/5 transition-colors"
+                className="px-4 py-2 rounded-lg text-[12px] border border-[var(--color-border-standard)] text-[var(--color-text-muted)] hover:bg-[var(--color-panel-hover)] transition-colors"
               >Hủy</button>
               <button
                 onClick={handleEditPosition}
                 disabled={editing}
-                className="px-4 py-2 rounded text-[12px] font-semibold bg-accent text-white hover:bg-blue-600 transition-colors disabled:opacity-50"
-              >{editing ? 'Đang lưu...' : 'Lưu Thay Đổi'}</button>
+                className="px-4 py-2 rounded-lg text-[12px] font-semibold bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] transition-colors disabled:opacity-50"
+              >{editing ? 'Đang lưu...' : 'Lưu thay đổi'}</button>
             </div>
           </div>
         </div>
       )}
-      </>)}
     </div>
   );
 };

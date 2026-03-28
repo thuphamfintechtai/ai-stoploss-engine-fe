@@ -72,7 +72,7 @@ export const PaperPerformanceReport: React.FC<PaperPerformanceReportProps> = ({
 
   const metrics = [
     {
-      label: 'Tong P&L',
+      label: 'Tổng P&L',
       tooltipTerm: 'P&L',
       value: data?.total_pnl != null ? (
         <span className={data.total_pnl >= 0 ? 'text-positive' : 'text-negative'}>
@@ -145,7 +145,7 @@ export const PaperPerformanceReport: React.FC<PaperPerformanceReportProps> = ({
       {/* Badge Mô Phỏng */}
       <div className="flex items-center gap-2 mb-3">
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-violet-600/10 text-violet-400">
-          MO PHONG
+          MÔ PHỎNG
         </span>
       </div>
       {/* Header + Period Selector */}
@@ -172,9 +172,9 @@ export const PaperPerformanceReport: React.FC<PaperPerformanceReportProps> = ({
       </div>
 
       <div className="mb-4">
-        <InfoCard title="Hieu bieu do hieu suat" variant="tip" defaultOpen={false}>
-          <p>Bao cao nay so sanh ket qua giao dich mo phong cua ban voi chien luoc "mua va giu".</p>
-          <p className="mt-1 text-text-muted text-[11px]"><FinancialTooltip term="Win Rate" /> &gt; 50% va <FinancialTooltip term="Profit Factor" /> &gt; 1.5 la tot. Hay tap trung vao Profit Factor hon Win Rate.</p>
+        <InfoCard title="Hiểu biểu đồ hiệu suất" variant="tip" defaultOpen={false}>
+          <p>Báo cáo này so sánh kết quả giao dịch mô phỏng của bạn với chiến lược "mua và giữ".</p>
+          <span className="block mt-1 text-text-muted text-[11px]"><FinancialTooltip term="Win Rate" /> &gt; 50% và <FinancialTooltip term="Profit Factor" /> &gt; 1.5 là tốt. Hãy tập trung vào Profit Factor hơn Win Rate.</span>
         </InfoCard>
       </div>
 
@@ -195,8 +195,8 @@ export const PaperPerformanceReport: React.FC<PaperPerformanceReportProps> = ({
         </div>
       ) : !data || data.total_trades === 0 ? (
         <EmptyState
-          title="Chua co giao dich nao"
-          description="Dat lenh paper trading va doi khop de xem bao cao hieu suat. He thong se tu dong tinh toan cac chi so nhu Win Rate, Profit Factor, Drawdown."
+          title="Chưa có giao dịch nào"
+          description="Đặt lệnh paper trading và đợi khớp để xem báo cáo hiệu suất. Hệ thống sẽ tự động tính toán các chỉ số như Win Rate, Profit Factor, Drawdown."
         />
       ) : (
         <>
@@ -204,9 +204,9 @@ export const PaperPerformanceReport: React.FC<PaperPerformanceReportProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
             {metrics.map((m: any) => (
               <div key={m.label} className="bg-white/[0.03] border border-border-subtle/30 rounded-lg p-3">
-                <p className="text-[9px] font-semibold uppercase tracking-wider text-text-muted mb-1">
+                <span className="block text-[9px] font-semibold uppercase tracking-wider text-text-muted mb-1">
                   {m.tooltipTerm ? <FinancialTooltip term={m.tooltipTerm} /> : m.label}
-                </p>
+                </span>
                 <p className="text-[16px] font-bold font-mono">{m.value}</p>
                 {m.sub && <p className="text-[9px] text-text-dim mt-0.5">{m.sub}</p>}
               </div>

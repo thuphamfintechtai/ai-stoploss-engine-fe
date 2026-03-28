@@ -73,15 +73,13 @@ const Icons = {
   ),
 };
 
-// colorVariant: 'blue' cho Portfolio Thật, 'violet' cho Mô Phỏng
 const NAV_SECTIONS = [
   {
     label: 'Danh mục',
     items: [
-      { id: 'dashboard', label: 'Tổng Quan', icon: Icons.dashboard },
-      { id: 'portfolio', label: 'Portfolio Thật', icon: Icons.portfolio, colorVariant: 'blue' as const },
-      { id: 'paper-trading', label: 'Mô Phỏng', icon: Icons.paperTrading, colorVariant: 'violet' as const },
-      { id: 'terminal', label: 'Terminal', icon: Icons.terminal },
+      { id: 'dashboard', label: 'Tổng quan', icon: Icons.dashboard },
+      { id: 'portfolio', label: 'Quản lý vốn', icon: Icons.portfolio, colorVariant: 'blue' as const },
+      { id: 'terminal', label: 'Đặt lệnh', icon: Icons.terminal },
     ],
   },
   {
@@ -112,23 +110,21 @@ export const Sidebar: React.FC<Props> = ({ currentView, onChangeView, isOpen, on
     <div
       className={`hidden lg:flex h-screen fixed left-0 top-0 flex-col z-50 border-r border-border-standard transition-[width] duration-200 ease-out ${
         isOpen ? 'w-[220px]' : 'w-16'
-      }`}
-      style={{ background: 'var(--color-panel-secondary)' }}
+      } bg-panel-secondary`}
     >
       {/* Brand / Logo */}
       <div className={`h-14 flex items-center shrink-0 border-b border-border-standard ${isOpen ? 'px-3 gap-3' : 'justify-center'}`}>
         {/* Icon — chevron up + protective arc */}
-        <div className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center"
-          style={{ background: 'var(--color-background)', border: '1px solid rgba(59,130,246,0.2)', boxShadow: '0 0 12px rgba(59,130,246,0.15), inset 0 1px 0 rgba(255,255,255,0.06)' }}>
+        <div className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center bg-background border border-accent-subtle shadow-[0_0_12px_var(--color-accent-muted),inset_0_1px_0_var(--color-divider)]">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
             {/* Chevron lên */}
             <path d="M4 17 L12 7 L20 17"
               stroke="var(--color-text-main)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
             {/* Cung bảo vệ phía dưới — xanh lá */}
             <path d="M3 21 Q12 27 21 21"
-              stroke="#22c55e" strokeWidth="2.2" strokeLinecap="round" fill="none"/>
+              stroke="var(--color-positive)" strokeWidth="2.2" strokeLinecap="round" fill="none"/>
             {/* Dot tại đỉnh chevron */}
-            <circle cx="12" cy="7" r="2" fill="#22c55e"/>
+            <circle cx="12" cy="7" r="2" fill="var(--color-positive)"/>
           </svg>
         </div>
 
@@ -138,8 +134,7 @@ export const Sidebar: React.FC<Props> = ({ currentView, onChangeView, isOpen, on
               <span className="text-[13px] font-black tracking-[0.05em] leading-none text-text-main">
                 TRADEGUARD
               </span>
-              <span className="text-[8px] font-bold px-1 py-0.5 rounded"
-                style={{ background: '#22c55e', color: '#000', lineHeight: 1, letterSpacing: '0.05em' }}>
+              <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-positive text-text-inverse leading-none tracking-[0.05em]">
                 AI
               </span>
             </div>
@@ -153,13 +148,7 @@ export const Sidebar: React.FC<Props> = ({ currentView, onChangeView, isOpen, on
       {/* Collapse toggle */}
       <button
         onClick={onToggle}
-        className="absolute -right-3 top-[58px] w-6 h-6 rounded-full flex items-center justify-center z-50 transition-colors duration-150 hover:text-accent"
-        style={{
-          background: 'var(--color-panel)',
-          border: '1px solid var(--color-border-standard)',
-          color: 'var(--color-text-muted)',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
-        }}
+        className="absolute -right-3 top-[58px] w-6 h-6 rounded-full flex items-center justify-center z-50 transition-colors duration-150 hover:text-accent bg-panel border border-border-standard text-text-muted shadow-elevated"
         aria-label={isOpen ? 'Thu gọn' : 'Mở rộng'}
       >
         {isOpen ? (
@@ -188,22 +177,22 @@ export const Sidebar: React.FC<Props> = ({ currentView, onChangeView, isOpen, on
                 const isActive = activeId === item.id;
                 const colorVariant = (item as any).colorVariant as 'blue' | 'violet' | undefined;
 
-                // Style cho variant màu (Portfolio Thật = blue, Mô Phỏng = violet)
+                // Style cho variant màu (Portfolio = blue, Mô Phỏng = violet)
                 const variantActiveColor = colorVariant === 'blue'
-                  ? '#2563EB'
+                  ? 'var(--color-accent-active)'
                   : colorVariant === 'violet'
-                  ? '#7C3AED'
+                  ? 'var(--color-secondary)'
                   : undefined;
                 const variantActiveBg = colorVariant === 'blue'
-                  ? 'rgba(37,99,235,0.1)'
+                  ? 'var(--color-accent-subtle)'
                   : colorVariant === 'violet'
-                  ? 'rgba(124,58,237,0.1)'
+                  ? 'color-mix(in srgb, var(--color-secondary) 10%, transparent)'
                   : undefined;
                 const variantTextClass = isActive
                   ? (colorVariant === 'blue'
-                    ? 'text-blue-400'
+                    ? 'text-accent-hover'
                     : colorVariant === 'violet'
-                    ? 'text-violet-400'
+                    ? 'text-secondary-hover'
                     : 'text-accent')
                   : 'text-text-muted hover:text-text-main';
 
@@ -262,9 +251,9 @@ export const Sidebar: React.FC<Props> = ({ currentView, onChangeView, isOpen, on
               className={`
                 flex items-center gap-2.5 rounded-md text-[13px] font-medium transition-all duration-150
                 ${isOpen ? 'w-full px-3 py-2' : 'w-8 h-8 min-w-[32px] justify-center'}
-                ${isActive ? 'text-accent border-l-2 border-accent' : 'text-text-muted hover:text-text-main border-l-2 border-transparent hover:bg-white/5'}
+                ${isActive ? 'text-accent border-l-2 border-accent bg-accent-subtle' : 'text-text-muted hover:text-text-main border-l-2 border-transparent hover:bg-white/5'}
               `}
-              style={isActive ? { background: 'var(--color-accent-subtle)', paddingLeft: isOpen ? '10px' : undefined } : {}}
+              style={isActive ? { paddingLeft: isOpen ? '10px' : undefined } : {}}
             >
               {Icons.settings}
               {isOpen && <span className="truncate">Cài Đặt</span>}
@@ -275,8 +264,7 @@ export const Sidebar: React.FC<Props> = ({ currentView, onChangeView, isOpen, on
         {/* User row */}
         <div className={`flex items-center min-w-0 py-2 ${isOpen ? 'gap-2.5 px-3' : 'justify-center'}`}>
           <div
-            className="rounded-md flex items-center justify-center text-[11px] font-bold text-text-main shrink-0 w-7 h-7"
-            style={{ background: 'var(--color-accent-subtle)', border: '1px solid var(--color-border-standard)' }}
+            className="rounded-md flex items-center justify-center text-[11px] font-bold text-text-main shrink-0 w-7 h-7 bg-accent-subtle border border-border-standard"
           >
             {initials}
           </div>

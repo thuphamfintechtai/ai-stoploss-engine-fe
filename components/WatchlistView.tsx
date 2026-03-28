@@ -29,10 +29,10 @@ const toPoint = (v: number) => (v >= 1000 ? v / 1000 : v);
 
 // Label conditions
 const CONDITION_LABELS: Record<AlertCondition, string> = {
-  ABOVE:       '📈 Giá vượt lên',
-  BELOW:       '📉 Giá xuống dưới',
-  PERCENT_UP:  '🚀 Tăng ≥ ...%',
-  PERCENT_DOWN:'⚠️ Giảm ≥ ...%',
+  ABOVE:       '▲ Giá vượt lên',
+  BELOW:       '▼ Giá xuống dưới',
+  PERCENT_UP:  'MẠNH Tăng ≥ ...%',
+  PERCENT_DOWN:'CẢNH BÁO Giảm ≥ ...%',
 };
 
 export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) => {
@@ -665,7 +665,7 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>
                     Cảnh báo
                   </button>
-                  <button onClick={() => onOpenTrading?.(selectedSymbol.symbol, selectedSymbol.exchange)} className="px-3 py-1.5 rounded-md bg-positive text-white font-semibold text-[11px] hover:bg-green-600 transition-colors">
+                  <button onClick={() => onOpenTrading?.(selectedSymbol.symbol, selectedSymbol.exchange)} className="px-3 py-1.5 rounded-md bg-positive text-white font-semibold text-[11px] hover:bg-positive/80 transition-colors">
                     Mở Terminal
                   </button>
                 </div>
@@ -722,7 +722,7 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
                     <div className="space-y-1.5">
                       {alerts.filter(a => a.symbol === selectedSymbol.symbol).map((alert) => (
                         <div key={alert.id} className={`flex items-center gap-2 px-2 py-1.5 rounded text-[11px] ${alert.is_triggered ? 'bg-warning/10 border border-warning/30' : alert.is_active ? 'bg-accent/5 border border-accent/20' : 'opacity-50'}`}>
-                          <span className="shrink-0">{alert.condition === 'ABOVE' || alert.condition === 'PERCENT_UP' ? '📈' : '📉'}</span>
+                          <span className={`shrink-0 font-bold text-[10px] ${alert.condition === 'ABOVE' || alert.condition === 'PERCENT_UP' ? 'text-positive' : 'text-negative'}`}>{alert.condition === 'ABOVE' || alert.condition === 'PERCENT_UP' ? '▲' : '▼'}</span>
                           <span className="flex-1 text-text-main">
                             {alert.condition === 'ABOVE' && `Giá ≥ ${(alert.target_value / 1000).toFixed(2)}`}
                             {alert.condition === 'BELOW' && `Giá ≤ ${(alert.target_value / 1000).toFixed(2)}`}
@@ -744,11 +744,11 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
                 )}
 
                 {/* Chart */}
-                <div className="panel-section flex-1 min-h-0 shrink-0" style={{ minHeight: 280 }}>
-                  <div className="px-4 py-2.5 border-b border-border-subtle">
+                <div className="panel-section flex flex-col shrink-0" style={{ height: 360 }}>
+                  <div className="px-4 py-2 border-b border-border-subtle shrink-0">
                     <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Biểu Đồ 90 Ngày</span>
                   </div>
-                  <div style={{ height: 280 }}>
+                  <div className="flex-1 min-h-0">
                     <CandlestickChart data={chartData} loading={loadingChart} />
                   </div>
                 </div>
@@ -1123,7 +1123,7 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
                         : 'bg-panel border-border-standard text-text-muted hover:border-accent/50'
                     }`}
                   >
-                    {cond === 'ABOVE' ? '📈 Vượt lên' : cond === 'BELOW' ? '📉 Xuống dưới' : cond === 'PERCENT_UP' ? '🚀 Tăng %' : '⚠️ Giảm %'}
+                    {cond === 'ABOVE' ? '▲ Vượt lên' : cond === 'BELOW' ? '▼ Xuống dưới' : cond === 'PERCENT_UP' ? 'MẠNH Tăng %' : 'CẢNH BÁO Giảm %'}
                   </button>
                 ))}
               </div>

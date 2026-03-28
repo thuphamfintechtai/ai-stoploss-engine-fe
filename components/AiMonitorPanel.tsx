@@ -302,10 +302,10 @@ function HistoryTab({ portfolioId }: { portfolioId: string }) {
 }
 
 const REGIME_CONFIG: Record<string, { label: string; color: string; borderColor: string; bgColor: string }> = {
-  VOLATILE:  { label: 'Bien dong',  color: 'text-negative',  borderColor: 'border-negative',  bgColor: 'bg-negative/5' },
-  BULLISH:   { label: 'Tang',       color: 'text-positive',  borderColor: 'border-positive',  bgColor: 'bg-positive/5' },
-  BEARISH:   { label: 'Giam',       color: 'text-orange-500', borderColor: 'border-orange-400', bgColor: 'bg-orange-500/5' },
-  SIDEWAYS:  { label: 'Di ngang',  color: 'text-text-muted', borderColor: 'border-border-standard', bgColor: 'bg-background/50' },
+  VOLATILE:  { label: 'Biến động',  color: 'text-negative',  borderColor: 'border-negative',  bgColor: 'bg-negative/5' },
+  BULLISH:   { label: 'Tăng',       color: 'text-positive',  borderColor: 'border-positive',  bgColor: 'bg-positive/5' },
+  BEARISH:   { label: 'Giảm',       color: 'text-orange-500', borderColor: 'border-orange-400', bgColor: 'bg-orange-500/5' },
+  SIDEWAYS:  { label: 'Đi ngang',  color: 'text-text-muted', borderColor: 'border-border-standard', bgColor: 'bg-background/50' },
 };
 
 export const AiMonitorPanel: React.FC<Props> = ({ portfolioId, openPositions, onNavigate }) => {
@@ -324,13 +324,13 @@ export const AiMonitorPanel: React.FC<Props> = ({ portfolioId, openPositions, on
     const handler = (data: DynamicSLUpdate) => {
       setDynamicSLUpdates(prev => {
         const next = [{ ...data, timestamp: data.timestamp || new Date().toISOString() }, ...prev];
-        return next.slice(0, 20); // giu toi da 20 updates
+        return next.slice(0, 20); // giữ tối đa 20 cập nhật
       });
     };
     dynamicSLRef.current = handler;
     wsService.off('DYNAMIC_SL_UPDATE');
     wsService.off('dynamic_sl_update');
-    // Listen ca 2 event name (uppercase va lowercase)
+    // Listen cả 2 event name (uppercase và lowercase)
     (wsService as any).socket?.on('DYNAMIC_SL_UPDATE', handler);
     (wsService as any).socket?.on('dynamic_sl_update', handler);
     return () => {
@@ -395,18 +395,18 @@ export const AiMonitorPanel: React.FC<Props> = ({ portfolioId, openPositions, on
   return (
     <div className="space-y-4 animate-fade-in">
       {/* ── InfoCard ── */}
-      <InfoCard title="Dynamic Stop Loss hoat dong the nao?" variant="info" defaultOpen={false}>
-        <p>Thay vi dat <FinancialTooltip term="Stop Loss" /> co dinh, he thong tu dong dieu chinh SL theo bien dong thi truong hien tai.</p>
-        <p className="mt-1 text-text-muted text-[11px]">Khi thi truong bien dong manh, SL mo rong de tranh bi quet. Khi on dinh, SL thu hep de bao ve loi nhuan.</p>
+      <InfoCard title="Dynamic Stop Loss hoạt động thế nào?" variant="info" defaultOpen={false}>
+        <p>Thay vì đặt <FinancialTooltip term="Stop Loss" /> cố định, hệ thống tự động điều chỉnh SL theo biến động thị trường hiện tại.</p>
+        <p className="mt-1 text-text-muted text-[11px]">Khi thị trường biến động mạnh, SL mở rộng để tránh bị quét. Khi ổn định, SL thu hẹp để bảo vệ lợi nhuận.</p>
       </InfoCard>
 
       {/* ── Header ── */}
       <div className="panel-section p-4">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h3 className="text-[13px] font-bold text-text-main mb-1">AI Giam Sat Vi The</h3>
+            <h3 className="text-[13px] font-bold text-text-main mb-1">AI Giám Sát Vị Thế</h3>
             <p className="text-[11px] text-text-muted">
-              AI danh gia toan bo vi the dang mo va de xuat dieu chinh <FinancialTooltip term="Stop Loss" />/<FinancialTooltip term="Take Profit" /> toi uu
+              AI đánh giá toàn bộ vị thế đang mở và đề xuất điều chỉnh <FinancialTooltip term="Stop Loss" />/<FinancialTooltip term="Take Profit" /> tối ưu
             </p>
             {result && (
               <p className="text-[10px] text-text-dim mt-1">
@@ -443,7 +443,7 @@ export const AiMonitorPanel: React.FC<Props> = ({ portfolioId, openPositions, on
           <div className="mt-4 pt-4 border-t border-border-subtle">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-3">
               <div>
-                <p className="text-[9px] text-text-dim uppercase tracking-widest mb-0.5">Sức Khỏe DM</p>
+                <p className="text-[9px] text-text-dim uppercase tracking-widest mb-0.5">Sức Khoẻ DM</p>
                 <p className={`text-[18px] font-bold font-mono ${result.portfolio_health_score >= 80 ? 'text-positive' : result.portfolio_health_score >= 50 ? 'text-warning' : 'text-negative'}`}>
                   {result.portfolio_health_score}
                 </p>
@@ -478,12 +478,12 @@ export const AiMonitorPanel: React.FC<Props> = ({ portfolioId, openPositions, on
       {dynamicSLUpdates.length > 0 && (
         <div className="panel-section">
           <div className="px-4 py-2.5 border-b border-border-subtle flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Cap Nhat <FinancialTooltip term="Trailing Stop" /> (Dynamic SL)</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Cập Nhật <FinancialTooltip term="Trailing Stop" /> (Dynamic SL)</span>
             <button
               onClick={() => setDynamicSLUpdates([])}
               className="text-[9px] text-text-dim hover:text-text-muted"
             >
-              Xoa tat ca
+              Xóa tất cả
             </button>
           </div>
           <div className="p-3 space-y-2 max-h-72 overflow-y-auto dense-scroll">
@@ -563,9 +563,9 @@ export const AiMonitorPanel: React.FC<Props> = ({ portfolioId, openPositions, on
         <>
           {openPositions.length === 0 ? (
             <EmptyState
-              title="Khong co vi the nao dang mo"
-              description="He thong se giam sat va de xuat dieu chinh SL/TP khi ban co vi the dang mo."
-              actionLabel="Dat lenh moi"
+              title="Không có vị thế nào đang mở"
+              description="Hệ thống sẽ giám sát và đề xuất điều chỉnh SL/TP khi bạn có vị thế đang mở."
+              actionLabel="Đặt lệnh mới"
               onAction={() => onNavigate('terminal')}
             />
           ) : !result && !loading ? (

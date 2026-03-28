@@ -4,47 +4,69 @@
   --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, Monaco, Consolas, monospace;
 
-  /* Color System - Professional Dark Trading Platform */
-  --color-background: #080D1A;
-  --color-background-elevated: #0D1526;
-  --color-panel: #111C30;
-  --color-panel-hover: #172040;
-  --color-panel-secondary: #0A1120;
+  /* ═══ COLOR SYSTEM — Professional Trading Platform ═══ */
 
+  /* Brand — Primary (Blue) */
   --color-accent: #3B82F6;
-  --color-accent-hover: #2563EB;
-  --color-accent-subtle: rgba(59, 130, 246, 0.10);
+  --color-accent-hover: #60A5FA;
+  --color-accent-active: #2563EB;
+  --color-accent-subtle: rgba(59, 130, 246, 0.12);
   --color-accent-muted: rgba(59, 130, 246, 0.06);
 
+  /* Brand — Secondary (Violet) */
+  --color-secondary: #8B5CF6;
+  --color-secondary-hover: #A78BFA;
+
+  /* Trading — Giá Trần/Sàn (VN Stock) */
+  --color-ceiling: #A855F7;
+  --color-ceiling-text: #C084FC;
+  --color-floor: #22D3EE;
+  --color-floor-text: #67E8F9;
+
+  /* Background */
+  --color-background: #0B0F19;
+  --color-background-elevated: #111827;
+  --color-panel: #1F2937;
+  --color-panel-hover: #374151;
+  --color-panel-secondary: #111827;
+  --color-panel-elevated: #374151;
+  --color-overlay: rgba(0, 0, 0, 0.60);
+
+  /* Trading — Tăng/Giảm */
   --color-positive: #22C55E;
-  --color-positive-bg: rgba(34, 197, 94, 0.07);
+  --color-positive-bg: rgba(34, 197, 94, 0.12);
+  --color-positive-text: #4ADE80;
   --color-negative: #EF4444;
-  --color-negative-bg: rgba(239, 68, 68, 0.07);
+  --color-negative-bg: rgba(239, 68, 68, 0.12);
+  --color-negative-text: #F87171;
+
+  /* Status */
   --color-warning: #F59E0B;
-  --color-warning-bg: rgba(245, 158, 11, 0.07);
-  --color-neutral: #9CA3AF;
+  --color-warning-bg: rgba(245, 158, 11, 0.12);
+  --color-info: #3B82F6;
+  --color-info-bg: rgba(59, 130, 246, 0.12);
+  --color-neutral: #94A3B8;
 
-  --color-text-main: #E2E8F0;
-  --color-text-muted: #8896A4;
-  --color-text-dim: #4B5563;
+  /* Typography */
+  --color-text-main: #F1F5F9;
+  --color-text-muted: #94A3B8;
+  --color-text-dim: #64748B;
+  --color-text-disabled: #475569;
+  --color-text-on-primary: #FFFFFF;
+  --color-text-inverse: #0F172A;
 
-  --color-border-subtle: rgba(255, 255, 255, 0.05);
-  --color-border-standard: rgba(255, 255, 255, 0.10);
+  /* Border & Divider */
+  --color-border-subtle: #1E293B;
+  --color-border-standard: #334155;
   --color-border-focus: #3B82F6;
+  --color-border-error: #EF4444;
+  --color-divider: rgba(148, 163, 184, 0.12);
 
   /* Geometry */
   --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
-
-  /* Design System D-06/D-07 Tokens */
-  --color-primary-deep: #1E3A5F;
-  --color-accent-gold: #F0B90B;
-  --color-bg-dark: #0D1117;
-  --color-card-dark: #161B22;
-  --color-border-gh: #30363D;
-  --color-info: #38BDF8;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 
   /* Shadows */
   --shadow-panel: 0 1px 3px rgba(0, 0, 0, 0.4);
@@ -146,13 +168,13 @@ body {
 }
 
 .card-flat:hover {
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: var(--color-border-standard);
 }
 
 .input-fintech:focus {
   outline: none;
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+  border-color: var(--color-border-focus);
+  box-shadow: 0 0 0 3px var(--color-accent-subtle);
 }
 
 .flash-green {
@@ -167,20 +189,23 @@ body {
 .trading-table {
   width: 100%;
   border-collapse: collapse;
+  font-size: 12px;
 }
 
 .trading-table th {
   text-align: right;
-  font-weight: 500;
-  color: var(--color-text-muted);
-  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-dim);
+  font-size: 10px;
   text-transform: uppercase;
-  padding: 8px 12px;
+  letter-spacing: 0.03em;
+  padding: 6px 8px;
   position: sticky;
   top: 0;
-  background-color: var(--color-panel);
+  background-color: var(--color-bg-panel);
   z-index: 10;
-  border-bottom: 1px solid var(--color-border-standard);
+  border-bottom: 1px solid var(--color-border-subtle);
+  white-space: nowrap;
 }
 
 .trading-table th:first-child {
@@ -188,18 +213,25 @@ body {
 }
 
 .trading-table td {
-  padding: 8px 12px;
+  padding: 5px 8px;
   text-align: right;
   font-family: var(--font-mono);
+  font-size: 12px;
   border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .trading-table td:first-child {
   text-align: left;
   font-family: var(--font-sans);
+  font-weight: 600;
 }
 
-.trading-table tr:hover td {
+.trading-table tbody tr {
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.trading-table tbody tr:hover td {
   background-color: var(--color-panel-hover);
 }
 
@@ -305,33 +337,63 @@ body {
 
 /* ═══ LIGHT THEME OVERRIDE ═══ */
 [data-theme="light"] {
-  --color-background: #F0F4F8;
-  --color-background-elevated: #FFFFFF;
-  --color-panel: #FFFFFF;
-  --color-panel-hover: #F1F5F9;
-  --color-panel-secondary: #F8FAFC;
-
+  /* Brand — Primary */
   --color-accent: #2563EB;
   --color-accent-hover: #1D4ED8;
-  --color-accent-subtle: rgba(37, 99, 235, 0.10);
-  --color-accent-muted: rgba(37, 99, 235, 0.06);
+  --color-accent-active: #1E40AF;
+  --color-accent-subtle: rgba(37, 99, 235, 0.08);
+  --color-accent-muted: rgba(37, 99, 235, 0.04);
 
+  /* Brand — Secondary */
+  --color-secondary: #7C3AED;
+  --color-secondary-hover: #6D28D9;
+
+  /* Trading — Giá Trần/Sàn */
+  --color-ceiling: #9333EA;
+  --color-ceiling-text: #7C3AED;
+  --color-floor: #0891B2;
+  --color-floor-text: #0E7490;
+
+  /* Background */
+  --color-background: #F8FAFC;
+  --color-background-elevated: #F1F5F9;
+  --color-panel: #FFFFFF;
+  --color-panel-hover: #F1F5F9;
+  --color-panel-secondary: #F1F5F9;
+  --color-panel-elevated: #FFFFFF;
+  --color-overlay: rgba(15, 23, 42, 0.40);
+
+  /* Trading — Tăng/Giảm */
   --color-positive: #16A34A;
   --color-positive-bg: rgba(22, 163, 74, 0.08);
+  --color-positive-text: #15803D;
   --color-negative: #DC2626;
   --color-negative-bg: rgba(220, 38, 38, 0.08);
+  --color-negative-text: #B91C1C;
+
+  /* Status */
   --color-warning: #D97706;
   --color-warning-bg: rgba(217, 119, 6, 0.08);
-  --color-neutral: #6B7280;
+  --color-info: #2563EB;
+  --color-info-bg: rgba(37, 99, 235, 0.08);
+  --color-neutral: #64748B;
 
+  /* Typography */
   --color-text-main: #0F172A;
-  --color-text-muted: #64748B;
+  --color-text-muted: #475569;
   --color-text-dim: #94A3B8;
+  --color-text-disabled: #CBD5E1;
+  --color-text-on-primary: #FFFFFF;
+  --color-text-inverse: #F1F5F9;
 
-  --color-border-subtle: rgba(0, 0, 0, 0.06);
-  --color-border-standard: rgba(0, 0, 0, 0.12);
+  /* Border & Divider */
+  --color-border-subtle: #E2E8F0;
+  --color-border-standard: #CBD5E1;
   --color-border-focus: #2563EB;
+  --color-border-error: #DC2626;
+  --color-divider: rgba(15, 23, 42, 0.08);
 
+  /* Shadows */
   --shadow-panel: 0 1px 3px rgba(0, 0, 0, 0.08);
   --shadow-elevated: 0 4px 20px rgba(0, 0, 0, 0.12);
 }
@@ -342,7 +404,7 @@ body {
 }
 
 [data-theme="light"] ::-webkit-scrollbar-track {
-  background: #E2E8F0;
+  background: var(--color-background-elevated);
 }
 
 [data-theme="light"] ::-webkit-scrollbar-thumb {
@@ -362,7 +424,7 @@ body {
 }
 
 [data-theme="light"] .card-flat:hover {
-  border-color: rgba(0, 0, 0, 0.2);
+  border-color: var(--color-border-standard);
 }
 
 /* ═══ TABULAR NUMBERS ═══ */
@@ -379,8 +441,8 @@ body {
 
 .tooltip-content {
   animation: tooltipFadeIn 0.15s ease-out;
-  background: var(--color-card-dark);
-  border: 1px solid var(--color-border-gh);
+  background: var(--color-panel);
+  border: 1px solid var(--color-border-standard);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-elevated);
   padding: 8px 12px;

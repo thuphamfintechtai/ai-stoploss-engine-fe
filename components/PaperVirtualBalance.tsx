@@ -115,13 +115,13 @@ export const PaperVirtualBalance: React.FC<PaperVirtualBalanceProps> = ({
       {/* Badge Mô Phỏng */}
       <div className="flex items-center gap-2 mb-3">
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-violet-600/10 text-violet-400">
-          MO PHONG
+          MÔ PHỎNG
         </span>
       </div>
       <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="text-[13px] font-black text-text-main">Số Dư Ảo (Paper Trading)</h3>
-          <p className="text-[10px] text-text-muted mt-0.5">Vốn mô phỏng — không liên quan đến tiền thật</p>
+          <p className="text-[10px] text-text-muted mt-0.5">Vốn mô phỏng — không liên quan đến tiền</p>
         </div>
         <button
           onClick={fetchBalance}

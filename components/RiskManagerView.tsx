@@ -26,57 +26,37 @@ function getPositionRiskVnd(pos: Position): number {
 
 function RiskGauge({ percent }: { percent: number }) {
   const clamped = Math.min(100, Math.max(0, percent));
-  const r = 60;
-  const cx = 80;
-  const cy = 80;
-  const startAngle = -210;
-  const endAngle = 30;
-  const totalArc = endAngle - startAngle;
-  const fillArc = (clamped / 100) * totalArc;
-
-  const polarToXY = (angle: number, radius: number) => {
-    const rad = (angle * Math.PI) / 180;
-    return { x: cx + radius * Math.cos(rad), y: cy + radius * Math.sin(rad) };
-  };
-
-  const arcPath = (startDeg: number, endDeg: number, r: number) => {
-    const s = polarToXY(startDeg, r);
-    const e = polarToXY(endDeg, r);
-    const largeArc = endDeg - startDeg > 180 ? 1 : 0;
-    return `M ${s.x} ${s.y} A ${r} ${r} 0 ${largeArc} 1 ${e.x} ${e.y}`;
-  };
-
-  const color = clamped < 50 ? '#22C55E' : clamped < 80 ? '#F59E0B' : '#EF4444';
-  const label = clamped < 50 ? 'AN TOÀN' : clamped < 80 ? 'CẨN THẬN' : 'NGUY HIỂM';
+  const color = clamped < 50 ? 'var(--color-positive)' : clamped < 80 ? 'var(--color-warning)' : 'var(--color-negative)';
+  const label = clamped < 50 ? 'An toàn' : clamped < 80 ? 'Cẩn thận' : 'Nguy hiểm';
+  const bgColor = clamped < 50 ? 'var(--color-positive)' : clamped < 80 ? 'var(--color-warning)' : 'var(--color-negative)';
 
   return (
-    <div className="flex flex-col items-center">
-      <svg width={160} height={110} viewBox="0 0 160 110">
-        {/* Track */}
-        <path d={arcPath(startAngle, endAngle, r)} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={12} strokeLinecap="round" />
-        {/* Fill */}
-        {clamped > 0 && (
-          <path d={arcPath(startAngle, startAngle + fillArc, r)} fill="none" stroke={color} strokeWidth={12} strokeLinecap="round" />
-        )}
-        {/* Needle */}
-        {(() => {
-          const needleAngle = startAngle + fillArc;
-          const tip = polarToXY(needleAngle, r - 2);
-          return (
-            <>
-              <line x1={cx} y1={cy} x2={tip.x} y2={tip.y} stroke={color} strokeWidth={2} strokeLinecap="round" />
-              <circle cx={cx} cy={cy} r={4} fill={color} />
-            </>
-          );
-        })()}
-        {/* Percentage */}
-        <text x={cx} y={cy + 22} textAnchor="middle" fill={color} fontSize={18} fontWeight="bold" fontFamily="monospace">
-          {clamped.toFixed(1)}%
-        </text>
-        <text x={cx} y={cy + 36} textAnchor="middle" fill="var(--color-text-muted)" fontSize={9} fontWeight="600" fontFamily="sans-serif" letterSpacing="0.1em">
-          {label}
-        </text>
-      </svg>
+    <div className="flex items-center gap-4">
+      {/* Circular progress */}
+      <div className="relative w-16 h-16 shrink-0">
+        <svg className="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
+          <circle cx="32" cy="32" r="28" fill="none" stroke="var(--color-border-subtle)" strokeWidth="5" />
+          <circle
+            cx="32" cy="32" r="28" fill="none"
+            stroke={bgColor} strokeWidth="5" strokeLinecap="round"
+            strokeDasharray={`${(clamped / 100) * 175.9} 175.9`}
+            className="transition-all duration-700"
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-[14px] font-bold tabular-nums" style={{ color }}>{clamped.toFixed(0)}%</span>
+        </div>
+      </div>
+      {/* Label + bar */}
+      <div className="flex-1 min-w-0">
+        <p className="text-[12px] font-semibold" style={{ color }}>{label}</p>
+        <div className="h-1.5 rounded-full overflow-hidden bg-[var(--color-border-subtle)] mt-1.5">
+          <div className="h-full rounded-full transition-all duration-700" style={{ width: `${clamped}%`, backgroundColor: bgColor }} />
+        </div>
+        <div className="flex justify-between mt-1 text-[9px] text-[var(--color-text-dim)]">
+          <span>0%</span><span>50%</span><span>100%</span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -179,31 +159,31 @@ export const RiskManagerView: React.FC<Props> = ({
       <div className="panel-section p-4">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <StatCard
-            label="Tong Rui Ro"
+            label="Tổng Rủi Ro"
             value={formatNumberVI(totalRisk)}
             suffix=" VND"
             change={riskUsagePct < 50 ? -1 : riskUsagePct < 80 ? 0 : 1}
-            tooltip="Tong so tien co the mat neu tat ca stop loss bi kich hoat"
+            tooltip="Tổng số tiền có thể mất nếu tất cả stop loss bị kích hoạt"
             size="md"
           />
           <StatCard
-            label="Han Muc Rui Ro"
+            label="Hạn Mức Rủi Ro"
             value={maxRiskPercent.toFixed(0)}
             suffix="%"
-            tooltip="Phan tram von toi da duoc phep rui ro"
+            tooltip="Phần trăm vốn tối đa được phép rủi ro"
             size="md"
           />
           <StatCard
-            label="Con Lai"
+            label="Còn Lại"
             value={formatNumberVI(Math.max(0, maxRiskAmount - totalRisk))}
             suffix=" VND"
-            tooltip="Ngan sach rui ro con lai co the su dung"
+            tooltip="Ngân sách rủi ro còn lại có thể sử dụng"
             size="md"
           />
           <StatCard
-            label="Vi The Mo"
+            label="Vị Thế Mở"
             value={String(openPositions.length)}
-            tooltip="So vi the dang hoat dong"
+            tooltip="Số vị thế đang hoạt động"
             size="md"
           />
         </div>
@@ -219,51 +199,41 @@ export const RiskManagerView: React.FC<Props> = ({
         )}
       </div>
 
-      {/* ── Row 2: Gauge + Exposure Chart ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
-        {/* Gauge */}
-        <div className="panel-section flex flex-col items-center justify-center p-6">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted mb-4">Mức Rủi Ro Tổng</p>
-          <RiskGauge percent={riskUsagePct} />
-          <div className="mt-4 flex gap-4 text-[10px]">
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-positive" />{'<'}50% An toàn</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-warning" />50-80% Cẩn thận</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-negative" />{'>'}80% Nguy hiểm</span>
+      {/* ── Row 2: Risk Gauge + Phân bổ rủi ro ── */}
+      <div className="panel-section">
+        <div className="px-4 py-3 border-b border-border-subtle grid grid-cols-1 sm:grid-cols-[200px_1fr] gap-4">
+          {/* Gauge bên trái */}
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted mb-2">Mức rủi ro tổng</p>
+            <RiskGauge percent={riskUsagePct} />
           </div>
-        </div>
-
-        {/* Exposure per symbol */}
-        <div className="xl:col-span-2 panel-section flex flex-col">
-          <div className="px-4 py-2.5 border-b border-border-subtle shrink-0">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Phân Bổ Rủi Ro Theo Mã</span>
-          </div>
-          <div className="flex-1 overflow-y-auto dense-scroll p-4 space-y-3">
+          {/* Phân bổ theo mã bên phải */}
+          <div className="space-y-2 overflow-y-auto dense-scroll max-h-[180px]">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Phân bổ theo mã</p>
             {positionsWithRisk.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-text-dim text-[12px]">
-                Không có vị thế nào đang mở
-              </div>
+              <div className="text-text-dim text-[11px]">Không có vị thế nào đang mở</div>
             ) : (
               positionsWithRisk.map((pos) => {
                 const barColor = pos.riskPct < 2 ? 'bg-positive' : pos.riskPct < 4 ? 'bg-warning' : 'bg-negative';
                 const barWidth = maxRiskAmount > 0 ? (pos.riskVnd / maxRiskAmount) * 100 : 0;
                 return (
                   <div key={pos.id}>
-                    <div className="flex justify-between items-center mb-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[13px] font-bold text-text-main">{pos.symbol}</span>
-                        <span className="text-[10px] text-text-muted">{pos.exchange}</span>
+                    <div className="flex justify-between items-center mb-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[12px] font-bold text-text-main">{pos.symbol}</span>
+                        <span className="text-[9px] text-text-muted">{pos.exchange}</span>
                       </div>
-                      <div className="flex items-center gap-4 text-[11px] font-mono">
+                      <div className="flex items-center gap-3 text-[10px] font-mono">
                         <span className={pos.pnl >= 0 ? 'text-positive' : 'text-negative'}>
                           {pos.pnl !== 0 ? (pos.pnl >= 0 ? '+' : '') + formatNumberVI(pos.pnl, { maximumFractionDigits: 0 }) : '—'}
                         </span>
                         <span className={pos.riskPct < 2 ? 'text-positive' : pos.riskPct < 4 ? 'text-warning' : 'text-negative'}>
-                          Rủi ro: {pos.riskPct.toFixed(2)}%
+                          {pos.riskPct.toFixed(2)}%
                         </span>
                         <span className="text-text-muted">SL -{pos.slDistance.toFixed(1)}%</span>
                       </div>
                     </div>
-                    <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--color-border-subtle)' }}>
+                    <div className="h-1 rounded-full overflow-hidden" style={{ background: 'var(--color-border-subtle)' }}>
                       <div
                         className={`h-full rounded-full transition-all ${barColor}`}
                         style={{ width: `${Math.min(100, barWidth)}%` }}
@@ -277,53 +247,52 @@ export const RiskManagerView: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* ── Ngan sach rui ro (Risk Budget AI) ── */}
+      {/* ── Ngân sách rủi ro (Risk Budget AI) ── */}
       {portfolioId && (riskBudgetLoading || riskBudget) && (
         <div className="panel-section">
           <div className="px-4 py-2.5 border-b border-border-subtle">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Ngan Sach Rui Ro</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Ngân Sách Rủi Ro</span>
           </div>
           {riskBudgetLoading && (
-            <div className="p-4 text-center text-[11px] text-text-dim flex items-center justify-center gap-2">
+            <div className="p-3 text-center text-[11px] text-text-dim flex items-center justify-center gap-2">
               <div className="w-3 h-3 border border-accent border-t-transparent rounded-full animate-spin" />
-              Dang tinh ngan sach rui ro...
+              Đang tính ngân sách rủi ro...
             </div>
           )}
           {riskBudget && !riskBudgetLoading && (
-            <div className="p-4 space-y-4">
-              {/* Risk budget gauge */}
-              <div className="flex flex-col items-center">
-                <p className="text-[10px] text-text-muted mb-2">
-                  Da dung {riskBudget.usedRiskPercent?.toFixed(1) ?? 0}% ngan sach rui ro
-                </p>
-                <RiskGauge percent={riskBudget.usedRiskPercent ?? 0} />
-                <div className="mt-2 text-[10px] text-text-dim grid grid-cols-2 gap-x-4 gap-y-1 text-center">
+            <div className="p-4 space-y-3">
+              {/* Budget summary — compact inline */}
+              <div className="flex items-center gap-4">
+                <div className="shrink-0 w-[140px]">
+                  <RiskGauge percent={riskBudget.usedRiskPercent ?? 0} />
+                </div>
+                <div className="flex-1 grid grid-cols-2 gap-3 text-[10px]">
                   <div>
-                    <span className="text-text-muted font-semibold">Da dung</span>
-                    <p className="font-mono text-negative">{formatNumberVI(riskBudget.usedRiskVnd ?? 0)}</p>
+                    <span className="text-text-muted font-semibold">Đã dùng</span>
+                    <p className="font-mono text-negative text-[12px]">{formatNumberVI(riskBudget.usedRiskVnd ?? 0)}</p>
                   </div>
                   <div>
-                    <span className="text-text-muted font-semibold">Con lai</span>
-                    <p className="font-mono text-positive">{formatNumberVI(riskBudget.remainingBudget ?? 0)}</p>
+                    <span className="text-text-muted font-semibold">Còn lại</span>
+                    <p className="font-mono text-positive text-[12px]">{formatNumberVI(riskBudget.remainingBudget ?? 0)}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Sector Concentration */}
+              {/* Tập trung ngành */}
               {Array.isArray(riskBudget.sectorConcentration) && riskBudget.sectorConcentration.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-semibold text-text-muted mb-2 uppercase tracking-wider">Tap trung nganh</p>
-                  <div className="space-y-2">
+                  <p className="text-[10px] font-semibold text-text-muted mb-1.5 uppercase tracking-wider">Tập trung ngành</p>
+                  <div className="space-y-1.5">
                     {riskBudget.sectorConcentration.map((sector: any, i: number) => {
                       const pct = typeof sector.percent === 'number' ? sector.percent : 0;
                       const isHigh = pct > 30;
                       return (
                         <div key={i}>
                           <div className="flex justify-between items-center mb-0.5">
-                            <span className="text-[10px] text-text-main">{sector.sectorLabel ?? sector.sector ?? 'Khac'}</span>
+                            <span className="text-[10px] text-text-main">{sector.sectorLabel ?? sector.sector ?? 'Khác'}</span>
                             <span className={`text-[10px] font-mono font-bold ${isHigh ? 'text-negative' : 'text-text-muted'}`}>{pct.toFixed(1)}%</span>
                           </div>
-                          <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--color-border-subtle)' }}>
+                          <div className="h-1 rounded-full overflow-hidden" style={{ background: 'var(--color-border-subtle)' }}>
                             <div
                               className={`h-full rounded-full transition-all ${isHigh ? 'bg-negative' : 'bg-accent'}`}
                               style={{ width: `${Math.min(100, pct)}%` }}
@@ -336,35 +305,52 @@ export const RiskManagerView: React.FC<Props> = ({
                 </div>
               )}
 
-              {/* Rebalancing warnings */}
+              {/* Cảnh báo tái cân bằng */}
               {rebalancing && (
-                <div>
+                <div className="space-y-2">
                   {Array.isArray(rebalancing.warnings) && rebalancing.warnings.length > 0 && (
-                    <div className="space-y-1.5 mb-3">
-                      <p className="text-[10px] font-semibold text-warning uppercase tracking-wider">Canh bao tai can bang</p>
-                      {rebalancing.warnings.map((w: string, i: number) => (
-                        <div key={i} className="px-2.5 py-1.5 rounded bg-warning/5 border border-warning/20 text-[9px] text-warning/90 flex items-start gap-1.5">
-                          <span className="shrink-0">⚠</span><span>{w}</span>
-                        </div>
-                      ))}
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-semibold text-warning uppercase tracking-wider">Cảnh báo tái cân bằng</p>
+                      {rebalancing.warnings.map((w: any, i: number) => {
+                        let text: string;
+                        if (typeof w === 'string') {
+                          text = w;
+                        } else if (w?.sectorLabel && w?.percent != null) {
+                          text = `Ngành ${w.sectorLabel} chiếm ${Number(w.percent).toFixed(1)}% danh mục (ngưỡng cảnh báo: 30%)`;
+                        } else {
+                          text = w?.message ?? w?.text ?? JSON.stringify(w);
+                        }
+                        return (
+                          <div key={i} className="px-2 py-1 rounded bg-warning/5 border border-warning/20 text-[9px] text-warning/90 flex items-start gap-1.5">
+                            <span className="shrink-0">⚠</span><span>{text}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                   {Array.isArray(rebalancing.suggestions) && rebalancing.suggestions.length > 0 && (
                     <div>
-                      <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-1.5">De xuat tai can bang</p>
-                      <div className="space-y-1.5">
-                        {rebalancing.suggestions.map((s: any, i: number) => (
-                          <div key={i} className="panel-section p-2.5">
-                            <p className="text-[10px] font-semibold text-text-main mb-0.5">{s.symbol ?? `De xuat ${i + 1}`}</p>
-                            {s.narrative && <p className="text-[9px] text-text-muted leading-relaxed">{s.narrative}</p>}
-                            {!s.narrative && s.action && <p className="text-[9px] text-text-muted">{s.action}</p>}
-                          </div>
-                        ))}
+                      <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-1">Đề xuất tái cân bằng</p>
+                      <div className="space-y-1">
+                        {rebalancing.suggestions.map((s: any, i: number) => {
+                          if (typeof s === 'string') return (
+                            <div key={i} className="panel-section p-2">
+                              <p className="text-[9px] text-text-muted leading-relaxed">{s}</p>
+                            </div>
+                          );
+                          return (
+                            <div key={i} className="panel-section p-2">
+                              <p className="text-[10px] font-semibold text-text-main mb-0.5">{s.symbol ?? `Đề xuất ${i + 1}`}</p>
+                              {s.narrative && <p className="text-[9px] text-text-muted leading-relaxed">{typeof s.narrative === 'string' ? s.narrative : JSON.stringify(s.narrative)}</p>}
+                              {!s.narrative && s.action && <p className="text-[9px] text-text-muted">{typeof s.action === 'string' ? s.action : JSON.stringify(s.action)}</p>}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
                   {rebalancing.narrative && (
-                    <div className="panel-section p-3 mt-2">
+                    <div className="panel-section p-2">
                       <p className="text-[9px] text-text-muted leading-relaxed">{rebalancing.narrative}</p>
                     </div>
                   )}
@@ -397,7 +383,7 @@ export const RiskManagerView: React.FC<Props> = ({
                   <th>KL</th>
                   <th>Rủi Ro (VND)</th>
                   <th>Rủi Ro (%)</th>
-                  <th>SL Distance</th>
+                  <th>Khoảng Cách SL</th>
                   <th>P&L</th>
                 </tr>
               </thead>
@@ -471,9 +457,9 @@ export const RiskManagerView: React.FC<Props> = ({
             {/* ── VaR Tab ── */}
             {riskSimTab === 'var' && (
               <div className="space-y-4">
-                <InfoCard title="VaR la gi?" variant="info" defaultOpen={false}>
-                  <p>Value at Risk (<FinancialTooltip term="VaR" />) cho ban biet: "Voi 95% tin cay, danh muc cua ban se KHONG mat qua X dong trong 1 ngay."</p>
-                  <p className="mt-1 text-text-muted text-[11px]">Vi du: VaR = 5 trieu VND nghia la 95% kha nang ban khong mat qua 5 trieu trong 1 ngay giao dich.</p>
+                <InfoCard title="VaR là gì?" variant="info" defaultOpen={false}>
+                  <p>Value at Risk (<FinancialTooltip term="VaR" />) cho bạn biết: "Với 95% tin cậy, danh mục của bạn sẽ KHÔNG mất quá X đồng trong 1 ngày."</p>
+                  <p className="mt-1 text-text-muted text-[11px]">Ví dụ: VaR = 5 triệu VND nghĩa là 95% khả năng bạn không mất quá 5 triệu trong 1 ngày giao dịch.</p>
                 </InfoCard>
                 {!varResult ? (
                   <div className="flex items-center justify-center py-8 gap-2 text-text-dim text-[12px]">
@@ -486,19 +472,19 @@ export const RiskManagerView: React.FC<Props> = ({
                     <div className="space-y-3">
                       <p className="text-[14px] font-semibold text-negative leading-relaxed">
                         {varResult.portfolioVaR.summary ||
-                          `Voi ${varResult.portfolioVaR.confidenceLevel ?? 95}% tin cay, max loss 1 ngay la ${formatNumberVI(varResult.portfolioVaR.varVnd, { maximumFractionDigits: 0 })} VND (${varResult.portfolioVaR.varPercent?.toFixed(2) ?? 0}% portfolio)`}
+                          `Với ${varResult.portfolioVaR.confidenceLevel ?? 95}% tin cậy, tổn thất tối đa 1 ngày là ${formatNumberVI(varResult.portfolioVaR.varVnd, { maximumFractionDigits: 0 })} VND (${varResult.portfolioVaR.varPercent?.toFixed(2) ?? 0}% danh mục)`}
                       </p>
                       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-                        <StatCard label="VaR 95% (1 ngay)" value={formatNumberVI(varResult.portfolioVaR.varVnd, { maximumFractionDigits: 0 })} suffix=" VND" size="md" tooltip="VaR" />
+                        <StatCard label="VaR 95% (1 ngày)" value={formatNumberVI(varResult.portfolioVaR.varVnd, { maximumFractionDigits: 0 })} suffix=" VND" size="md" tooltip="VaR" />
                         <StatCard label="VaR (%)" value={varResult.portfolioVaR.varPercent?.toFixed(2) ?? '0'} suffix="%" size="md" />
-                        <StatCard label="Tin cay" value={String(varResult.portfolioVaR.confidenceLevel ?? 95)} suffix="%" size="md" />
+                        <StatCard label="Tin cậy" value={String(varResult.portfolioVaR.confidenceLevel ?? 95)} suffix="%" size="md" />
                       </div>
                     </div>
 
                     {/* Per-position VaR table */}
                     {Array.isArray(varResult.positionVaRs) && varResult.positionVaRs.length > 0 && (
                       <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-2"><FinancialTooltip term="VaR" /> Theo Vi The</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-2"><FinancialTooltip term="VaR" /> Theo Vị Thế</p>
                         <table className="table-terminal w-full">
                           <thead>
                             <tr>
@@ -527,9 +513,9 @@ export const RiskManagerView: React.FC<Props> = ({
             {/* ── Monte Carlo Tab ── */}
             {riskSimTab === 'montecarlo' && (
               <div className="space-y-4">
-                <InfoCard title="Monte Carlo Simulation la gi?" variant="info" defaultOpen={false}>
-                  <p>He thong chay 1,000 kich ban ngau nhien dua tren du lieu lich su de du doan nhieu ket qua co the xay ra.</p>
-                  <p className="mt-1 text-text-muted text-[11px]">Giong nhu du bao thoi tiet: khong noi chinh xac ngay mai the nao, nhung cho biet pham vi kha nang.</p>
+                <InfoCard title="Monte Carlo Simulation là gì?" variant="info" defaultOpen={false}>
+                  <p>Hệ thống chạy 1,000 kịch bản ngẫu nhiên dựa trên dữ liệu lịch sử để dự đoán nhiều kết quả có thể xảy ra.</p>
+                  <p className="mt-1 text-text-muted text-[11px]">Giống như dự báo thời tiết: không nói chính xác ngày mai thế nào, nhưng cho biết phạm vi khả năng.</p>
                 </InfoCard>
                 {simLoading && !mcResult ? (
                   <div className="flex items-center justify-center py-8 gap-2 text-text-dim text-[12px]">
@@ -541,7 +527,7 @@ export const RiskManagerView: React.FC<Props> = ({
                 ) : (
                   <>
                     <div className="flex items-center justify-between">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted"><FinancialTooltip term="Monte Carlo" /> Fan Chart 20 Ngay</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted"><FinancialTooltip term="Monte Carlo" /> Fan Chart 20 Ngày</p>
                       <p className="text-[11px] text-warning font-semibold">
                         Xác suất lỗ vốn: {mcResult.probabilityOfLoss?.toFixed(1) ?? 0}%
                       </p>
@@ -587,9 +573,9 @@ export const RiskManagerView: React.FC<Props> = ({
             {/* ── Stress Test Tab ── */}
             {riskSimTab === 'stress' && (
               <div className="space-y-4">
-                <InfoCard title="Stress Test la gi?" variant="warning" defaultOpen={false}>
-                  <p>Kiem tra: "Neu VNINDEX giam 10%, 15%, 20% thi danh muc cua ban bi anh huong the nao?"</p>
-                  <p className="mt-1 text-text-muted text-[11px]">Giup ban chuan bi tinh than va ke hoach cho truong hop xau nhat.</p>
+                <InfoCard title="Stress Test là gì?" variant="warning" defaultOpen={false}>
+                  <p>Kiểm tra: "Nếu VNINDEX giảm 10%, 15%, 20% thì danh mục của bạn bị ảnh hưởng thế nào?"</p>
+                  <p className="mt-1 text-text-muted text-[11px]">Giúp bạn chuẩn bị tinh thần và kế hoạch cho trường hợp xấu nhất.</p>
                 </InfoCard>
                 {simLoading && !stressResult ? (
                   <div className="flex items-center justify-center py-8 gap-2 text-text-dim text-[12px]">
@@ -627,7 +613,7 @@ export const RiskManagerView: React.FC<Props> = ({
                     {expandedScenarioIdx !== null && stressResult.scenarios[expandedScenarioIdx] && (
                       <div>
                         <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-2">
-                          <FinancialTooltip term="Stress Test" /> - Kich Ban {stressResult.scenarios[expandedScenarioIdx].dropPercent}%
+                          <FinancialTooltip term="Stress Test" /> — Kịch Bản {stressResult.scenarios[expandedScenarioIdx].dropPercent}%
                         </p>
                         <table className="table-terminal w-full">
                           <thead>
@@ -684,17 +670,17 @@ export const RiskManagerView: React.FC<Props> = ({
             {/* ── Sector Tab ── */}
             {riskSimTab === 'sector' && (
               <div className="space-y-4">
-                <InfoCard title="Tai sao can da dang hoa nganh?" variant="tip" defaultOpen={false}>
-                  <p>Neu ban dau tu qua nhieu vao 1 nganh (vi du: 50% vao ngan hang), khi nganh do gap kho khan, toan bo danh muc chiu anh huong.</p>
-                  <p className="mt-1 text-text-muted text-[11px]">Quy tac: Khong qua 30-40% vao 1 nganh duy nhat.</p>
+                <InfoCard title="Tại sao cần đa dạng hóa ngành?" variant="tip" defaultOpen={false}>
+                  <p>Nếu bạn đầu tư quá nhiều vào 1 ngành (ví dụ: 50% vào ngân hàng), khi ngành đó gặp khó khăn, toàn bộ danh mục chịu ảnh hưởng.</p>
+                  <p className="mt-1 text-text-muted text-[11px]">Quy tắc: Không quá 30-40% vào 1 ngành duy nhất.</p>
                 </InfoCard>
                 {!sectorResult ? (
                   <div className="flex items-center justify-center py-8 gap-2 text-text-dim text-[12px]">
                     <div className="w-3 h-3 border border-accent border-t-transparent rounded-full animate-spin" />
-                    Đang tải sector concentration...
+                    Đang tải phân bổ ngành...
                   </div>
                 ) : sectorResult.sectors.length === 0 ? (
-                  <div className="text-center py-8 text-text-dim text-[12px]">Không đủ dữ liệu sector</div>
+                  <div className="text-center py-8 text-text-dim text-[12px]">Không đủ dữ liệu phân bổ ngành</div>
                 ) : (
                   <>
                     {(() => {
@@ -752,10 +738,10 @@ export const RiskManagerView: React.FC<Props> = ({
                           {/* Warnings */}
                           {Array.isArray(sectorResult.warnings) && sectorResult.warnings.length > 0 && (
                             <div className="space-y-1.5">
-                              <p className="text-[10px] font-semibold text-warning uppercase tracking-wider">Canh Bao <FinancialTooltip term="Sector Concentration" /></p>
-                              {sectorResult.warnings.map((w, i) => (
+                              <p className="text-[10px] font-semibold text-warning uppercase tracking-wider">Cảnh Báo <FinancialTooltip term="Sector Concentration" /></p>
+                              {sectorResult.warnings.map((w: any, i: number) => (
                                 <div key={i} className="px-2.5 py-1.5 rounded bg-warning/5 border border-warning/20 text-[9px] text-warning/90 flex items-start gap-1.5">
-                                  <span className="shrink-0">⚠</span><span>{w}</span>
+                                  <span className="shrink-0">⚠</span><span>{typeof w === 'string' ? w : (w?.message ?? w?.text ?? JSON.stringify(w))}</span>
                                 </div>
                               ))}
                             </div>

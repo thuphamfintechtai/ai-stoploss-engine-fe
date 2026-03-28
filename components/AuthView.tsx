@@ -81,13 +81,13 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
-        <div className="bg-panel rounded-2xl border border-border-standard shadow-sm overflow-hidden">
-          <div className="px-6 py-5 border-b border-border-standard bg-background-elevated">
+        <div className="bg-panel rounded-2xl border border-border-subtle shadow-[var(--shadow-elevated)] overflow-hidden">
+          <div className="px-6 py-5 border-b border-border-subtle bg-background-elevated">
             <h1 className="text-xl font-semibold text-text-main text-center">AI Stop-Loss Engine</h1>
             <p className="text-sm text-text-muted text-center mt-1">Đăng nhập hoặc đăng ký để tiếp tục</p>
           </div>
 
-          <div className="flex border-b border-border-standard">
+          <div className="flex border-b border-border-subtle">
             <button
               type="button"
               onClick={() => { setTab('login'); setError(null); }}
@@ -119,7 +119,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                     type="email"
                     value={loginForm.email}
                     onChange={(e) => setLoginForm((p) => ({ ...p, email: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-border-standard rounded-lg text-text-main focus:ring-2 focus:ring-accent/25 focus:border-accent outline-none"
+                    className="w-full px-4 py-2.5 bg-background border border-border-subtle rounded-lg text-text-main placeholder:text-text-dim focus:ring-2 focus:ring-accent-subtle focus:border-border-focus outline-none transition-colors"
                     placeholder="email@example.com"
                     required
                   />
@@ -130,7 +130,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                     type="password"
                     value={loginForm.password}
                     onChange={(e) => setLoginForm((p) => ({ ...p, password: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-border-standard rounded-lg text-text-main focus:ring-2 focus:ring-accent/25 focus:border-accent outline-none"
+                    className="w-full px-4 py-2.5 bg-background border border-border-subtle rounded-lg text-text-main placeholder:text-text-dim focus:ring-2 focus:ring-accent-subtle focus:border-border-focus outline-none transition-colors"
                     placeholder="••••••••"
                     required
                   />
@@ -138,7 +138,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 rounded-lg bg-accent hover:bg-accent-hover text-white font-semibold transition-colors disabled:opacity-60"
+                  className="w-full py-3 rounded-lg bg-accent hover:bg-accent-hover active:bg-accent-active text-text-on-primary font-semibold transition-colors disabled:opacity-60 cursor-pointer"
                 >
                   {loading ? 'Đang xử lý...' : 'Đăng nhập'}
                 </button>
@@ -151,7 +151,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                     type="email"
                     value={registerForm.email}
                     onChange={(e) => setRegisterForm((p) => ({ ...p, email: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-border-standard rounded-lg text-text-main focus:ring-2 focus:ring-accent/25 focus:border-accent outline-none"
+                    className="w-full px-4 py-2.5 bg-background border border-border-subtle rounded-lg text-text-main placeholder:text-text-dim focus:ring-2 focus:ring-accent-subtle focus:border-border-focus outline-none transition-colors"
                     placeholder="email@example.com"
                     required
                   />
@@ -162,7 +162,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                     type="text"
                     value={registerForm.username}
                     onChange={(e) => setRegisterForm((p) => ({ ...p, username: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-border-standard rounded-lg text-text-main focus:ring-2 focus:ring-accent/25 focus:border-accent outline-none"
+                    className="w-full px-4 py-2.5 bg-background border border-border-subtle rounded-lg text-text-main placeholder:text-text-dim focus:ring-2 focus:ring-accent-subtle focus:border-border-focus outline-none transition-colors"
                     placeholder="username"
                     minLength={3}
                     maxLength={50}
@@ -175,7 +175,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                     type="text"
                     value={registerForm.fullName ?? ''}
                     onChange={(e) => setRegisterForm((p) => ({ ...p, fullName: e.target.value || undefined }))}
-                    className="w-full px-4 py-2.5 border border-border-standard rounded-lg text-text-main focus:ring-2 focus:ring-accent/25 focus:border-accent outline-none"
+                    className="w-full px-4 py-2.5 bg-background border border-border-subtle rounded-lg text-text-main placeholder:text-text-dim focus:ring-2 focus:ring-accent-subtle focus:border-border-focus outline-none transition-colors"
                     placeholder="Nguyễn Văn A"
                   />
                 </div>
@@ -185,7 +185,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                     type="password"
                     value={registerForm.password}
                     onChange={(e) => setRegisterForm((p) => ({ ...p, password: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-border-standard rounded-lg text-text-main focus:ring-2 focus:ring-accent/25 focus:border-accent outline-none"
+                    className="w-full px-4 py-2.5 bg-background border border-border-subtle rounded-lg text-text-main placeholder:text-text-dim focus:ring-2 focus:ring-accent-subtle focus:border-border-focus outline-none transition-colors"
                     placeholder="••••••••"
                     minLength={6}
                     required
@@ -194,7 +194,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 rounded-lg bg-accent hover:bg-accent-hover text-white font-semibold transition-colors disabled:opacity-60"
+                  className="w-full py-3 rounded-lg bg-accent hover:bg-accent-hover active:bg-accent-active text-text-on-primary font-semibold transition-colors disabled:opacity-60 cursor-pointer"
                 >
                   {loading ? 'Đang xử lý...' : 'Đăng ký'}
                 </button>

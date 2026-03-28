@@ -139,9 +139,9 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
             </div>
           ) : watchlist.length === 0 ? (
             <EmptyState
-              title="Chua co goi y AI"
-              description="AI dang phan tich thi truong. Goi y se xuat hien khi co tin hieu dang chu y."
-              actionLabel="Them ma theo doi"
+              title="Chưa có gợi ý AI"
+              description="AI đang phân tích thị trường. Gợi ý sẽ xuất hiện khi có tín hiệu đáng chú ý."
+              actionLabel="Thêm mã theo dõi"
               onAction={() => onNavigate('watchlist')}
             />
           ) : (

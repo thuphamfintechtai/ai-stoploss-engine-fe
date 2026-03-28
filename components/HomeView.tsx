@@ -201,25 +201,24 @@ export const HomeView: React.FC<Props> = ({ onNavigate, totalBalance, riskUsed, 
     v != null && Number.isFinite(v) ? (v / 1e9).toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 3 }) : '—';
 
   return (
-    <div className="w-full max-w-[1920px] mx-auto px-3 sm:px-4 lg:px-6 pb-6 sm:pb-8 pt-2 bg-background min-h-full overflow-x-hidden">
-      {/* Hàng đầu: Chỉ số trong ngày (trái, scroll ngang như VPBS) + Tóm tắt chỉ số (phải), chiều cao cố định tránh bảng bị kéo dãn */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 mb-4 sm:mb-6 items-stretch min-h-[220px] lg:h-[260px] xl:h-[280px]">
-        {/* Chỉ số trong ngày – bên trái: thanh kéo ngang, chart theo chiều rộng (rộng-thấp) */}
-        <div className="lg:col-span-8 xl:col-span-9 min-w-0 flex min-h-[240px] lg:min-h-0">
-          <section className="bg-panel rounded-xl sm:rounded-2xl border border-border-standard/80 shadow-md sm:shadow-lg shadow-slate-200/50 overflow-hidden flex flex-col w-full min-h-0">
-            <div className="px-3 sm:px-4 py-2 border-b border-border-standard bg-panel/50 shrink-0">
-              <h2 className="text-sm font-semibold text-text-main">Chỉ số trong ngày</h2>
-              <p className="text-text-muted text-[10px] sm:text-xs mt-0.5 hidden sm:block">Cập nhật theo phiên · Kéo ngang xem thêm</p>
+    <div className="space-y-4 animate-fade-in">
+      {/* ── Chỉ số trong ngày + Tóm tắt ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+        {/* Chỉ số trong ngày — scroll ngang */}
+        <div className="lg:col-span-8 xl:col-span-9 min-w-0">
+          <div className="panel-section h-full flex flex-col">
+            <div className="px-4 py-2.5 border-b border-border-subtle flex items-center justify-between shrink-0">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Chỉ số trong ngày</span>
+              <span className="text-[10px] text-text-dim hidden sm:block">Cập nhật theo phiên</span>
             </div>
             {error && (
-              <div className="mx-3 sm:mx-4 mt-2 py-2 px-3 bg-amber-50 text-amber-800 text-xs border-l-4 border-amber-400 rounded-r shrink-0">
+              <div className="mx-4 mt-2 py-1.5 px-3 bg-warning/5 border border-warning/20 text-warning text-[11px] rounded shrink-0">
                 {error}
               </div>
             )}
-            {/* Một component gồm nhiều chỉ số: nền chung, chỉ phân cách bằng đường kẻ dọc */}
             <div
-              className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden mx-3 sm:mx-4 mb-2 rounded-lg border border-border-standard/80 bg-panel/50 flex flex-nowrap"
-              style={{ WebkitOverflowScrolling: 'touch', scrollbarGutter: 'stable' }}
+              className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden flex flex-nowrap"
+              style={{ WebkitOverflowScrolling: 'touch' }}
             >
               {[0, 1, 2].map((i) => {
                 const code = cardCodes[i] ?? defaultIndices[i];
@@ -231,78 +230,67 @@ export const HomeView: React.FC<Props> = ({ onNavigate, totalBalance, riskUsed, 
                 return (
                   <div
                     key={i}
-                    className={`flex-shrink-0 w-[280px] sm:w-[300px] p-2 flex flex-col h-full min-h-[160px] ${i < 2 ? 'border-r border-border-standard/70' : ''}`}
+                    className={`flex-shrink-0 w-[260px] sm:w-[280px] px-4 py-3 flex flex-col ${i < 2 ? 'border-r border-border-subtle' : ''}`}
                   >
                     <div className="flex justify-between items-center gap-2 shrink-0">
-                      <div className="relative inline-block">
-                        <select
-                          value={code}
-                          onChange={(e) => setCardCode(i, e.target.value)}
-                          className="appearance-none bg-transparent text-text-main text-sm font-semibold border-none py-0.5 pr-2 cursor-pointer focus:ring-0 focus:outline-none w-full min-w-[80px] text-accent"
-                        >
-                          {MARKET_INDEX_CODES.map((opt) => (
-                            <option key={opt.code} value={opt.code}>
-                              {opt.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                      <select
+                        value={code}
+                        onChange={(e) => setCardCode(i, e.target.value)}
+                        className="appearance-none bg-transparent text-[13px] font-bold text-accent border-none p-0 cursor-pointer focus:ring-0 focus:outline-none min-w-[70px]"
+                      >
+                        {MARKET_INDEX_CODES.map((opt) => (
+                          <option key={opt.code} value={opt.code}>{opt.name}</option>
+                        ))}
+                      </select>
                       {loading && !data && (
-                        <span className="text-text-muted text-xs font-medium">Đang tải...</span>
+                        <span className="text-text-dim text-[10px]">Đang tải...</span>
                       )}
                     </div>
 
                     {data ? (
                       <>
-                        <div className="mt-1.5 shrink-0">
-                          <p className={`text-xl font-bold tabular-nums tracking-tight ${isUp ? 'text-positive' : 'text-negative'}`}>
+                        <div className="mt-1 shrink-0">
+                          <span className={`text-lg font-bold tabular-nums ${isUp ? 'text-positive' : 'text-negative'}`}>
                             {formatNumberVI(Number(data.value), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            <span className="text-sm font-semibold text-text-muted ml-1">điểm</span>
-                          </p>
-                          <div className={`inline-flex items-center mt-0.5 text-xs font-medium ${isUp ? 'text-positive' : 'text-negative'}`}>
-                            <span>
-                              {data.change >= 0 ? '+' : ''}{Number(data.change).toFixed(2)} <span className="text-text-muted font-normal">({data.changePercent >= 0 ? '+' : ''}{Number(data.changePercent).toFixed(2)}%)</span>
-                            </span>
+                          </span>
+                          <span className="text-[11px] text-text-muted ml-1">điểm</span>
+                          <div className={`text-[11px] font-medium mt-0.5 ${isUp ? 'text-positive' : 'text-negative'}`}>
+                            {data.change >= 0 ? '+' : ''}{Number(data.change).toFixed(2)}
+                            <span className="text-text-muted font-normal ml-1">({data.changePercent >= 0 ? '+' : ''}{Number(data.changePercent).toFixed(2)}%)</span>
                           </div>
                         </div>
 
-                        {/* Chart theo chiều rộng: rộng, thấp (không kéo dài theo chiều dọc) */}
-                        <div className="mt-1.5 w-full h-9 flex-shrink-0 bg-panel/80 rounded border border-border-standard/60 overflow-hidden">
+                        {/* Mini chart */}
+                        <div className="mt-1.5 w-full h-8 flex-shrink-0 overflow-hidden">
                           {chartPoints.length > 0 ? (
-                            <ResponsiveContainer width="100%" height={36}>
-                              <LineChart data={chartPoints} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
-                                <ReferenceLine y={refValue} stroke="#94A3B8" strokeDasharray="3 3" strokeOpacity={0.8} />
+                            <ResponsiveContainer width="100%" height={32}>
+                              <LineChart data={chartPoints} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+                                <ReferenceLine y={refValue} stroke="var(--color-border-subtle)" strokeDasharray="3 3" />
                                 <XAxis dataKey="time" hide />
                                 <YAxis hide domain={['auto', 'auto']} />
-                                <Line
-                                  type="monotone"
-                                  dataKey="value"
-                                  stroke={isUp ? '#059669' : '#dc2626'}
-                                  strokeWidth={1.5}
-                                  dot={false}
-                                />
+                                <Line type="monotone" dataKey="value" stroke={isUp ? 'var(--color-positive)' : 'var(--color-negative)'} strokeWidth={1.5} dot={false} />
                               </LineChart>
                             </ResponsiveContainer>
                           ) : (
-                            <div className="h-full flex items-center justify-center text-text-muted text-xs">Chưa có dữ liệu</div>
+                            <div className="h-full flex items-center justify-center text-text-dim text-[10px]">Chưa có dữ liệu</div>
                           )}
                         </div>
 
-                        <div className="mt-1.5 pt-1 border-t border-border-standard/80 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] shrink-0">
+                        <div className="mt-1.5 pt-1 border-t border-border-subtle flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] shrink-0">
                           {data.volume > 0 && (
                             <span className="text-text-muted">
-                              <span className="font-medium text-slate-600">KL:</span> {formatNumberVI(Number(data.volume))} CP
+                              <span className="font-medium text-text-main">KL:</span> {formatNumberVI(Number(data.volume))} CP
                             </span>
                           )}
                           {data.totalValue > 0 && (
                             <span className="text-text-muted">
-                              <span className="font-medium text-slate-600">Giá trị:</span> {formatTotalValueTyr(data.totalValue)}
+                              <span className="font-medium text-text-main">GT:</span> {formatTotalValueTyr(data.totalValue)}
                             </span>
                           )}
                           {(data.advancing > 0 || data.unchanged > 0 || data.declining > 0) && (
-                            <span className="flex items-center gap-1.5 mt-0.5 w-full">
+                            <span className="flex items-center gap-1.5 w-full">
                               <span className="text-positive font-medium">↑{data.advancing}</span>
-                              <span className="text-text-muted">{data.unchanged} đứng giá</span>
+                              <span className="text-text-dim">{data.unchanged} đứng giá</span>
                               <span className="text-negative font-medium">↓{data.declining}</span>
                             </span>
                           )}
@@ -310,61 +298,54 @@ export const HomeView: React.FC<Props> = ({ onNavigate, totalBalance, riskUsed, 
                       </>
                     ) : (
                       !loading && (
-                        <div className="flex-1 flex items-center justify-center text-text-muted text-xs py-4">
+                        <div className="flex-1 flex items-center justify-center text-text-dim text-[11px] py-4">
                           Chọn mã chỉ số
                         </div>
                       )
-                )}
+                    )}
                   </div>
                 );
               })}
             </div>
-          </section>
+          </div>
         </div>
 
-        {/* Tóm tắt chỉ số – bên phải, bảng tóm tắt */}
-        <div className="lg:col-span-4 xl:col-span-3 min-w-0 flex">
-          <section className="bg-panel rounded-xl sm:rounded-2xl border border-border-standard/80 shadow-md sm:shadow-lg shadow-slate-200/50 overflow-hidden flex flex-col w-full min-h-0">
-            <div className="px-3 sm:px-4 py-2 border-b border-border-standard bg-panel/50 shrink-0">
-              <h2 className="text-sm font-semibold text-text-main">Tóm tắt chỉ số</h2>
-              <p className="text-text-muted text-[10px] mt-0.5 hidden sm:block">Điểm · KLGD · GTGD · CK ↑/↓</p>
+        {/* Tóm tắt chỉ số — bảng nhỏ bên phải */}
+        <div className="lg:col-span-4 xl:col-span-3 min-w-0">
+          <div className="panel-section h-full flex flex-col">
+            <div className="px-4 py-2.5 border-b border-border-subtle shrink-0">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Tóm tắt chỉ số</span>
             </div>
-            <div className="overflow-auto -mx-px flex-1 min-h-0">
-              <table className="trading-table">
+            <div className="overflow-auto flex-1 min-h-0">
+              <table className="table-terminal w-full">
                 <thead>
-                  <tr className="bg-panel text-slate-600 font-semibold uppercase tracking-wide text-[10px]">
-                    <th className="px-1.5 sm:px-2 py-1.5 whitespace-nowrap">Chỉ số</th>
-                    <th className="px-1.5 py-1.5 text-right whitespace-nowrap">Điểm</th>
-                    <th className="px-1.5 py-1.5 text-right whitespace-nowrap">+/-</th>
-                    <th className="px-1.5 py-1.5 text-right whitespace-nowrap">KLGD</th>
-                    <th className="px-1.5 py-1.5 text-right whitespace-nowrap">GTGD</th>
-                    <th className="px-1.5 py-1.5 text-right whitespace-nowrap">↑/↓</th>
+                  <tr>
+                    <th className="text-left">Chỉ số</th>
+                    <th>Điểm</th>
+                    <th>+/-</th>
+                    <th>↑/↓</th>
                   </tr>
                 </thead>
-                <tbody className="text-text-main divide-y divide-border-subtle">
+                <tbody>
                   {marketIndexDetailList.length === 0 ? (
-                    <tr><td colSpan={6} className="px-2 py-4 text-center text-text-muted text-xs">Đang tải...</td></tr>
+                    <tr><td colSpan={4} className="text-center text-text-dim text-[11px] py-4">Đang tải...</td></tr>
                   ) : (
                     marketIndexDetailList.map((row) => {
                       const isUp = row.indexChange != null && row.indexChange >= 0;
                       const chgCls = row.indexChange == null ? 'text-text-main' : isUp ? 'text-positive' : 'text-negative';
                       return (
-                        <tr key={row.indexCode} className="hover:bg-panel/80 transition-colors">
-                          <td className="px-1.5 sm:px-2 py-1.5 font-medium text-text-main whitespace-nowrap">{row.indexCode}</td>
-                          <td className={`px-1.5 py-1.5 text-right font-mono font-medium tabular-nums ${chgCls}`}>
+                        <tr key={row.indexCode}>
+                          <td className="text-left font-medium text-text-main">{row.indexCode}</td>
+                          <td className={`font-mono tabular-nums ${chgCls}`}>
                             {row.indexValue != null ? formatNumberVI(row.indexValue, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
                           </td>
-                          <td className={`px-1.5 py-1.5 text-right font-mono tabular-nums ${chgCls}`}>
+                          <td className={`font-mono tabular-nums ${chgCls}`}>
                             {row.indexChange != null ? (row.indexChange >= 0 ? '+' : '') + formatNumberVI(row.indexChange, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
                           </td>
-                          <td className="px-1.5 py-1.5 text-right font-mono text-text-muted tabular-nums text-[11px]">{formatVolumeMillion(row.sumVolume)}</td>
-                          <td className="px-1.5 py-1.5 text-right font-mono text-text-muted tabular-nums text-[11px]">{formatValueBillion(row.sumValue)}</td>
-                          <td className="px-1.5 py-1.5 text-right whitespace-nowrap text-[11px]">
-                            <span className="text-positive font-medium">↑{row.advances}</span>
-                            <span className="text-text-muted mx-0.5">_</span>
-                            <span className="text-amber-600 font-medium">{row.noChange}</span>
-                            <span className="text-text-muted mx-0.5">_</span>
-                            <span className="text-negative font-medium">↓{row.declines}</span>
+                          <td className="whitespace-nowrap">
+                            <span className="text-positive">↑{row.advances}</span>
+                            <span className="text-text-dim mx-0.5">/</span>
+                            <span className="text-negative">↓{row.declines}</span>
                           </td>
                         </tr>
                       );
@@ -373,85 +354,81 @@ export const HomeView: React.FC<Props> = ({ onNavigate, totalBalance, riskUsed, 
                 </tbody>
               </table>
             </div>
-          </section>
+          </div>
         </div>
       </div>
 
-      {/* Bảng giá theo index — full width, tránh tràn màn hình nhỏ */}
+      {/* ── Bảng giá theo index ── */}
       {marketDataContent && (
-        <div className="mb-4 sm:mb-6 min-w-0 w-full">
-          <section className="bg-panel rounded-xl sm:rounded-2xl border border-border-standard/80 shadow-md sm:shadow-lg shadow-slate-200/50 overflow-hidden w-full">
-            <div className="px-3 sm:px-4 py-2.5 border-b border-border-standard bg-panel/50">
-              <h2 className="text-sm font-semibold text-text-main">Bảng giá theo index</h2>
-              <p className="text-text-muted text-[10px] sm:text-xs mt-0.5 hidden sm:block">Chọn index, tìm mã — click hàng xem biểu đồ</p>
-            </div>
-            <div className="p-3 sm:p-4 min-w-0 overflow-hidden">
-              {marketDataContent}
-            </div>
-          </section>
+        <div className="panel-section">
+          <div className="px-4 py-2.5 border-b border-border-subtle flex items-center justify-between">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Bảng giá theo index</span>
+            <span className="text-[10px] text-text-dim hidden sm:block">Chọn index, tìm mã — click hàng xem biểu đồ</span>
+          </div>
+          <div className="p-3 sm:p-4 min-w-0 overflow-hidden">
+            {marketDataContent}
+          </div>
         </div>
       )}
 
-      {/* Tin tức — full width ngang với khung bảng giá phía trên */}
-      <div className="mt-4 sm:mt-6 w-full min-w-0">
-        <div className="bg-panel rounded-xl sm:rounded-2xl border border-border-standard/80 shadow-md sm:shadow-lg shadow-slate-200/50 overflow-hidden w-full min-h-[320px] sm:min-h-[360px] flex flex-col">
-          <div className="px-3 sm:px-4 py-2.5 border-b border-border-standard bg-panel/50 shrink-0">
-            <h3 className="text-sm font-semibold text-text-main">Tin tức</h3>
-            <p className="text-text-muted text-[10px] mt-0.5 hidden sm:block">Nguồn CafeF</p>
-          </div>
-          <div className="p-3 sm:p-4 space-y-4 flex-1 min-h-0 flex flex-col">
-            {newsLoading ? (
-              <div className="flex-1 flex items-center justify-center gap-2 text-text-muted text-sm">
-                Đang tải tin...
+      {/* ── Tin tức ── */}
+      <div className="panel-section">
+        <div className="px-4 py-2.5 border-b border-border-subtle flex items-center justify-between shrink-0">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Tin tức</span>
+          <span className="text-[10px] text-text-dim hidden sm:block">Nguồn CafeF</span>
+        </div>
+        <div className="p-4">
+          {newsLoading ? (
+            <div className="flex items-center justify-center gap-2 text-text-dim text-[12px] py-6">
+              <div className="w-3 h-3 border border-accent border-t-transparent rounded-full animate-spin" />
+              Đang tải tin...
+            </div>
+          ) : newsError ? (
+            <div className="text-center py-6">
+              <p className="text-text-muted text-[12px]">Không tải được tin tức</p>
+              <p className="text-text-dim text-[11px] mt-1">{newsError}</p>
+              <button type="button" onClick={fetchNews} className="mt-2 px-3 py-1.5 text-[11px] font-semibold text-accent border border-accent/30 rounded hover:bg-accent/5">Thử lại</button>
+            </div>
+          ) : news.length === 0 ? (
+            <div className="text-center py-6">
+              <p className="text-text-muted text-[12px]">Chưa có tin mới</p>
+              <div className="mt-3 flex items-center justify-center gap-2">
+                <button type="button" onClick={fetchNews} className="px-3 py-1.5 text-[11px] font-semibold text-text-muted border border-border-subtle rounded hover:bg-bg-panel">Tải lại</button>
+                <button type="button" onClick={() => onNavigate('market')} className="px-3 py-1.5 text-[11px] font-semibold bg-accent text-white rounded hover:bg-accent/90">Xem trang tin</button>
               </div>
-            ) : newsError ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center py-6">
-                <p className="text-slate-600 font-medium">Không tải được tin tức</p>
-                <p className="text-text-muted text-xs mt-1">{newsError}</p>
-                <button type="button" onClick={fetchNews} className="mt-3 px-4 py-2 text-sm font-medium text-accent border border-[#1E3A5F] rounded-lg hover:bg-accent/5">Thử lại</button>
-              </div>
-            ) : news.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center py-6">
-                <p className="text-slate-600 font-medium">Chưa có tin mới</p>
-                <p className="text-text-muted text-xs mt-1">Tin sẽ hiển thị khi có bản cập nhật.</p>
-                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-                  <button type="button" onClick={fetchNews} className="px-4 py-2 text-sm font-medium text-slate-600 border border-border-standard rounded-lg hover:bg-panel">Tải lại</button>
-                  <button type="button" onClick={() => onNavigate('market')} className="px-4 py-2.5 bg-accent text-white text-sm font-semibold rounded-lg hover:bg-accent/90">Xem trang tin</button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="flex-1 min-h-0">
-                  {news.slice(0, 5).map((article, idx) => (
-                    <a
-                      key={idx}
-                      href={typeof article.url === 'string' ? article.url.split(/\s|"/)[0].trim() : '#'}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group block py-2 border-b border-border-standard last:border-0 last:pb-0"
-                    >
-                      <div className="flex justify-between text-[10px] text-text-muted mb-1 font-semibold uppercase tracking-wide">
-                        <span className="text-accent">CafeF</span>
-                        <span>{article.date || '—'}</span>
-                      </div>
-                      <p className="text-xs text-text-main group-hover:text-slate-900 leading-relaxed font-medium transition-colors line-clamp-2">
-                        {article.title}
-                      </p>
-                    </a>
-                  ))}
-                </div>
-                <div className="pt-3 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => onNavigate('market')}
-                    className="w-full py-2.5 text-xs font-semibold text-slate-600 hover:text-accent hover:bg-panel rounded-xl transition-colors duration-150"
+            </div>
+          ) : (
+            <>
+              <div className="space-y-0 divide-y divide-border-subtle">
+                {news.slice(0, 5).map((article, idx) => (
+                  <a
+                    key={idx}
+                    href={typeof article.url === 'string' ? article.url.split(/\s|"/)[0].trim() : '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group block py-2.5 first:pt-0"
                   >
-                    Xem tất cả tin tức
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+                    <div className="flex justify-between text-[9px] text-text-dim mb-0.5 uppercase tracking-wide">
+                      <span className="text-accent font-semibold">CafeF</span>
+                      <span>{article.date || '—'}</span>
+                    </div>
+                    <p className="text-[12px] text-text-main group-hover:text-accent leading-relaxed font-medium transition-colors line-clamp-2">
+                      {article.title}
+                    </p>
+                  </a>
+                ))}
+              </div>
+              <div className="pt-3 border-t border-border-subtle mt-3">
+                <button
+                  type="button"
+                  onClick={() => onNavigate('market')}
+                  className="w-full py-2 text-[11px] font-semibold text-text-muted hover:text-accent transition-colors"
+                >
+                  Xem tất cả tin tức →
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

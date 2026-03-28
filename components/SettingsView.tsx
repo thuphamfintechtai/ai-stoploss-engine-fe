@@ -118,7 +118,7 @@ const ProfileTab: React.FC = () => {
       <div className="panel-section p-5">
         <div className="flex items-center gap-4 mb-5">
           <div className="w-14 h-14 rounded-xl flex items-center justify-center text-xl font-black text-white shrink-0"
-            style={{ background: 'linear-gradient(135deg,#1e40af,#3b82f6)' }}>
+            style={{ background: 'linear-gradient(135deg, var(--color-accent), var(--color-accent-hover))' }}>
             {initials}
           </div>
           <div>
@@ -642,7 +642,7 @@ const AppearanceTab: React.FC = () => {
               <div className="w-full h-12 rounded-lg mb-2 border border-border-subtle"
                 style={{ background: t.color }}>
                 <div className="flex gap-1 p-2">
-                  <div className="w-1.5 h-1.5 rounded-full" style={{ background: theme === 'dark' ? '#22c55e' : '#16a34a' }} />
+                  <div className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--color-positive)' }} />
                   <div className="w-8 h-1.5 rounded" style={{ background: t.id === 'dark' ? '#1e293b' : '#e2e8f0' }} />
                 </div>
               </div>

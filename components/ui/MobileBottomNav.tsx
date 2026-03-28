@@ -69,20 +69,19 @@ const NavIcons = {
 
 // 5 main nav items cho bottom bar
 const MAIN_NAV_ITEMS = [
-  { id: 'dashboard', label: 'Tong Quan', icon: NavIcons.dashboard },
-  { id: 'portfolio', label: 'Portfolio', icon: NavIcons.portfolio },
-  { id: 'paper-trading', label: 'Mo Phong', icon: NavIcons.paperTrading },
-  { id: 'watchlist', label: 'Thi Truong', icon: NavIcons.watchlist },
+  { id: 'dashboard', label: 'Tổng quan', icon: NavIcons.dashboard },
+  { id: 'portfolio', label: 'Quản lý vốn', icon: NavIcons.portfolio },
+  { id: 'terminal', label: 'Đặt lệnh', icon: NavIcons.terminal },
+  { id: 'watchlist', label: 'Thị trường', icon: NavIcons.watchlist },
 ];
 
 // Overflow menu items (remaining views)
 const OVERFLOW_NAV_ITEMS = [
-  { id: 'terminal', label: 'Terminal', icon: NavIcons.terminal },
-  { id: 'market', label: 'Bang Gia', icon: NavIcons.market },
+  { id: 'market', label: 'Bảng giá', icon: NavIcons.market },
   { id: 'signals', label: 'AI Signals', icon: NavIcons.signals },
-  { id: 'risk', label: 'Rui Ro', icon: NavIcons.risk },
-  { id: 'notifications', label: 'Thong Bao', icon: NavIcons.notifications },
-  { id: 'settings', label: 'Cai Dat', icon: NavIcons.settings },
+  { id: 'risk', label: 'Rủi ro', icon: NavIcons.risk },
+  { id: 'notifications', label: 'Thông báo', icon: NavIcons.notifications },
+  { id: 'settings', label: 'Cài đặt', icon: NavIcons.settings },
 ];
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({

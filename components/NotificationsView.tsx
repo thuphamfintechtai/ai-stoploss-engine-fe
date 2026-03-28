@@ -41,18 +41,18 @@ function getCategory(type: string): FilterTab {
 const SEVERITY_CONFIG: Record<string, {
   dot: string; border: string; bg: string; headerBg: string;
 }> = {
-  INFO:    { dot: 'bg-blue-400',   border: 'border-blue-500/20',   bg: 'hover:bg-blue-500/5',   headerBg: 'bg-blue-500/8' },
-  WARNING: { dot: 'bg-yellow-400', border: 'border-yellow-500/20', bg: 'hover:bg-yellow-500/5', headerBg: 'bg-yellow-500/8' },
-  SUCCESS: { dot: 'bg-green-400',  border: 'border-green-500/20',  bg: 'hover:bg-green-500/5',  headerBg: 'bg-green-500/8' },
-  ERROR:   { dot: 'bg-red-400',    border: 'border-red-500/20',    bg: 'hover:bg-red-500/5',    headerBg: 'bg-red-500/8' },
+  INFO:    { dot: 'bg-info',     border: 'border-info/20',     bg: 'hover:bg-info/5',     headerBg: 'bg-info/8' },
+  WARNING: { dot: 'bg-warning',  border: 'border-warning/20',  bg: 'hover:bg-warning/5',  headerBg: 'bg-warning/8' },
+  SUCCESS: { dot: 'bg-positive', border: 'border-positive/20', bg: 'hover:bg-positive/5', headerBg: 'bg-positive/8' },
+  ERROR:   { dot: 'bg-negative', border: 'border-negative/20', bg: 'hover:bg-negative/5', headerBg: 'bg-negative/8' },
 };
 
 // Icons per notification type
 function TypeIcon({ type, severity }: { type: string; severity: string }) {
-  const color = severity === 'ERROR' ? 'text-red-400'
-    : severity === 'WARNING' ? 'text-yellow-400'
-    : severity === 'SUCCESS' ? 'text-green-400'
-    : 'text-blue-400';
+  const color = severity === 'ERROR' ? 'text-negative'
+    : severity === 'WARNING' ? 'text-warning'
+    : severity === 'SUCCESS' ? 'text-positive'
+    : 'text-info';
 
   if (AI_TYPES.has(type)) {
     return (
@@ -111,7 +111,7 @@ function ActionButtons({ notif, onNavigate, onDismiss }: {
         )}
         <button
           onClick={(e: React.MouseEvent) => { e.stopPropagation(); onNavigate?.('portfolio'); }}
-          className="text-[10px] px-2 py-1 rounded border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-colors"
+          className="text-[10px] px-2 py-1 rounded border border-info/30 text-info hover:bg-info/10 transition-colors"
         >
           Review vị thế →
         </button>
@@ -172,7 +172,7 @@ function ActionButtons({ notif, onNavigate, onDismiss }: {
       <div className="flex items-center gap-1.5 mt-2">
         <button
           onClick={(e: React.MouseEvent) => { e.stopPropagation(); onNavigate?.('portfolio'); }}
-          className="text-[10px] px-2 py-1 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors"
+          className="text-[10px] px-2 py-1 rounded border border-negative/30 text-negative hover:bg-negative/10 transition-colors"
         >
           Quản lý rủi ro →
         </button>
@@ -400,8 +400,8 @@ export const NotificationsView: React.FC<Props> = ({ onUnreadCountChange, onNavi
           {filtered.length} thông báo{activeTab !== 'all' ? ` trong mục "${TABS.find(t => t.id === activeTab)?.label}"` : ''}
         </span>
         {activeTab === 'risk' && counts.risk > 0 && (
-          <span className="text-[10px] px-2 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 font-semibold">
-            Can xu ly ngay
+          <span className="text-[10px] px-2 py-0.5 rounded bg-negative/10 text-negative border border-negative/20 font-semibold">
+            Cần xử lý ngay
           </span>
         )}
       </div>
@@ -414,8 +414,8 @@ export const NotificationsView: React.FC<Props> = ({ onUnreadCountChange, onNavi
           </div>
         ) : filtered.length === 0 ? (
           <EmptyState
-            title={unreadOnly ? 'Khong co canh bao chua doc' : 'Khong co thong bao moi'}
-            description="Thong bao se xuat hien khi co su kien quan trong: lenh khop, SL thay doi, canh bao rui ro."
+            title={unreadOnly ? 'Không có cảnh báo chưa đọc' : 'Không có thông báo mới'}
+            description="Thông báo sẽ xuất hiện khi có sự kiện quan trọng: lệnh khớp, SL thay đổi, cảnh báo rủi ro."
           />
         ) : (
           <>
@@ -431,7 +431,7 @@ export const NotificationsView: React.FC<Props> = ({ onUnreadCountChange, onNavi
                       ? `border-border-standard bg-transparent ${sev.bg}`
                       : `border ${sev.border} bg-white/[0.03] ${sev.bg}`
                     }
-                    ${isUrgent ? 'ring-1 ring-red-500/20' : ''}
+                    ${isUrgent ? 'ring-1 ring-negative/20' : ''}
                   `}
                   onClick={() => !notif.is_read && handleMarkRead(notif.id)}
                 >
@@ -458,7 +458,7 @@ export const NotificationsView: React.FC<Props> = ({ onUnreadCountChange, onNavi
                         </span>
                       )}
                       {(notif.severity === 'ERROR') && !notif.is_read && (
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-red-500/15 text-red-400 border border-red-500/20 shrink-0">
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-negative/15 text-negative border border-negative/20 shrink-0">
                           KHẨN
                         </span>
                       )}
@@ -473,9 +473,9 @@ export const NotificationsView: React.FC<Props> = ({ onUnreadCountChange, onNavi
                         </span>
                       )}
                       <span className={`text-[9px] uppercase tracking-wide ${
-                        notif.severity === 'ERROR' ? 'text-red-400' :
-                        notif.severity === 'WARNING' ? 'text-yellow-400' :
-                        notif.severity === 'SUCCESS' ? 'text-green-400' : 'text-blue-400'
+                        notif.severity === 'ERROR' ? 'text-negative' :
+                        notif.severity === 'WARNING' ? 'text-warning' :
+                        notif.severity === 'SUCCESS' ? 'text-positive' : 'text-info'
                       }`}>
                         {notif.severity}
                       </span>
@@ -494,7 +494,7 @@ export const NotificationsView: React.FC<Props> = ({ onUnreadCountChange, onNavi
                   {/* Delete button */}
                   <button
                     onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleDelete(notif.id); }}
-                    className="absolute right-2.5 bottom-2.5 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-red-500/10 text-text-dim hover:text-negative"
+                    className="absolute right-2.5 bottom-2.5 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-negative/10 text-text-dim hover:text-negative"
                     title="Xóa"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

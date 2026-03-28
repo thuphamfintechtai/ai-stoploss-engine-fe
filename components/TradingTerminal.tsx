@@ -31,11 +31,11 @@ const MARKET_CATEGORIES: MarketCategory[] = [
   { code: 'HNX30',  label: 'HNX30',  group: 'Sàn' },
   { code: 'VNX50',  label: 'VNX50',  group: 'Sàn' },
   // Phái sinh
-  { code: 'VN30F',  label: 'VN30F',  group: 'PS', color: '#A78BFA' },
-  { code: 'VN100F', label: 'VN100F', group: 'PS', color: '#A78BFA' },
+  { code: 'VN30F',  label: 'VN30F',  group: 'PS', color: 'var(--color-secondary-hover)' },
+  { code: 'VN100F', label: 'VN100F', group: 'PS', color: 'var(--color-secondary-hover)' },
   // Cổ phiếu đặc biệt
-  { code: 'ETF',    label: 'ETF',    group: 'CK', color: '#38BDF8' },
-  { code: 'CW',     label: 'CW',     group: 'CK', color: '#38BDF8' },
+  { code: 'ETF',    label: 'ETF',    group: 'CK', color: 'var(--color-info)' },
+  { code: 'CW',     label: 'CW',     group: 'CK', color: 'var(--color-info)' },
 ];
 
 interface Props {
@@ -816,7 +816,7 @@ export const TradingTerminal: React.FC<Props> = ({
                 ? 'bg-positive text-white hover:brightness-110'
                 : 'bg-negative text-white hover:brightness-110'
             }`}
-            style={{ boxShadow: orderSide === 'MUA' ? '0 0 12px rgba(34,197,94,0.3)' : '0 0 12px rgba(239,68,68,0.3)' }}
+            style={{ boxShadow: orderSide === 'MUA' ? '0 0 12px color-mix(in srgb, var(--color-positive) 30%, transparent)' : '0 0 12px color-mix(in srgb, var(--color-negative) 30%, transparent)' }}
           >
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -859,7 +859,7 @@ export const TradingTerminal: React.FC<Props> = ({
                     <div className="flex flex-wrap gap-0.5">
                       {cats.map((cat) => {
                         const isActive = selectedIndex === cat.code;
-                        const activeColor = cat.color ?? '#3B82F6';
+                        const activeColor = cat.color ?? 'var(--color-accent)';
                         return (
                           <button
                             key={cat.code}
@@ -1120,8 +1120,8 @@ export const TradingTerminal: React.FC<Props> = ({
               <div className="grid grid-cols-3 border-b border-border-subtle text-center">
                 {ceilPrice != null && (
                   <div className="py-1.5 border-r border-border-subtle">
-                    <div className="text-[7px] text-purple-400 font-bold">TRẦN</div>
-                    <div className="text-[11px] font-mono font-black text-purple-300">{ceilPrice.toFixed(2)}</div>
+                    <div className="text-[7px] font-bold" style={{ color: 'var(--color-ceiling)' }}>TRẦN</div>
+                    <div className="text-[11px] font-mono font-black" style={{ color: 'var(--color-ceiling-text)' }}>{ceilPrice.toFixed(2)}</div>
                   </div>
                 )}
                 {refPrice != null && (
@@ -1132,8 +1132,8 @@ export const TradingTerminal: React.FC<Props> = ({
                 )}
                 {floorPrice != null && (
                   <div className="py-1.5">
-                    <div className="text-[7px] text-cyan-400 font-bold">SÀN</div>
-                    <div className="text-[11px] font-mono font-black text-cyan-300">{floorPrice.toFixed(2)}</div>
+                    <div className="text-[7px] font-bold" style={{ color: 'var(--color-floor)' }}>SÀN</div>
+                    <div className="text-[11px] font-mono font-black" style={{ color: 'var(--color-floor-text)' }}>{floorPrice.toFixed(2)}</div>
                   </div>
                 )}
               </div>
@@ -1143,8 +1143,8 @@ export const TradingTerminal: React.FC<Props> = ({
                 {(() => {
                   const priceCls = (p: number | null) => {
                     if (p == null) return 'text-text-dim';
-                    if (ceilPrice != null && Math.abs(p - ceilPrice) < 0.001) return 'text-purple-400';
-                    if (floorPrice != null && Math.abs(p - floorPrice) < 0.001) return 'text-cyan-400';
+                    if (ceilPrice != null && Math.abs(p - ceilPrice) < 0.001) return 'text-ceiling';
+                    if (floorPrice != null && Math.abs(p - floorPrice) < 0.001) return 'text-floor';
                     if (refPrice != null && p > refPrice + 0.001) return 'text-positive';
                     if (refPrice != null && p < refPrice - 0.001) return 'text-negative';
                     return 'text-warning';
@@ -1190,7 +1190,7 @@ export const TradingTerminal: React.FC<Props> = ({
                             <td className="py-1.5 px-2 text-left text-text-dim/30">—</td>
                           </tr>
                         ))}
-                        <tr style={{ background: 'rgba(234,179,8,0.07)', borderTop: '1px solid rgba(234,179,8,0.25)', borderBottom: '1px solid rgba(234,179,8,0.25)' }}>
+                        <tr style={{ background: 'color-mix(in srgb, var(--color-warning) 7%, transparent)', borderTop: '1px solid color-mix(in srgb, var(--color-warning) 25%, transparent)', borderBottom: '1px solid color-mix(in srgb, var(--color-warning) 25%, transparent)' }}>
                           <td className="py-1 text-center text-text-dim/30 text-[8px]">—</td>
                           <td className="py-1 text-center font-mono font-black text-warning text-[12px]">
                             {refPrice != null ? refPrice.toFixed(2) : '—'}
@@ -1363,14 +1363,14 @@ export const TradingTerminal: React.FC<Props> = ({
                     {/* Progress bar Sàn→Trần */}
                     {entryPoints != null && entryPoints > 0 && ceilPrice != null && floorPrice != null && (
                       <div className="flex items-center gap-1.5 text-[8px] font-mono">
-                        <span className="text-cyan-400">{floorPrice.toFixed(2)}</span>
+                        <span style={{ color: 'var(--color-floor)' }}>{floorPrice.toFixed(2)}</span>
                         <div className="w-16 h-1 rounded-full bg-border-subtle relative overflow-hidden">
                           <div className="absolute inset-y-0 left-0 rounded-full transition-all" style={{
                             width: `${Math.min(100, Math.max(0, ((entryPoints - floorPrice) / (ceilPrice - floorPrice)) * 100))}%`,
-                            background: entryPoints >= ceilPrice - 0.001 ? '#A855F7' : entryPoints <= floorPrice + 0.001 ? '#22D3EE' : (orderSide === 'MUA' ? '#22C55E' : '#EF4444'),
+                            background: entryPoints >= ceilPrice - 0.001 ? 'var(--color-ceiling)' : entryPoints <= floorPrice + 0.001 ? 'var(--color-floor)' : (orderSide === 'MUA' ? 'var(--color-positive)' : 'var(--color-negative)'),
                           }} />
                         </div>
-                        <span className="text-purple-400">{ceilPrice.toFixed(2)}</span>
+                        <span style={{ color: 'var(--color-ceiling)' }}>{ceilPrice.toFixed(2)}</span>
                       </div>
                     )}
                   </div>
@@ -1410,7 +1410,7 @@ export const TradingTerminal: React.FC<Props> = ({
                           </button>
                         )}
                         {ceilPrice != null && (
-                          <button onClick={() => setEntryPriceInput(ceilPrice.toFixed(2))} className="flex-1 py-1 rounded-md bg-background border border-border-subtle text-[8px] font-bold text-text-dim hover:text-purple-400 hover:border-purple-400/40 transition-colors">
+                          <button onClick={() => setEntryPriceInput(ceilPrice.toFixed(2))} className="flex-1 py-1 rounded-md bg-background border border-border-subtle text-[8px] font-bold text-text-dim hover:text-ceiling hover:border-ceiling/40 transition-colors">
                             Trần: {ceilPrice.toFixed(2)}
                           </button>
                         )}
@@ -1553,7 +1553,7 @@ export const TradingTerminal: React.FC<Props> = ({
                             <div className="flex items-center gap-2">
                               <span className="text-[8px] text-accent font-bold uppercase tracking-wider">AI gợi ý cho {aiSuggestions.symbol}</span>
                               {aiSuggestions.ai_source && (
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded ${aiSuggestions.ai_source === 'gemini' ? 'bg-blue-500/10 text-blue-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded ${aiSuggestions.ai_source === 'gemini' ? 'bg-accent/10 text-accent' : 'bg-warning/10 text-warning'}`}>
                                   {aiSuggestions.ai_source === 'gemini' ? 'Gemini AI' : 'Rule-based'}
                                 </span>
                               )}
@@ -1593,10 +1593,10 @@ export const TradingTerminal: React.FC<Props> = ({
 
                           {/* Probability TP Levels (moi) — advanced only */}
                           {showAdvanced && Array.isArray(aiSuggestions.take_profit_levels) && aiSuggestions.take_profit_levels.length > 0 && (
-                            <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/40 overflow-hidden">
-                              <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-blue-200 dark:border-blue-800/40">
-                                <span className="text-[8px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Muc chot loi xac suat</span>
-                                <span className="bg-yellow-100 text-yellow-800 text-[7px] font-semibold px-2 py-0.5 rounded">Thuc nghiem</span>
+                            <div className="rounded-lg bg-info/5 border border-info/20 overflow-hidden">
+                              <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-info/20">
+                                <span className="text-[8px] font-bold text-accent uppercase tracking-wider">Muc chot loi xac suat</span>
+                                <span className="bg-warning/10 text-warning text-[7px] font-semibold px-2 py-0.5 rounded">Thuc nghiem</span>
                               </div>
                               {aiSuggestions.data_quality?.days_used && (
                                 <p className="text-[7px] text-text-dim px-2.5 pt-1.5">Du lieu: {aiSuggestions.data_quality.days_used} ngay giao dich</p>
@@ -1611,7 +1611,7 @@ export const TradingTerminal: React.FC<Props> = ({
                                 </thead>
                                 <tbody>
                                   {aiSuggestions.take_profit_levels.map((tp: any, i: number) => (
-                                    <tr key={i} className="border-t border-blue-100 dark:border-blue-900/30">
+                                    <tr key={i} className="border-t border-info/15">
                                       <td className="px-2.5 py-1 font-mono text-positive font-bold">{tp.price >= 1000 ? (tp.price / 1000).toFixed(2) : tp.price?.toFixed(2)}</td>
                                       <td className="px-2.5 py-1 text-center">
                                         <span className={`font-bold ${tp.probability >= 70 ? 'text-positive' : tp.probability >= 50 ? 'text-warning' : 'text-negative'}`}>{tp.probability}%</span>
@@ -1672,8 +1672,8 @@ export const TradingTerminal: React.FC<Props> = ({
                               <div className="space-y-1">
                                 <p className={`text-[8px] font-semibold ${isNegative ? 'text-negative' : 'text-text-muted'}`}>
                                   {isNegative
-                                    ? 'AI khuyen nghi: Khong nen dat lenh (Kelly am — win rate qua thap)'
-                                    : `AI goi y: dat ${kelly.recommended_percent.toFixed(1)}% von (${kelly.interpretation})`
+                                    ? 'AI khuyến nghị: Không nên đặt lệnh (Kelly âm — win rate quá thấp)'
+                                    : `AI gợi ý: đặt ${kelly.recommended_percent.toFixed(1)}% vốn (${kelly.interpretation})`
                                   }
                                 </p>
                                 {positionSizing.stats?.warning && (
@@ -1729,7 +1729,7 @@ export const TradingTerminal: React.FC<Props> = ({
                   className={`w-full h-12 rounded-xl font-black text-[14px] tracking-widest transition-all active:scale-[0.98] disabled:opacity-35 disabled:cursor-not-allowed ${
                     orderSide === 'MUA' ? 'bg-positive text-white hover:brightness-110' : 'bg-negative text-white hover:brightness-110'
                   }`}
-                  style={{ boxShadow: orderSide === 'MUA' ? '0 4px 16px rgba(34,197,94,0.3)' : '0 4px 16px rgba(239,68,68,0.3)' }}
+                  style={{ boxShadow: orderSide === 'MUA' ? '0 4px 16px color-mix(in srgb, var(--color-positive) 30%, transparent)' : '0 4px 16px color-mix(in srgb, var(--color-negative) 30%, transparent)' }}
                 >
                   {submitting ? 'ĐANG GỬI...' : `${orderSide === 'MUA' ? 'MUA' : 'BÁN'} ${orderSymbol || symbol}${!isMarketEntry && entryPoints ? ` — ${entryPoints.toFixed(2)}` : ''}${effectiveQty ? ` × ${(effectiveQty / 100).toFixed(0)}L` : ''}`}
                 </button>

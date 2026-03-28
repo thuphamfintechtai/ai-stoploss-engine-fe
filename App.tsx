@@ -2202,7 +2202,7 @@ function OpenPositionModal({
                   const qty = effectiveQuantity ?? 0;
                   const totalRisk = qty > 0 ? Math.round(riskPerShare * qty) : 0;
                   return (
-                    <div className="mt-3 rounded-xl bg-[#FEF2F2]/60 border border-[#FECACA]/80 p-3 text-sm">
+                    <div className="mt-3 rounded-xl bg-negative/10/60 border border-[#FECACA]/80 p-3 text-sm">
                       <div className="text-xs text-text-muted mb-2">Tính dừng lỗ</div>
                       <div className="space-y-1.5 text-[#475569]">
                         <div className="flex justify-between"><span>Giá dừng lỗ</span><span className="font-mono tabular-nums">{sp.toFixed(2)} điểm</span></div>
@@ -2229,7 +2229,7 @@ function OpenPositionModal({
                   const riskPerShare = (entryPoints - stopPoints) * 1000;
                   const totalRisk = Math.round(riskPerShare * effectiveQuantity);
                   return (
-                    <div className="mt-3 rounded-xl bg-[#FEF2F2]/60 border border-[#FECACA]/80 p-3 text-sm">
+                    <div className="mt-3 rounded-xl bg-negative/10/60 border border-[#FECACA]/80 p-3 text-sm">
                       <div className="text-xs text-text-muted mb-2">Tính dừng lỗ</div>
                       <div className="space-y-1.5 text-[#475569]">
                         <div className="flex justify-between"><span>Giá vào</span><span className="font-mono tabular-nums">{entryPoints.toFixed(2)} điểm</span></div>
@@ -2253,7 +2253,7 @@ function OpenPositionModal({
                   const stopPoints = entryPoints - riskPerShareVnd / 1000;
                   if (stopPoints <= 0) return null;
                   return (
-                    <div className="mt-3 rounded-xl bg-[#FEF2F2]/60 border border-[#FECACA]/80 p-3 text-sm">
+                    <div className="mt-3 rounded-xl bg-negative/10/60 border border-[#FECACA]/80 p-3 text-sm">
                       <div className="text-xs text-text-muted mb-2">Tính dừng lỗ</div>
                       <div className="space-y-1.5 text-[#475569]">
                         <div className="flex justify-between"><span>Thua lỗ tối đa</span><span className="font-mono tabular-nums">{formatNumberVI(maxVnd)} ₫</span></div>
@@ -2268,10 +2268,10 @@ function OpenPositionModal({
           <section className="rounded-xl bg-panel border border-border-standard/80 p-4 space-y-3">
             <h3 className="text-sm font-medium text-text-main">Chốt lời <span className="text-text-muted font-normal">(tùy chọn)</span></h3>
             <div className="grid grid-cols-2 gap-1.5">
-              <button type="button" onClick={() => setTakeProfitType('')} className={`py-2 text-xs font-medium rounded-lg transition-colors ${takeProfitType === '' ? 'bg-[#ECFDF5] text-positive border border-[#A7F3D0]' : 'bg-[#F1F5F9] text-[#64748B] border border-transparent'}`}>Không</button>
-              <button type="button" onClick={() => setTakeProfitType('FIXED')} className={`py-2 text-xs font-medium rounded-lg transition-colors ${takeProfitType === 'FIXED' ? 'bg-[#ECFDF5] text-positive border border-[#A7F3D0]' : 'bg-[#F1F5F9] text-[#64748B] border border-transparent'}`}>Giá cố định</button>
-              <button type="button" onClick={() => setTakeProfitType('PERCENT')} className={`py-2 text-xs font-medium rounded-lg transition-colors ${takeProfitType === 'PERCENT' ? 'bg-[#ECFDF5] text-positive border border-[#A7F3D0]' : 'bg-[#F1F5F9] text-[#64748B] border border-transparent'}`}>Theo %</button>
-              <button type="button" onClick={() => setTakeProfitType('R_RATIO')} className={`py-2 text-xs font-medium rounded-lg transition-colors ${takeProfitType === 'R_RATIO' ? 'bg-[#ECFDF5] text-positive border border-[#A7F3D0]' : 'bg-[#F1F5F9] text-[#64748B] border border-transparent'}`}>Theo R:R</button>
+              <button type="button" onClick={() => setTakeProfitType('')} className={`py-2 text-xs font-medium rounded-lg transition-colors ${takeProfitType === '' ? 'bg-positive/10 text-positive border border-[#A7F3D0]' : 'bg-[#F1F5F9] text-[#64748B] border border-transparent'}`}>Không</button>
+              <button type="button" onClick={() => setTakeProfitType('FIXED')} className={`py-2 text-xs font-medium rounded-lg transition-colors ${takeProfitType === 'FIXED' ? 'bg-positive/10 text-positive border border-[#A7F3D0]' : 'bg-[#F1F5F9] text-[#64748B] border border-transparent'}`}>Giá cố định</button>
+              <button type="button" onClick={() => setTakeProfitType('PERCENT')} className={`py-2 text-xs font-medium rounded-lg transition-colors ${takeProfitType === 'PERCENT' ? 'bg-positive/10 text-positive border border-[#A7F3D0]' : 'bg-[#F1F5F9] text-[#64748B] border border-transparent'}`}>Theo %</button>
+              <button type="button" onClick={() => setTakeProfitType('R_RATIO')} className={`py-2 text-xs font-medium rounded-lg transition-colors ${takeProfitType === 'R_RATIO' ? 'bg-positive/10 text-positive border border-[#A7F3D0]' : 'bg-[#F1F5F9] text-[#64748B] border border-transparent'}`}>Theo R:R</button>
             </div>
             {takeProfitType === 'FIXED' && (
               <>
@@ -3172,30 +3172,7 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
           />
         )}
 
-        {/* Paper Trading View */}
-        {currentView === 'paper-trading' && (
-          <div className="space-y-4 animate-fade-in border-l-4 border-violet-600 pl-3">
-            <div className="flex items-center gap-2 pt-1">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-violet-600/10 text-violet-400">
-                MO PHONG
-              </span>
-              <span className="text-[11px] text-text-muted">Giao dịch mô phỏng — Không ảnh hưởng portfolio thật</span>
-            </div>
-            {portfolio?.id ? (
-              <>
-                <PaperVirtualBalance portfolioId={portfolio.id} />
-                <PaperOrderManager portfolioId={portfolio.id} orders={[]} onRefresh={() => {}} />
-                <React.Suspense fallback={<div className="flex items-center justify-center h-64"><span className="text-text-muted text-sm">Dang tai...</span></div>}>
-                  <PaperPerformanceReport portfolioId={portfolio.id} />
-                </React.Suspense>
-              </>
-            ) : (
-              <div className="panel-section p-6 text-center text-text-muted text-[12px]">
-                Chưa có portfolio. Vui lòng thiết lập portfolio trước.
-              </div>
-            )}
-          </div>
-        )}
+        {/* Paper Trading — gộp vào Portfolio (tab "Mô phỏng") */}
 
         {/* Watchlist View */}
         {currentView === 'watchlist' && (
@@ -3237,58 +3214,59 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
                 /* Bảng dữ liệu thị trường — toolbar responsive, bảng scroll ngang trên mobile */
                 <>
                   <div className="w-full flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                    <div className="flex items-center bg-panel border border-border-standard rounded-lg px-3 py-2 w-full sm:w-44 sm:max-w-[200px] min-w-0">
-                      <input type="text" placeholder="Tìm mã..." value={indexSearch} onChange={(e) => setIndexSearch(e.target.value)} className="bg-transparent border-0 outline-none text-text-main text-sm placeholder-slate-400 w-full min-w-0" />
+                    <div className="flex items-center border border-border-subtle rounded px-3 py-1.5 w-full sm:w-40 min-w-0 bg-transparent">
+                      <svg className="w-3.5 h-3.5 text-text-dim shrink-0 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                      <input type="text" placeholder="Tìm mã..." value={indexSearch} onChange={(e) => setIndexSearch(e.target.value)} className="bg-transparent border-0 outline-none text-text-main text-[12px] placeholder-text-dim w-full min-w-0" />
                     </div>
                     <div className="flex items-center gap-2 w-full sm:w-auto sm:flex-1 sm:justify-end min-w-0">
                       <div className="relative flex-1 min-w-0 sm:flex-initial">
-                        <button type="button" onClick={() => setIndexDropdownOpen((o) => !o)} className="w-full sm:w-auto flex items-center px-3 py-2.5 rounded-lg text-xs sm:text-sm font-medium text-text-main bg-panel hover:bg-panel border border-border-standard transition-colors min-w-0 sm:min-w-[140px]">
+                        <button type="button" onClick={() => setIndexDropdownOpen((o) => !o)} className="w-full sm:w-auto flex items-center px-3 py-1.5 rounded text-[11px] font-semibold text-text-main border border-border-subtle hover:border-accent/40 transition-colors min-w-0 sm:min-w-[120px]">
                           <span className="truncate">{indexSelectionLabel}</span>
                         </button>
                         {indexDropdownOpen && (
                           <>
                             <div className="fixed inset-0 z-40" onClick={() => setIndexDropdownOpen(false)} aria-hidden />
-                            <div className="absolute right-0 top-full mt-1.5 z-50 w-[300px] max-h-[70vh] overflow-y-auto rounded-xl bg-panel border border-border-standard shadow-xl py-2">
-                              <div className="px-3 py-2 border-b border-border-standard flex gap-2 flex-wrap">
-                                <button type="button" onClick={() => { setIndexCodes(['VNXALL']); setIndexDropdownOpen(false); }} className="text-xs font-medium text-accent hover:bg-accent-hover px-2 py-1.5 rounded">Mặc định</button>
-                                <button type="button" onClick={() => { setIndexCodes(MARKET_INDEX_CODES_BANG_GIA.filter((x) => !isSingleOnlyIndexCode(x.code)).map((x) => x.code)); setIndexDropdownOpen(false); }} className="text-xs font-medium text-text-muted hover:bg-panel px-2 py-1.5 rounded">Tất cả chỉ số</button>
+                            <div className="absolute right-0 top-full mt-1 z-50 w-[280px] max-h-[70vh] overflow-y-auto rounded-md bg-bg-panel border border-border-subtle shadow-lg py-1.5">
+                              <div className="px-3 py-1.5 border-b border-border-subtle flex gap-2 flex-wrap">
+                                <button type="button" onClick={() => { setIndexCodes(['VNXALL']); setIndexDropdownOpen(false); }} className="text-[11px] font-medium text-accent hover:bg-accent/10 px-2 py-1 rounded">Mặc định</button>
+                                <button type="button" onClick={() => { setIndexCodes(MARKET_INDEX_CODES_BANG_GIA.filter((x) => !isSingleOnlyIndexCode(x.code)).map((x) => x.code)); setIndexDropdownOpen(false); }} className="text-[11px] font-medium text-text-muted hover:bg-panel-hover px-2 py-1 rounded">Tất cả</button>
                               </div>
-                              <div className="py-2">
-                                <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted">Chỉ số (chọn nhiều)</p>
+                              <div className="py-1.5">
+                                <p className="px-3 py-1 text-[9px] font-semibold uppercase tracking-wider text-text-dim">Chỉ số (chọn nhiều)</p>
                                 <div className="flex flex-wrap gap-1 px-2">
                                   {['VNXALL', 'VN30', 'VN100', 'HOSE', 'HNX', 'UPCOM', 'VNALL', 'VNX50', 'HNX30'].map((code) => {
                                     const item = MARKET_INDEX_CODES_BANG_GIA.find((x) => x.code === code); if (!item) return null;
                                     const isSelected = indexCodes.includes(code);
                                     return (
-                                      <button key={code} type="button" onClick={() => setIndexCodes(toggleIndexCode(code, indexCodes))} className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${isSelected ? 'bg-[#0B6E4B] text-white' : 'bg-panel text-text-main hover:bg-panel-hover'}`}>{item.name}</button>
+                                      <button key={code} type="button" onClick={() => setIndexCodes(toggleIndexCode(code, indexCodes))} className={`px-2 py-1 rounded text-[11px] font-medium transition-colors ${isSelected ? 'bg-accent text-white' : 'text-text-main hover:bg-panel-hover'}`}>{item.name}</button>
                                     );
                                   })}
                                 </div>
                               </div>
-                              <div className="py-2 border-t border-border-standard">
-                                <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted">Một lựa chọn</p>
+                              <div className="py-1.5 border-t border-border-subtle">
+                                <p className="px-3 py-1 text-[9px] font-semibold uppercase tracking-wider text-text-dim">Một lựa chọn</p>
                                 {SINGLE_CHOICE_GROUPS.map((group) => (
-                                  <div key={group.label} className="mt-2 first:mt-0">
-                                    <p className="px-3 py-0.5 text-[9px] font-medium uppercase tracking-wide text-text-muted">{group.label}</p>
+                                  <div key={group.label} className="mt-1.5 first:mt-0">
+                                    <p className="px-3 py-0.5 text-[9px] font-medium uppercase tracking-wider text-text-dim">{group.label}</p>
                                     <div className="flex flex-wrap gap-1 px-2 mt-0.5">
                                       {group.codes.map((code) => {
                                         const item = MARKET_INDEX_CODES_BANG_GIA.find((x) => x.code === code); if (!item) return null;
                                         const isSelected = indexCodes.includes(code);
                                         return (
-                                          <button key={code} type="button" onClick={() => setIndexCodes(toggleIndexCode(code, indexCodes))} className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${isSelected ? 'bg-accent text-white' : 'bg-panel text-text-main hover:bg-panel-hover'}`}>{item.name}</button>
+                                          <button key={code} type="button" onClick={() => setIndexCodes(toggleIndexCode(code, indexCodes))} className={`px-2 py-1 rounded text-[11px] font-medium transition-colors ${isSelected ? 'bg-accent text-white' : 'text-text-main hover:bg-panel-hover'}`}>{item.name}</button>
                                         );
                                       })}
                                     </div>
                                   </div>
                                 ))}
                               </div>
-                              <div className="py-2 border-t border-border-standard">
-                                <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted">CP theo ngành</p>
+                              <div className="py-1.5 border-t border-border-subtle">
+                                <p className="px-3 py-1 text-[9px] font-semibold uppercase tracking-wider text-text-dim">CP theo ngành</p>
                                 <div className="px-2 pb-1">
                                   <select
                                     value={industryCode ? `INDUSTRY_${industryCode}` : ''}
                                     onChange={(e) => { const v = e.target.value; if (v) setIndexCodes([v]); else if (isIndustryView) setIndexCodes(['VNXALL']); }}
-                                    className="w-full px-3 py-2 text-sm font-medium text-text-main bg-panel border border-border-standard rounded-lg focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] outline-none"
+                                    className="w-full px-2 py-1.5 text-[12px] font-medium text-text-main bg-transparent border border-border-subtle rounded focus:border-accent outline-none"
                                   >
                                     <option value="">— Chọn ngành —</option>
                                     {INDUSTRY_CODES.map((i) => (
@@ -3301,7 +3279,7 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
                           </>
                         )}
                       </div>
-                      <button type="button" onClick={() => setMarketTableFullscreen((f) => !f)} className="p-2.5 rounded-lg text-text-muted hover:bg-panel hover:text-accent transition-colors shrink-0" title={marketTableFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}>
+                      <button type="button" onClick={() => setMarketTableFullscreen((f) => !f)} className="p-1.5 rounded text-text-dim hover:text-accent transition-colors shrink-0" title={marketTableFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}>
                         {marketTableFullscreen ? <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg> : <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>}
                       </button>
                     </div>
@@ -3583,18 +3561,18 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
                                         const isCeiling = r.tran != null && matchPrice != null && matchPrice >= r.tran;
                                         const isFloor = r.san != null && matchPrice != null && matchPrice <= r.san;
                                         return (
-                                          <tr key={`${r.symbol}-${r.exchange ?? 'NA'}`} onClick={() => handleStockClick(r.symbol, r.exchange || 'HOSE')} className={`hover:bg-panel-hover cursor-pointer ${selectedSymbol === r.symbol ? 'bg-[#EFF6FF] ring-inset ring-1 ring-[#1E3A5F]/20' : ''}`}>
+                                          <tr key={`${r.symbol}-${r.exchange ?? 'NA'}`} onClick={() => handleStockClick(r.symbol, r.exchange || 'HOSE')} className={`hover:bg-panel-hover cursor-pointer ${selectedSymbol === r.symbol ? 'bg-accent/10' : ''}`}>
                                             <td className="px-3 py-2 font-semibold text-accent whitespace-nowrap">{r.symbol}</td>
                                             <td className="px-3 py-2 text-right font-mono text-text-main">{fmt(r.tc)}</td>
-                                            <td className="px-3 py-2 text-right font-mono text-[#7C3AED]">{fmt(r.tran)}</td>
-                                            <td className="px-3 py-2 text-right font-mono text-[#0369A1]">{fmt(r.san)}</td>
+                                            <td className="px-3 py-2 text-right font-mono text-purple-400">{fmt(r.tran)}</td>
+                                            <td className="px-3 py-2 text-right font-mono text-sky-400">{fmt(r.san)}</td>
                                             <td className="px-3 py-2 text-right font-mono border-l border-border-standard text-text-muted">{fmt(r.gia3)}</td>
                                             <td className="px-3 py-2 text-right font-mono text-text-muted">{fmtVol(r.kl3)}</td>
                                             <td className="px-3 py-2 text-right font-mono text-text-muted">{fmt(r.gia2)}</td>
                                             <td className="px-3 py-2 text-right font-mono text-text-muted">{fmtVol(r.kl2)}</td>
                                             <td className="px-3 py-2 text-right font-mono text-text-muted">{fmt(r.gia1)}</td>
                                             <td className="px-3 py-2 text-right font-mono text-text-muted">{fmtVol(r.kl1)}</td>
-                                            <td className={`px-3 py-2 text-right font-mono font-semibold border-l border-border-standard ${isCeiling ? 'text-[#7C3AED] bg-[#F5F3FF]' : isFloor ? 'text-[#0369A1] bg-[#E0F2FE]' : change != null && change > 0 ? 'text-positive bg-[#ECFDF5]' : change != null && change < 0 ? 'text-negative bg-[#FEF2F2]' : 'text-text-main bg-panel'}`}>{fmt(matchPrice)}</td>
+                                            <td className={`px-3 py-2 text-right font-mono font-semibold border-l border-border-standard ${isCeiling ? 'text-purple-400 bg-purple-500/10' : isFloor ? 'text-sky-400 bg-sky-500/10' : change != null && change > 0 ? 'text-positive bg-positive/10' : change != null && change < 0 ? 'text-negative bg-negative/10' : 'text-text-main bg-panel'}`}>{fmt(matchPrice)}</td>
                                             <td className="px-3 py-2 text-right font-mono text-text-muted">{fmtVol(r.matchVolume)}</td>
                                             <td className={`px-3 py-2 text-right font-mono ${chgCls(change)}`}>{change != null ? (change >= 0 ? '+' : '') + fmt(change) : '—'}</td>
                                             <td className={`px-3 py-2 text-right font-mono ${chgCls(pct)}`}>{pct != null ? (pct >= 0 ? '+' : '') + fmt(pct, 1) + '%' : '—'}</td>
@@ -3625,7 +3603,7 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
                     document.body
                   )}
                   {!marketTableFullscreen && (
-                    <div className="rounded-xl overflow-hidden bg-panel border border-border-standard shadow-sm min-w-0 w-full">
+                    <div className="rounded overflow-hidden border border-border-subtle min-w-0 w-full mt-2">
                       <div className="overflow-x-auto overflow-y-auto max-h-[420px] sm:max-h-[520px] w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
                         {isPTView ? (
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3">
@@ -3769,18 +3747,18 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
                                       const isCeiling = r.tran != null && matchPrice != null && matchPrice >= r.tran;
                                       const isFloor = r.san != null && matchPrice != null && matchPrice <= r.san;
                                       return (
-                                        <tr key={`${r.symbol}-${r.exchange ?? 'NA'}`} onClick={() => handleStockClick(r.symbol, r.exchange || 'HOSE')} className={`hover:bg-panel-hover cursor-pointer transition-colors ${selectedSymbol === r.symbol ? 'bg-[#EFF6FF] ring-inset ring-1 ring-[#1E3A5F]/20' : ''}`}>
+                                        <tr key={`${r.symbol}-${r.exchange ?? 'NA'}`} onClick={() => handleStockClick(r.symbol, r.exchange || 'HOSE')} className={`hover:bg-panel-hover cursor-pointer transition-colors ${selectedSymbol === r.symbol ? 'bg-accent/10' : ''}`}>
                                           <td className="px-3 py-2 font-semibold text-accent whitespace-nowrap">{r.symbol}</td>
                                           <td className="px-3 py-2 text-right font-mono text-text-main">{fmt(ref)}</td>
-                                          <td className="px-3 py-2 text-right font-mono text-[#7C3AED]">{fmt(r.tran)}</td>
-                                          <td className="px-3 py-2 text-right font-mono text-[#0369A1]">{fmt(r.san)}</td>
+                                          <td className="px-3 py-2 text-right font-mono text-purple-400">{fmt(r.tran)}</td>
+                                          <td className="px-3 py-2 text-right font-mono text-sky-400">{fmt(r.san)}</td>
                                           <td className="px-3 py-2 text-right font-mono border-l border-border-standard text-text-muted">{fmt(r.gia3)}</td>
                                           <td className="px-3 py-2 text-right font-mono text-text-muted">{fmtVol(r.kl3)}</td>
                                           <td className="px-3 py-2 text-right font-mono text-text-muted">{fmt(r.gia2)}</td>
                                           <td className="px-3 py-2 text-right font-mono text-text-muted">{fmtVol(r.kl2)}</td>
                                           <td className="px-3 py-2 text-right font-mono text-text-muted">{fmt(r.gia1)}</td>
                                           <td className="px-3 py-2 text-right font-mono text-text-muted">{fmtVol(r.kl1)}</td>
-                                          <td className={`px-3 py-2 text-right font-mono font-semibold border-l border-border-standard ${isCeiling ? 'text-[#7C3AED] bg-[#F5F3FF]' : isFloor ? 'text-[#0369A1] bg-[#E0F2FE]' : change != null && change > 0 ? 'text-positive bg-[#ECFDF5]' : change != null && change < 0 ? 'text-negative bg-[#FEF2F2]' : 'text-text-main bg-panel'}`}>{fmt(matchPrice)}</td>
+                                          <td className={`px-3 py-2 text-right font-mono font-semibold border-l border-border-standard ${isCeiling ? 'text-purple-400 bg-purple-500/10' : isFloor ? 'text-sky-400 bg-sky-500/10' : change != null && change > 0 ? 'text-positive bg-positive/10' : change != null && change < 0 ? 'text-negative bg-negative/10' : 'text-text-main bg-panel'}`}>{fmt(matchPrice)}</td>
                                           <td className="px-3 py-2 text-right font-mono text-text-muted">{fmtVol(r.matchVolume)}</td>
                                           <td className={`px-3 py-2 text-right font-mono ${chgCls(change)}`}>{change != null ? (change >= 0 ? '+' : '') + fmt(change) : '—'}</td>
                                           <td className={`px-3 py-2 text-right font-mono ${chgCls(pct)}`}>{pct != null ? (pct >= 0 ? '+' : '') + fmt(pct, 1) + '%' : '—'}</td>
@@ -3803,9 +3781,9 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
                           </table>
                         )}
                       </div>
-                      <div className="px-3 sm:px-4 py-2.5 border-t border-border-standard bg-panel text-xs text-slate-600 flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span>{isBondView ? `${indexDetailList.length} trái phiếu • Click hàng để xem chi tiết` : isCWView ? `${indexDetailList.length} chứng quyền • Click hàng để xem biểu đồ` : isEFView ? `${indexDetailList.length} ETF • Click hàng để xem biểu đồ` : isIndustryView ? `${indexDetailList.length} mã • Ngành: ${industryName} • Click hàng để xem biểu đồ` : isPTView ? `${indexDetailList.length} khớp lệnh thoả thuận (${ptMarketCode}) • Click hàng để xem biểu đồ` : isOddLotView ? `${indexDetailList.length} mã lô lẻ (${oddLotMarketCode}) • Click hàng để xem biểu đồ` : isFUView ? `${indexDetailList.length} phái sinh (${fuStockType}) • Click hàng để xem biểu đồ` : `${indexDetailList.length} mã • Index: ${indexCodes.join(', ') || 'VNXALL'} • Click hàng để xem biểu đồ`}</span>
-                        <span className="text-text-muted sm:hidden">• Kéo ngang để xem thêm cột</span>
+                      <div className="px-3 py-2 border-t border-border-subtle text-[10px] text-text-dim flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span>{isBondView ? `${indexDetailList.length} trái phiếu` : isCWView ? `${indexDetailList.length} chứng quyền` : isEFView ? `${indexDetailList.length} ETF` : isIndustryView ? `${indexDetailList.length} mã · ${industryName}` : isPTView ? `${indexDetailList.length} khớp lệnh (${ptMarketCode})` : isOddLotView ? `${indexDetailList.length} lô lẻ (${oddLotMarketCode})` : isFUView ? `${indexDetailList.length} phái sinh (${fuStockType})` : `${indexDetailList.length} mã · ${indexCodes.join(', ') || 'VNXALL'}`}</span>
+                        <span className="sm:hidden">· Kéo ngang xem thêm</span>
                       </div>
                     </div>
                   )}
@@ -4073,8 +4051,8 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
                             <td className="px-4 py-2.5 text-right font-mono">{formatNumberVI(risk)}</td>
                             <td className="px-4 py-2.5 text-center">
                               <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${isOpen ? 'bg-[#DBEAFE] text-accent' :
-                                pos.status === 'CLOSED_TP' ? 'bg-[#ECFDF5] text-positive' :
-                                  pos.status === 'CLOSED_SL' ? 'bg-[#FEF2F2] text-negative' : 'bg-panel text-text-muted'
+                                pos.status === 'CLOSED_TP' ? 'bg-positive/10 text-positive' :
+                                  pos.status === 'CLOSED_SL' ? 'bg-negative/10 text-negative' : 'bg-panel text-text-muted'
                                 }`}>
                                 {pos.status === 'OPEN' ? 'Mở' : pos.status === 'CLOSED_TP' ? 'Chốt lời' : pos.status === 'CLOSED_SL' ? 'Cắt lỗ' : 'Đóng tay'}
                               </span>
@@ -4145,9 +4123,9 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
                   </div>
                 </div>
               </div>
-              <div className={`px-3 py-1.5 rounded-lg border text-xs font-semibold ${insightContent.verdict === 'RECOMMENDED' ? 'bg-[#ECFDF5] border-[#A7F3D0] text-positive' :
+              <div className={`px-3 py-1.5 rounded-lg border text-xs font-semibold ${insightContent.verdict === 'RECOMMENDED' ? 'bg-positive/10 border-[#A7F3D0] text-positive' :
                 insightContent.verdict === 'CAUTION' ? 'bg-[#FFFBEB] border-[#FDE68A] text-[#B45309]' :
-                  'bg-[#FEF2F2] border-[#FECACA] text-negative'
+                  'bg-negative/10 border-[#FECACA] text-negative'
                 }`}>
                 {insightContent.verdict}
               </div>

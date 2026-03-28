@@ -64,11 +64,11 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, 
               </div>
 
               <h2 className="text-xl font-bold text-text-main">
-                Chao mung den TradeGuard AI!
+                Chào mừng đến TradeGuard AI!
               </h2>
 
               <p className="text-text-muted text-sm leading-relaxed max-w-sm">
-                Cong cu quan ly rui ro thong minh giup ban dau tu an toan hon. Hay bat dau voi 3 buoc don gian.
+                Công cụ quản lý rủi ro thông minh giúp bạn đầu tư an toàn hơn. Hãy bắt đầu với 3 bước đơn giản.
               </p>
 
               <div className="flex-1" />
@@ -77,7 +77,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, 
                 onClick={goNext}
                 className="w-full py-3 rounded-xl bg-accent hover:bg-accent-hover text-white font-semibold text-sm transition-colors"
               >
-                Bat Dau
+                Bắt đầu
               </button>
             </div>
           )}
@@ -93,25 +93,25 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, 
               </div>
 
               <h2 className="text-xl font-bold text-text-main">
-                Tao danh muc dau tien
+                Tạo danh mục đầu tiên
               </h2>
 
               <p className="text-text-muted text-sm leading-relaxed max-w-sm">
-                Danh muc giup ban theo doi tat ca vi the, lai/lo, va rui ro tai mot noi.
+                Danh mục giúp bạn theo dõi tất cả vị thế, lãi/lỗ, và rủi ro tại một nơi.
               </p>
 
               {/* 2 cards: Real vs Paper */}
               <div className="grid grid-cols-2 gap-3 w-full mt-2">
                 <div className="p-3 rounded-xl border-2 border-blue-500/40 bg-blue-500/5 text-left">
-                  <div className="text-xs font-bold text-blue-400 mb-1">Portfolio That</div>
+                  <div className="text-xs font-bold text-blue-400 mb-1">Danh mục thật</div>
                   <div className="text-[11px] text-text-muted leading-relaxed">
-                    Ghi nhan lenh da dat tren san (VPS, SSI,...)
+                    Ghi nhận lệnh đã đặt trên sàn (VPS, SSI,...)
                   </div>
                 </div>
                 <div className="p-3 rounded-xl border-2 border-violet-500/40 bg-violet-500/5 text-left">
-                  <div className="text-xs font-bold text-violet-400 mb-1">Mo Phong</div>
+                  <div className="text-xs font-bold text-violet-400 mb-1">Mô phỏng</div>
                   <div className="text-[11px] text-text-muted leading-relaxed">
-                    Tap choi khong mat tien that -- hoc hoi truoc khi dau tu
+                    Tập chơi không mất tiền thật -- học hỏi trước khi đầu tư
                   </div>
                 </div>
               </div>
@@ -123,13 +123,13 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, 
                   onClick={goBack}
                   className="px-4 py-3 rounded-xl border border-border-standard text-text-muted hover:text-text-main hover:border-accent/30 text-sm transition-colors"
                 >
-                  Quay lai
+                  Quay lại
                 </button>
                 <button
                   onClick={goNext}
                   className="flex-1 py-3 rounded-xl bg-accent hover:bg-accent-hover text-white font-semibold text-sm transition-colors"
                 >
-                  Tiep Tuc
+                  Tiếp tục
                 </button>
               </div>
             </div>
@@ -146,11 +146,11 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, 
               </div>
 
               <h2 className="text-xl font-bold text-text-main">
-                Nhap lenh dau tien
+                Nhập lệnh đầu tiên
               </h2>
 
               <p className="text-text-muted text-sm leading-relaxed max-w-sm">
-                Ban co the nhap lenh that da dat tren san, hoac thu mo phong lenh ao de lam quen.
+                Bạn có thể nhập lệnh thật đã đặt trên sàn, hoặc thử mô phỏng lệnh ảo để làm quen.
               </p>
 
               {/* 2 CTA buttons */}
@@ -159,15 +159,15 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, 
                   onClick={() => handleNavigateAndComplete('portfolio')}
                   className="p-4 rounded-xl border-2 border-blue-500/40 bg-blue-500/5 hover:bg-blue-500/10 transition-colors text-left"
                 >
-                  <div className="text-xs font-bold text-blue-400 mb-1">Nhap Lenh That</div>
-                  <div className="text-[11px] text-text-muted">Ghi nhan lenh tren san</div>
+                  <div className="text-xs font-bold text-blue-400 mb-1">Nhập lệnh thật</div>
+                  <div className="text-[11px] text-text-muted">Ghi nhận lệnh trên sàn</div>
                 </button>
                 <button
                   onClick={() => handleNavigateAndComplete('paper-trading')}
                   className="p-4 rounded-xl border-2 border-violet-500/40 bg-violet-500/5 hover:bg-violet-500/10 transition-colors text-left"
                 >
-                  <div className="text-xs font-bold text-violet-400 mb-1">Thu Mo Phong</div>
-                  <div className="text-[11px] text-text-muted">Lam quen voi giao dich</div>
+                  <div className="text-xs font-bold text-violet-400 mb-1">Thử mô phỏng</div>
+                  <div className="text-[11px] text-text-muted">Làm quen với giao dịch</div>
                 </button>
               </div>
 
@@ -178,13 +178,13 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, 
                   onClick={goBack}
                   className="px-4 py-3 rounded-xl border border-border-standard text-text-muted hover:text-text-main hover:border-accent/30 text-sm transition-colors"
                 >
-                  Quay lai
+                  Quay lại
                 </button>
                 <button
                   onClick={onComplete}
                   className="text-[11px] text-text-muted hover:text-accent transition-colors py-2"
                 >
-                  Bo qua, toi da biet dung
+                  Bỏ qua, tôi đã biết dùng
                 </button>
               </div>
             </div>

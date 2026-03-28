@@ -45,7 +45,7 @@ export const PaperOrderManager: React.FC<PaperOrderManagerProps> = ({
   const handleSubmitEdit = async () => {
     if (!editingOrder) return;
     // Confirmation dialog per D-04: nhắc nhở đây là giao dịch mo phong
-    const confirmed = window.confirm('Day la giao dich mo phong. Khong anh huong toi portfolio that. Ban co muon tiep tuc?');
+    const confirmed = window.confirm('Đây là giao dịch mô phỏng. Không ảnh hưởng tới portfolio. Bạn có muốn tiếp tục?');
     if (!confirmed) return;
     const data: { limit_price?: number; quantity?: number } = {};
 
