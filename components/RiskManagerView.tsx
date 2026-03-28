@@ -157,7 +157,7 @@ export const RiskManagerView: React.FC<Props> = ({
       const riskVnd = getPositionRiskVnd(pos);
       const riskPct = totalBalance > 0 ? (riskVnd / totalBalance) * 100 : 0;
       const entry = Number(pos.entry_price ?? 0);
-      const current = Number(pos.current_price ?? pos.entry_price ?? 0);
+      const current = Number((pos as any).current_price ?? pos.entry_price ?? 0);
       const qty = Number(pos.quantity ?? 0);
       const sl = Number((pos as any).stop_loss ?? 0);
       const pnl = (current - entry) * qty;
@@ -396,7 +396,7 @@ export const RiskManagerView: React.FC<Props> = ({
               <tbody>
                 {positionsWithRisk.map((pos) => {
                   const entry = Number(pos.entry_price ?? 0) / 1000;
-                  const current = Number(pos.current_price ?? pos.entry_price ?? 0) / 1000;
+                  const current = Number((pos as any).current_price ?? pos.entry_price ?? 0) / 1000;
                   const sl = Number((pos as any).stop_loss ?? 0) / 1000;
                   const qty = Number(pos.quantity ?? 0);
                   const rowCls = pos.riskPct >= 4 ? 'row-loss' : pos.riskPct >= 2 ? '' : '';
