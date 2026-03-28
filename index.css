@@ -38,6 +38,14 @@
   --radius-lg: 8px;
   --radius-xl: 12px;
 
+  /* Design System D-06/D-07 Tokens */
+  --color-primary-deep: #1E3A5F;
+  --color-accent-gold: #F0B90B;
+  --color-bg-dark: #0D1117;
+  --color-card-dark: #161B22;
+  --color-border-gh: #30363D;
+  --color-info: #38BDF8;
+
   /* Shadows */
   --shadow-panel: 0 1px 3px rgba(0, 0, 0, 0.4);
   --shadow-elevated: 0 4px 20px rgba(0, 0, 0, 0.6);
@@ -355,4 +363,28 @@ body {
 
 [data-theme="light"] .card-flat:hover {
   border-color: rgba(0, 0, 0, 0.2);
+}
+
+/* ═══ TABULAR NUMBERS ═══ */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+}
+
+/* ═══ TOOLTIP ANIMATION ═══ */
+@keyframes tooltipFadeIn {
+  from { opacity: 0; transform: translateY(4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.tooltip-content {
+  animation: tooltipFadeIn 0.15s ease-out;
+  background: var(--color-card-dark);
+  border: 1px solid var(--color-border-gh);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-elevated);
+  padding: 8px 12px;
+  font-size: 12px;
+  max-width: 280px;
+  z-index: 1000;
 }
