@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { notificationsApi } from '../services/api';
 import type { Notification } from '../services/api';
+import { FinancialTooltip } from './ui/Tooltip';
+import { EmptyState } from './ui/EmptyState';
 
 interface Props {
   onUnreadCountChange?: (count: number) => void;
@@ -399,26 +401,22 @@ export const NotificationsView: React.FC<Props> = ({ onUnreadCountChange, onNavi
         </span>
         {activeTab === 'risk' && counts.risk > 0 && (
           <span className="text-[10px] px-2 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 font-semibold">
-            Cần xử lý ngay
+            Can xu ly ngay
           </span>
         )}
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto dense-scroll space-y-1.5">
+      <div className="flex-1 overflow-y-auto dense-scroll space-y-1.5 grid grid-cols-1">
         {loading && notifications.length === 0 ? (
           <div className="flex items-center justify-center py-12">
             <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-text-dim gap-3">
-            <svg className="w-10 h-10 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-            </svg>
-            <p className="text-[13px]">
-              {unreadOnly ? 'Không có cảnh báo chưa đọc' : 'Chưa có thông báo'}
-            </p>
-          </div>
+          <EmptyState
+            title={unreadOnly ? 'Khong co canh bao chua doc' : 'Khong co thong bao moi'}
+            description="Thong bao se xuat hien khi co su kien quan trong: lenh khop, SL thay doi, canh bao rui ro."
+          />
         ) : (
           <>
             {filtered.map((notif: Notification) => {

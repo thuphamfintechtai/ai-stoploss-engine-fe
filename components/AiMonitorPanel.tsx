@@ -3,6 +3,9 @@ import { aiApi, positionApi } from '../services/api';
 import type { Position } from '../services/api';
 import { formatNumberVI } from '../constants';
 import wsService from '../services/websocket';
+import { FinancialTooltip } from './ui/Tooltip';
+import { EmptyState } from './ui/EmptyState';
+import { InfoCard } from './ui/InfoCard';
 
 interface DynamicSLUpdate {
   symbol: string;
@@ -391,13 +394,19 @@ export const AiMonitorPanel: React.FC<Props> = ({ portfolioId, openPositions, on
 
   return (
     <div className="space-y-4 animate-fade-in">
+      {/* ── InfoCard ── */}
+      <InfoCard title="Dynamic Stop Loss hoat dong the nao?" variant="info" defaultOpen={false}>
+        <p>Thay vi dat <FinancialTooltip term="Stop Loss" /> co dinh, he thong tu dong dieu chinh SL theo bien dong thi truong hien tai.</p>
+        <p className="mt-1 text-text-muted text-[11px]">Khi thi truong bien dong manh, SL mo rong de tranh bi quet. Khi on dinh, SL thu hep de bao ve loi nhuan.</p>
+      </InfoCard>
+
       {/* ── Header ── */}
       <div className="panel-section p-4">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h3 className="text-[13px] font-bold text-text-main mb-1">AI Giám Sát Vị Thế</h3>
+            <h3 className="text-[13px] font-bold text-text-main mb-1">AI Giam Sat Vi The</h3>
             <p className="text-[11px] text-text-muted">
-              AI đánh giá toàn bộ vị thế đang mở và đề xuất điều chỉnh SL/TP tối ưu
+              AI danh gia toan bo vi the dang mo va de xuat dieu chinh <FinancialTooltip term="Stop Loss" />/<FinancialTooltip term="Take Profit" /> toi uu
             </p>
             {result && (
               <p className="text-[10px] text-text-dim mt-1">
@@ -469,7 +478,7 @@ export const AiMonitorPanel: React.FC<Props> = ({ portfolioId, openPositions, on
       {dynamicSLUpdates.length > 0 && (
         <div className="panel-section">
           <div className="px-4 py-2.5 border-b border-border-subtle flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Cap Nhat SL Dong (Dynamic SL)</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Cap Nhat <FinancialTooltip term="Trailing Stop" /> (Dynamic SL)</span>
             <button
               onClick={() => setDynamicSLUpdates([])}
               className="text-[9px] text-text-dim hover:text-text-muted"
@@ -513,8 +522,8 @@ export const AiMonitorPanel: React.FC<Props> = ({ portfolioId, openPositions, on
                   )}
                   {(update.atr_value || update.atr_multiplier) && (
                     <p className="text-[8px] text-text-dim mb-1">
-                      ATR: {update.atr_value?.toFixed(2) ?? '—'}
-                      {update.atr_multiplier && ` × ${update.atr_multiplier}`}
+                      <FinancialTooltip term="ATR" />: {update.atr_value?.toFixed(2) ?? '—'}
+                      {update.atr_multiplier && ` x ${update.atr_multiplier}`}
                     </p>
                   )}
                   {update.narrative && (
@@ -553,10 +562,12 @@ export const AiMonitorPanel: React.FC<Props> = ({ portfolioId, openPositions, on
       {activeTab === 'current' && (
         <>
           {openPositions.length === 0 ? (
-            <div className="panel-section p-8 text-center">
-              <p className="text-text-muted text-[13px] mb-2">Không có vị thế nào đang mở</p>
-              <button onClick={() => onNavigate('terminal')} className="text-[11px] text-accent hover:underline">Đặt lệnh mới →</button>
-            </div>
+            <EmptyState
+              title="Khong co vi the nao dang mo"
+              description="He thong se giam sat va de xuat dieu chinh SL/TP khi ban co vi the dang mo."
+              actionLabel="Dat lenh moi"
+              onAction={() => onNavigate('terminal')}
+            />
           ) : !result && !loading ? (
             <div className="panel-section p-8 text-center">
               <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: 'var(--color-accent-subtle)' }}>

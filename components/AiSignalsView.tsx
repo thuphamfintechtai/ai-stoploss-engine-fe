@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { aiApi, watchlistApi } from '../services/api';
+import { FinancialTooltip } from './ui/Tooltip';
+import { EmptyState } from './ui/EmptyState';
+import { InfoCard } from './ui/InfoCard';
 
 interface Props {
   traders?: any[];
@@ -124,23 +127,23 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
         </div>
 
         <div className="flex-1 overflow-y-auto dense-scroll">
+          <div className="mb-3">
+            <InfoCard title="AI Goi Y la gi?" variant="tip" defaultOpen={false}>
+              <p>He thong AI phan tich du lieu ky thuat (<FinancialTooltip term="ATR" />, Bollinger Band, volume) de goi y muc <FinancialTooltip term="Stop Loss" /> va <FinancialTooltip term="Take Profit" /> toi uu.</p>
+              <p className="mt-1 text-text-muted text-[11px]">Day la goi y tham khao, khong phai loi khuyen dau tu. Hay ket hop voi phan tich ca nhan.</p>
+            </InfoCard>
+          </div>
           {loading ? (
             <div className="flex items-center justify-center h-40">
               <span className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
             </div>
           ) : watchlist.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-text-dim py-12">
-              <svg className="w-12 h-12 mb-3 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
-              </svg>
-              <p className="text-[13px]">Chưa có mã nào trong danh sách theo dõi</p>
-              <button
-                onClick={() => onNavigate('watchlist')}
-                className="mt-3 px-4 py-1.5 rounded bg-accent/20 text-accent text-[12px] font-semibold hover:bg-accent/30 transition-colors"
-              >
-                Thêm mã theo dõi
-              </button>
-            </div>
+            <EmptyState
+              title="Chua co goi y AI"
+              description="AI dang phan tich thi truong. Goi y se xuat hien khi co tin hieu dang chu y."
+              actionLabel="Them ma theo doi"
+              onAction={() => onNavigate('watchlist')}
+            />
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 pb-4">
               {watchlist.map((item) => {
@@ -193,11 +196,11 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
                               <p className={`text-[11px] font-bold ${scoreCls(res.technical_score)}`}>{res.technical_score ?? '—'}/100</p>
                             </div>
                             <div>
-                              <p className="text-[8px] text-text-dim uppercase tracking-wide mb-0.5">SL khuyến nghị</p>
+                              <p className="text-[8px] text-text-dim uppercase tracking-wide mb-0.5"><FinancialTooltip term="Stop Loss" /></p>
                               <p className="text-[11px] font-mono text-negative font-semibold">{fmtPrice(rec.stop_loss_vnd)}</p>
                             </div>
                             <div>
-                              <p className="text-[8px] text-text-dim uppercase tracking-wide mb-0.5">TP khuyến nghị</p>
+                              <p className="text-[8px] text-text-dim uppercase tracking-wide mb-0.5"><FinancialTooltip term="Take Profit" /></p>
                               <p className="text-[11px] font-mono text-positive font-semibold">{fmtPrice(rec.take_profit_vnd)}</p>
                             </div>
                           </div>
@@ -307,7 +310,7 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
                           {type === 'aggressive' ? 'TÍCH CỰC' : type === 'moderate' ? 'CÂN BẰNG' : 'THẬN TRỌNG'}
                           {isRec && <span className="ml-1 text-warning">★ KN</span>}
                         </span>
-                        <span className="text-[9px] text-text-dim">R:R {s.rr_ratio?.toFixed(1) ?? '—'}</span>
+                        <span className="text-[9px] text-text-dim"><FinancialTooltip term="R:R Ratio" /> {s.rr_ratio?.toFixed(1) ?? '—'}</span>
                       </div>
                       <div className="grid grid-cols-2 gap-1.5 text-[10px] font-mono">
                         <div>SL <span className="text-negative font-bold">{fmtPrice(s.stop_loss_vnd)}</span></div>

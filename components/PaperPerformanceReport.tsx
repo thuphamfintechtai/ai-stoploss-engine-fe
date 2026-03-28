@@ -3,6 +3,9 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from 
 import { orderApi } from '../services/api';
 import type { PaperPerformanceData } from '../services/api';
 import { formatNumberVI } from '../constants';
+import { FinancialTooltip } from './ui/Tooltip';
+import { EmptyState } from './ui/EmptyState';
+import { InfoCard } from './ui/InfoCard';
 
 interface PaperPerformanceReportProps {
   portfolioId: string;
@@ -69,7 +72,8 @@ export const PaperPerformanceReport: React.FC<PaperPerformanceReportProps> = ({
 
   const metrics = [
     {
-      label: 'Tổng P&L',
+      label: 'Tong P&L',
+      tooltipTerm: 'P&L',
       value: data?.total_pnl != null ? (
         <span className={data.total_pnl >= 0 ? 'text-positive' : 'text-negative'}>
           {data.total_pnl >= 0 ? '+' : ''}
@@ -79,7 +83,8 @@ export const PaperPerformanceReport: React.FC<PaperPerformanceReportProps> = ({
       sub: 'VND',
     },
     {
-      label: 'Tỉ Lệ Thắng',
+      label: 'Win Rate',
+      tooltipTerm: 'Win Rate',
       value: data?.win_rate != null ? (
         <span className={data.win_rate >= 50 ? 'text-positive' : 'text-negative'}>
           {Number(data.win_rate).toFixed(1)}%
@@ -107,6 +112,7 @@ export const PaperPerformanceReport: React.FC<PaperPerformanceReportProps> = ({
     },
     {
       label: 'Profit Factor',
+      tooltipTerm: 'Profit Factor',
       value: data?.profit_factor != null && data.profit_factor > 0 ? (
         <span className={
           data.profit_factor >= 1.5 ? 'text-positive' :
@@ -121,7 +127,8 @@ export const PaperPerformanceReport: React.FC<PaperPerformanceReportProps> = ({
         : '',
     },
     {
-      label: 'Max Drawdown',
+      label: 'Drawdown',
+      tooltipTerm: 'Drawdown',
       value: data?.max_drawdown_vnd != null && data.max_drawdown_vnd !== 0 ? (
         <span className="text-negative">
           -{formatNumberVI(Math.abs(data.max_drawdown_vnd), { maximumFractionDigits: 0 })}
@@ -164,6 +171,13 @@ export const PaperPerformanceReport: React.FC<PaperPerformanceReportProps> = ({
         </div>
       </div>
 
+      <div className="mb-4">
+        <InfoCard title="Hieu bieu do hieu suat" variant="tip" defaultOpen={false}>
+          <p>Bao cao nay so sanh ket qua giao dich mo phong cua ban voi chien luoc "mua va giu".</p>
+          <p className="mt-1 text-text-muted text-[11px]"><FinancialTooltip term="Win Rate" /> &gt; 50% va <FinancialTooltip term="Profit Factor" /> &gt; 1.5 la tot. Hay tap trung vao Profit Factor hon Win Rate.</p>
+        </InfoCard>
+      </div>
+
       {loading ? (
         <div className="animate-pulse space-y-3">
           <div className="grid grid-cols-3 gap-3">
@@ -180,18 +194,18 @@ export const PaperPerformanceReport: React.FC<PaperPerformanceReportProps> = ({
           </button>
         </div>
       ) : !data || data.total_trades === 0 ? (
-        <div className="text-center py-8 text-text-muted">
-          <p className="text-[12px] mb-1">Chưa có giao dịch nào</p>
-          <p className="text-[10px]">Đặt lệnh paper trading và đợi khớp để xem báo cáo hiệu suất</p>
-        </div>
+        <EmptyState
+          title="Chua co giao dich nao"
+          description="Dat lenh paper trading va doi khop de xem bao cao hieu suat. He thong se tu dong tinh toan cac chi so nhu Win Rate, Profit Factor, Drawdown."
+        />
       ) : (
         <>
           {/* Metrics Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
-            {metrics.map((m) => (
+            {metrics.map((m: any) => (
               <div key={m.label} className="bg-white/[0.03] border border-border-subtle/30 rounded-lg p-3">
                 <p className="text-[9px] font-semibold uppercase tracking-wider text-text-muted mb-1">
-                  {m.label}
+                  {m.tooltipTerm ? <FinancialTooltip term={m.tooltipTerm} /> : m.label}
                 </p>
                 <p className="text-[16px] font-bold font-mono">{m.value}</p>
                 {m.sub && <p className="text-[9px] text-text-dim mt-0.5">{m.sub}</p>}
