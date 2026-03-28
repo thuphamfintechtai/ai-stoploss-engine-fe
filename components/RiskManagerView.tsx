@@ -2,6 +2,10 @@ import React, { useMemo, useState, useEffect } from 'react';
 import type { Position, RiskBudgetResult, VaRResult, MonteCarloResult, StressTestResult, SectorConcentrationResult } from '../services/api';
 import { getRiskBudget, getRebalancingSuggestions, getVaR, getMonteCarloSimulation, getStressTest, getSectorConcentration } from '../services/api';
 import { formatNumberVI, STOCK_PRICE_DISPLAY_SCALE } from '../constants';
+import { InfoCard } from './ui/InfoCard';
+import { FinancialTooltip } from './ui/Tooltip';
+import { StatCard } from './ui/StatCard';
+import { SkeletonCard } from './ui/SkeletonLoader';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 interface Props {
@@ -173,31 +177,35 @@ export const RiskManagerView: React.FC<Props> = ({
     <div className="space-y-4 animate-fade-in">
       {/* ── Summary Bar ── */}
       <div className="panel-section p-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-          <div>
-            <p className="text-[9px] font-semibold uppercase tracking-widest text-text-muted mb-0.5">Tổng Rủi Ro</p>
-            <p className={`text-[20px] font-bold font-mono ${riskUsagePct < 50 ? 'text-positive' : riskUsagePct < 80 ? 'text-warning' : 'text-negative'}`}>
-              {formatNumberVI(totalRisk)}
-            </p>
-            <p className="text-[10px] text-text-dim">VND ({riskUsagePct.toFixed(1)}% hạn mức)</p>
-          </div>
-          <div>
-            <p className="text-[9px] font-semibold uppercase tracking-widest text-text-muted mb-0.5">Hạn Mức Rủi Ro</p>
-            <p className="text-[20px] font-bold font-mono text-warning">{maxRiskPercent}%</p>
-            <p className="text-[10px] text-text-dim">≈ {formatNumberVI(maxRiskAmount)} VND</p>
-          </div>
-          <div>
-            <p className="text-[9px] font-semibold uppercase tracking-widest text-text-muted mb-0.5">Còn Lại</p>
-            <p className="text-[20px] font-bold font-mono text-accent">
-              {formatNumberVI(Math.max(0, maxRiskAmount - totalRisk))}
-            </p>
-            <p className="text-[10px] text-text-dim">{(100 - riskUsagePct).toFixed(1)}% hạn mức</p>
-          </div>
-          <div>
-            <p className="text-[9px] font-semibold uppercase tracking-widest text-text-muted mb-0.5">Vị Thế Mở</p>
-            <p className="text-[20px] font-bold font-mono text-text-main">{openPositions.length}</p>
-            <p className="text-[10px] text-text-dim">đang hoạt động</p>
-          </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <StatCard
+            label="Tong Rui Ro"
+            value={formatNumberVI(totalRisk)}
+            suffix=" VND"
+            change={riskUsagePct < 50 ? -1 : riskUsagePct < 80 ? 0 : 1}
+            tooltip="Tong so tien co the mat neu tat ca stop loss bi kich hoat"
+            size="md"
+          />
+          <StatCard
+            label="Han Muc Rui Ro"
+            value={maxRiskPercent.toFixed(0)}
+            suffix="%"
+            tooltip="Phan tram von toi da duoc phep rui ro"
+            size="md"
+          />
+          <StatCard
+            label="Con Lai"
+            value={formatNumberVI(Math.max(0, maxRiskAmount - totalRisk))}
+            suffix=" VND"
+            tooltip="Ngan sach rui ro con lai co the su dung"
+            size="md"
+          />
+          <StatCard
+            label="Vi The Mo"
+            value={String(openPositions.length)}
+            tooltip="So vi the dang hoat dong"
+            size="md"
+          />
         </div>
 
         {/* Overall risk bar */}
@@ -437,8 +445,8 @@ export const RiskManagerView: React.FC<Props> = ({
             <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Phân Tích Rủi Ro Nâng Cao</span>
           </div>
 
-          {/* Tab bar */}
-          <div className="flex gap-0 border-b border-border-subtle px-4">
+          {/* Tab bar - scrollable on mobile */}
+          <div className="flex gap-0 border-b border-border-subtle px-4 overflow-x-auto whitespace-nowrap">
             {([
               { key: 'var', label: 'VaR' },
               { key: 'montecarlo', label: 'Monte Carlo' },
@@ -448,7 +456,7 @@ export const RiskManagerView: React.FC<Props> = ({
               <button
                 key={tab.key}
                 onClick={() => handleSimTabChange(tab.key)}
-                className={`px-3 py-2 text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+                className={`px-3 py-2 text-[10px] font-semibold uppercase tracking-wider transition-colors shrink-0 ${
                   riskSimTab === tab.key
                     ? 'text-accent border-b-2 border-accent -mb-px'
                     : 'text-text-muted hover:text-text-main'
@@ -463,6 +471,10 @@ export const RiskManagerView: React.FC<Props> = ({
             {/* ── VaR Tab ── */}
             {riskSimTab === 'var' && (
               <div className="space-y-4">
+                <InfoCard title="VaR la gi?" variant="info" defaultOpen={false}>
+                  <p>Value at Risk (<FinancialTooltip term="VaR" />) cho ban biet: "Voi 95% tin cay, danh muc cua ban se KHONG mat qua X dong trong 1 ngay."</p>
+                  <p className="mt-1 text-text-muted text-[11px]">Vi du: VaR = 5 trieu VND nghia la 95% kha nang ban khong mat qua 5 trieu trong 1 ngay giao dich.</p>
+                </InfoCard>
                 {!varResult ? (
                   <div className="flex items-center justify-center py-8 gap-2 text-text-dim text-[12px]">
                     <div className="w-3 h-3 border border-accent border-t-transparent rounded-full animate-spin" />
@@ -470,35 +482,23 @@ export const RiskManagerView: React.FC<Props> = ({
                   </div>
                 ) : (
                   <>
-                    {/* VaR summary card */}
-                    <div className="rounded-md p-4 border border-negative/30 bg-negative/5">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-2">
-                        Value at Risk (95% tin cậy)
-                      </p>
+                    {/* VaR summary */}
+                    <div className="space-y-3">
                       <p className="text-[14px] font-semibold text-negative leading-relaxed">
                         {varResult.portfolioVaR.summary ||
-                          `Với ${varResult.portfolioVaR.confidenceLevel ?? 95}% tin cậy, max loss 1 ngày là ${formatNumberVI(varResult.portfolioVaR.varVnd, { maximumFractionDigits: 0 })} VND (${varResult.portfolioVaR.varPercent?.toFixed(2) ?? 0}% portfolio)`}
+                          `Voi ${varResult.portfolioVaR.confidenceLevel ?? 95}% tin cay, max loss 1 ngay la ${formatNumberVI(varResult.portfolioVaR.varVnd, { maximumFractionDigits: 0 })} VND (${varResult.portfolioVaR.varPercent?.toFixed(2) ?? 0}% portfolio)`}
                       </p>
-                      <div className="mt-2 grid grid-cols-3 gap-3 text-[10px]">
-                        <div>
-                          <p className="text-text-muted">VaR (VND)</p>
-                          <p className="font-mono font-bold text-negative">{formatNumberVI(varResult.portfolioVaR.varVnd, { maximumFractionDigits: 0 })}</p>
-                        </div>
-                        <div>
-                          <p className="text-text-muted">VaR (%)</p>
-                          <p className="font-mono font-bold text-negative">{varResult.portfolioVaR.varPercent?.toFixed(2) ?? '0'}%</p>
-                        </div>
-                        <div>
-                          <p className="text-text-muted">Tin cậy</p>
-                          <p className="font-mono font-bold text-text-main">{varResult.portfolioVaR.confidenceLevel ?? 95}%</p>
-                        </div>
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                        <StatCard label="VaR 95% (1 ngay)" value={formatNumberVI(varResult.portfolioVaR.varVnd, { maximumFractionDigits: 0 })} suffix=" VND" size="md" tooltip="VaR" />
+                        <StatCard label="VaR (%)" value={varResult.portfolioVaR.varPercent?.toFixed(2) ?? '0'} suffix="%" size="md" />
+                        <StatCard label="Tin cay" value={String(varResult.portfolioVaR.confidenceLevel ?? 95)} suffix="%" size="md" />
                       </div>
                     </div>
 
                     {/* Per-position VaR table */}
                     {Array.isArray(varResult.positionVaRs) && varResult.positionVaRs.length > 0 && (
                       <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-2">VaR Theo Vị Thế</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-2"><FinancialTooltip term="VaR" /> Theo Vi The</p>
                         <table className="table-terminal w-full">
                           <thead>
                             <tr>
@@ -527,6 +527,10 @@ export const RiskManagerView: React.FC<Props> = ({
             {/* ── Monte Carlo Tab ── */}
             {riskSimTab === 'montecarlo' && (
               <div className="space-y-4">
+                <InfoCard title="Monte Carlo Simulation la gi?" variant="info" defaultOpen={false}>
+                  <p>He thong chay 1,000 kich ban ngau nhien dua tren du lieu lich su de du doan nhieu ket qua co the xay ra.</p>
+                  <p className="mt-1 text-text-muted text-[11px]">Giong nhu du bao thoi tiet: khong noi chinh xac ngay mai the nao, nhung cho biet pham vi kha nang.</p>
+                </InfoCard>
                 {simLoading && !mcResult ? (
                   <div className="flex items-center justify-center py-8 gap-2 text-text-dim text-[12px]">
                     <div className="w-3 h-3 border border-accent border-t-transparent rounded-full animate-spin" />
@@ -537,7 +541,7 @@ export const RiskManagerView: React.FC<Props> = ({
                 ) : (
                   <>
                     <div className="flex items-center justify-between">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Fan Chart 20 Ngày</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted"><FinancialTooltip term="Monte Carlo" /> Fan Chart 20 Ngay</p>
                       <p className="text-[11px] text-warning font-semibold">
                         Xác suất lỗ vốn: {mcResult.probabilityOfLoss?.toFixed(1) ?? 0}%
                       </p>
@@ -583,6 +587,10 @@ export const RiskManagerView: React.FC<Props> = ({
             {/* ── Stress Test Tab ── */}
             {riskSimTab === 'stress' && (
               <div className="space-y-4">
+                <InfoCard title="Stress Test la gi?" variant="warning" defaultOpen={false}>
+                  <p>Kiem tra: "Neu VNINDEX giam 10%, 15%, 20% thi danh muc cua ban bi anh huong the nao?"</p>
+                  <p className="mt-1 text-text-muted text-[11px]">Giup ban chuan bi tinh than va ke hoach cho truong hop xau nhat.</p>
+                </InfoCard>
                 {simLoading && !stressResult ? (
                   <div className="flex items-center justify-center py-8 gap-2 text-text-dim text-[12px]">
                     <div className="w-3 h-3 border border-accent border-t-transparent rounded-full animate-spin" />
@@ -619,7 +627,7 @@ export const RiskManagerView: React.FC<Props> = ({
                     {expandedScenarioIdx !== null && stressResult.scenarios[expandedScenarioIdx] && (
                       <div>
                         <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-2">
-                          Chi Tiết Kịch Bản {stressResult.scenarios[expandedScenarioIdx].dropPercent}%
+                          <FinancialTooltip term="Stress Test" /> - Kich Ban {stressResult.scenarios[expandedScenarioIdx].dropPercent}%
                         </p>
                         <table className="table-terminal w-full">
                           <thead>
@@ -676,6 +684,10 @@ export const RiskManagerView: React.FC<Props> = ({
             {/* ── Sector Tab ── */}
             {riskSimTab === 'sector' && (
               <div className="space-y-4">
+                <InfoCard title="Tai sao can da dang hoa nganh?" variant="tip" defaultOpen={false}>
+                  <p>Neu ban dau tu qua nhieu vao 1 nganh (vi du: 50% vao ngan hang), khi nganh do gap kho khan, toan bo danh muc chiu anh huong.</p>
+                  <p className="mt-1 text-text-muted text-[11px]">Quy tac: Khong qua 30-40% vao 1 nganh duy nhat.</p>
+                </InfoCard>
                 {!sectorResult ? (
                   <div className="flex items-center justify-center py-8 gap-2 text-text-dim text-[12px]">
                     <div className="w-3 h-3 border border-accent border-t-transparent rounded-full animate-spin" />
@@ -695,7 +707,7 @@ export const RiskManagerView: React.FC<Props> = ({
                       }));
                       return (
                         <>
-                          <div className="flex flex-col sm:flex-row gap-4 items-center">
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-center">
                             <ResponsiveContainer width={200} height={200}>
                               <PieChart>
                                 <Pie
@@ -740,7 +752,7 @@ export const RiskManagerView: React.FC<Props> = ({
                           {/* Warnings */}
                           {Array.isArray(sectorResult.warnings) && sectorResult.warnings.length > 0 && (
                             <div className="space-y-1.5">
-                              <p className="text-[10px] font-semibold text-warning uppercase tracking-wider">Cảnh Báo Tập Trung</p>
+                              <p className="text-[10px] font-semibold text-warning uppercase tracking-wider">Canh Bao <FinancialTooltip term="Sector Concentration" /></p>
                               {sectorResult.warnings.map((w, i) => (
                                 <div key={i} className="px-2.5 py-1.5 rounded bg-warning/5 border border-warning/20 text-[9px] text-warning/90 flex items-start gap-1.5">
                                   <span className="shrink-0">⚠</span><span>{w}</span>
