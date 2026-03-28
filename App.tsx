@@ -16,6 +16,7 @@ import { WatchlistView } from './components/WatchlistView';
 import { AiSignalsView } from './components/AiSignalsView';
 import { NotificationsView } from './components/NotificationsView';
 import { SettingsView } from './components/SettingsView';
+import { MobileBottomNav } from './components/ui/MobileBottomNav';
 import { PaperOrderManager } from './components/PaperOrderManager';
 import { PaperVirtualBalance } from './components/PaperVirtualBalance';
 // Heavy components — lazy loaded để giảm initial bundle size
@@ -3108,11 +3109,11 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
       />
       <ToastContainer toasts={toasts} onDismiss={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
 
-      <MobileNav currentView={currentView} onChangeView={setCurrentView} />
+      <MobileBottomNav currentView={currentView} onChangeView={setCurrentView} unreadNotifications={unreadNotifications} />
 
       {/* ── NEW FULL-SCREEN VIEWS (no padding) ── */}
       {(currentView === 'terminal') && (
-        <div className={`fixed top-0 bottom-0 right-0 transition-all duration-200 ${isSidebarOpen ? 'left-[220px]' : 'left-16'}`}>
+        <div className={`fixed top-0 bottom-0 right-0 left-0 transition-all duration-200 ${isSidebarOpen ? 'lg:left-[220px]' : 'lg:left-16'}`}>
           <TradingTerminal
             portfolioId={portfolio?.id ?? null}
             initialSymbol={selectedSymbol}
