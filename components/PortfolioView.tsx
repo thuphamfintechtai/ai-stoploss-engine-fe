@@ -5,6 +5,10 @@ import type { Position, Order, RealPosition } from '../services/api';
 import { PaperVirtualBalance } from './PaperVirtualBalance';
 import { PaperOrderManager } from './PaperOrderManager';
 import { PaperPerformanceReport } from './PaperPerformanceReport';
+import { StatCard } from './ui/StatCard';
+import { EmptyState } from './ui/EmptyState';
+import { FinancialTooltip } from './ui/Tooltip';
+import { SkeletonCard, SkeletonTable } from './ui/SkeletonLoader';
 import { formatNumberVI, PRICE_LOCALE, PRICE_FRACTION_OPTIONS, STOCK_PRICE_DISPLAY_SCALE } from '../constants';
 // Heavy components — lazy loaded để giảm initial bundle size
 const RiskManagerView = React.lazy(() => import('./RiskManagerView').then(m => ({ default: m.RiskManagerView })));
@@ -498,79 +502,86 @@ export const PortfolioView: React.FC<Props> = ({
 
       {activeTab === 'portfolio' && (<>
       {/* ── HEADER BAR ── */}
-      <div className="panel-section p-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
-            <div>
-              <p className="text-[9px] font-semibold uppercase tracking-widest text-text-muted mb-0.5">Tổng Vốn</p>
-              <p className="text-[18px] font-bold font-mono text-text-main">{formatNumberVI(totalBalance)}</p>
-              <p className="text-[10px] text-text-dim">VND</p>
-            </div>
-            <div>
-              <p className="text-[9px] font-semibold uppercase tracking-widest text-text-muted mb-0.5">P&L Mở</p>
-              <p className={`text-[18px] font-bold font-mono ${totalOpenPnl >= 0 ? 'text-positive' : 'text-negative'}`}>
-                {totalOpenPnl !== 0 ? (totalOpenPnl >= 0 ? '+' : '') + formatNumberVI(totalOpenPnl, { maximumFractionDigits: 0 }) : '—'}
-              </p>
-              <p className="text-[10px] text-text-dim">{openPositions.length} vị thế mở</p>
-            </div>
-            <div>
-              <p className="text-[9px] font-semibold uppercase tracking-widest text-text-muted mb-0.5">P&L Đã Chốt</p>
-              <p className={`text-[18px] font-bold font-mono ${(performance?.total_pnl_vnd ?? 0) >= 0 ? 'text-positive' : 'text-negative'}`}>
-                {perfLoading ? '...' : performance?.total_pnl_vnd != null
-                  ? (performance.total_pnl_vnd >= 0 ? '+' : '') + formatNumberVI(performance.total_pnl_vnd, { maximumFractionDigits: 0 })
-                  : (totalClosedPnl !== 0 ? (totalClosedPnl >= 0 ? '+' : '') + formatNumberVI(totalClosedPnl, { maximumFractionDigits: 0 }) : '—')}
-              </p>
-              <p className="text-[10px] text-text-dim">{performance?.total_trades ?? closedPositions.length} lệnh đã đóng</p>
-            </div>
-            <div>
-              <p className="text-[9px] font-semibold uppercase tracking-widest text-text-muted mb-0.5">Tỉ Lệ Thắng</p>
-              <p className={`text-[18px] font-bold font-mono ${(performance?.win_rate ?? winRate) >= 50 ? 'text-positive' : 'text-negative'}`}>
-                {perfLoading ? '...' : performance?.win_rate != null
-                  ? Number(performance.win_rate).toFixed(1) + '%'
-                  : closedPositions.length > 0 ? winRate.toFixed(1) + '%' : '—'}
-              </p>
-              <p className="text-[10px] text-text-dim">
-                {performance?.winning_trades ?? winCount}/{performance?.total_trades ?? closedPositions.length} lệnh
-              </p>
-            </div>
-            <div>
-              <p className="text-[9px] font-semibold uppercase tracking-widest text-text-muted mb-0.5">Profit Factor</p>
-              <p className={`text-[18px] font-bold font-mono ${
-                (performance?.profit_factor ?? 0) >= 1.5 ? 'text-positive' :
-                (performance?.profit_factor ?? 0) >= 1 ? 'text-warning' :
-                (performance?.profit_factor ?? 0) > 0 ? 'text-negative' : 'text-text-muted'
-              }`}>
-                {perfLoading ? '...' : (performance?.profit_factor ?? 0) > 0
-                  ? Number(performance!.profit_factor).toFixed(2)
-                  : '—'}
-              </p>
-              <p className="text-[10px] text-text-dim">
-                {(performance?.profit_factor ?? 0) >= 1.5 ? 'Xuất sắc' : (performance?.profit_factor ?? 0) >= 1.2 ? 'Tốt' : (performance?.profit_factor ?? 0) >= 1 ? 'Đạt' : (performance?.profit_factor ?? 0) > 0 ? 'Cần cải thiện' : '—'}
-              </p>
-            </div>
-            <div>
-              <p className="text-[9px] font-semibold uppercase tracking-widest text-text-muted mb-0.5">Hạn Mức Rủi Ro</p>
-              <p className="text-[20px] font-bold font-mono text-warning">{maxRiskPercent}%</p>
-              <p className="text-[10px] text-text-dim">≈ {formatNumberVI(maxRiskAmount)}</p>
-            </div>
+      {perfLoading ? (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard />
           </div>
-
-          <div className="flex gap-2">
+          <SkeletonTable rows={5} />
+        </div>
+      ) : (
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <StatCard
+            label="Tong Von"
+            value={formatNumberVI(totalBalance)}
+            suffix=" VND"
+            tooltip="Tong so von dau tu ban dau"
+            size="md"
+          />
+          <StatCard
+            label="P&L Mo"
+            value={totalOpenPnl !== 0 ? formatNumberVI(totalOpenPnl, { maximumFractionDigits: 0 }) : '0'}
+            change={totalOpenPnl}
+            suffix=" VND"
+            tooltip="Lai/lo chua hien thuc tu cac vi the dang mo"
+            size="md"
+          />
+          <StatCard
+            label="P&L Da Chot"
+            value={performance?.total_pnl_vnd != null
+              ? formatNumberVI(performance.total_pnl_vnd, { maximumFractionDigits: 0 })
+              : totalClosedPnl !== 0 ? formatNumberVI(totalClosedPnl, { maximumFractionDigits: 0 }) : '0'}
+            change={performance?.total_pnl_vnd ?? totalClosedPnl}
+            suffix=" VND"
+            tooltip="Lai/lo da hien thuc tu cac lenh da dong"
+            size="md"
+          />
+          <StatCard
+            label="Ti Le Thang"
+            value={performance?.win_rate != null
+              ? Number(performance.win_rate).toFixed(1)
+              : closedPositions.length > 0 ? winRate.toFixed(1) : '0'}
+            change={performance?.win_rate != null ? Number(performance.win_rate) - 50 : winRate - 50}
+            suffix="%"
+            tooltip="Ti le lenh co lai tren tong so lenh da dong"
+            size="md"
+          />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <StatCard
+            label="Profit Factor"
+            value={(performance?.profit_factor ?? 0) > 0
+              ? Number(performance!.profit_factor).toFixed(2)
+              : '0'}
+            change={(performance?.profit_factor ?? 0) > 0 ? (performance!.profit_factor >= 1 ? 1 : -1) : undefined}
+            tooltip="Ti so giua tong lai va tong lo. > 1.5 la xuat sac"
+            size="sm"
+          />
+          <StatCard
+            label="Han Muc Rui Ro"
+            value={maxRiskPercent.toFixed(0)}
+            suffix="%"
+            tooltip="Phan tram von toi da co the mat"
+            size="sm"
+          />
+          <div className="col-span-2 flex items-center justify-end gap-2">
             <button
               onClick={() => onNavigate('terminal')}
               className="px-4 py-2 rounded-md text-[12px] font-semibold bg-positive text-white hover:bg-green-600 transition-colors"
             >
-              + Đặt Lệnh Mới
+              + Dat Lenh Moi
             </button>
             <button
               onClick={onOpenSetup}
               className="px-4 py-2 rounded-md text-[12px] font-semibold border border-border-standard text-text-muted hover:text-text-main hover:bg-white/5 transition-colors"
             >
-              Cấu Hình
+              Cau Hinh
             </button>
           </div>
         </div>
       </div>
+      )}
 
       {/* ── ROW 2: Holdings + Equity Curve ── */}
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-3">
@@ -581,26 +592,28 @@ export const PortfolioView: React.FC<Props> = ({
           </div>
           <div className="flex-1 overflow-y-auto dense-scroll">
             {openPositions.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-text-dim">
-                <p className="text-[12px] mb-2">Không có vị thế nào đang mở</p>
-                <button onClick={() => onNavigate('terminal')} className="text-[11px] text-accent hover:underline">
-                  Đặt lệnh mới →
-                </button>
-              </div>
-            ) : (
+              <EmptyState
+                title="Chua co vi the nao"
+                description="Nhap lenh dau tien de bat dau theo doi danh muc cua ban."
+                actionLabel="Nhap Lenh Moi"
+                onAction={() => onNavigate('terminal')}
+              />
+            ) : (<>
+              {/* Desktop table */}
+              <div className="hidden lg:block">
               <table className="table-terminal w-full">
                 <thead>
                   <tr>
-                    <th className="text-left">Mã</th>
+                    <th className="text-left">Ma</th>
                     <th className="text-left">S/L</th>
-                    <th>Giá Vào</th>
-                    <th>Hiện Tại</th>
+                    <th>Gia Vao</th>
+                    <th>Hien Tai</th>
                     <th>KL</th>
-                    <th>P&L (VND)</th>
-                    <th>P&L (%)</th>
-                    <th>Stop Loss</th>
-                    <th>Take Profit</th>
-                    <th className="text-left">Hành Động</th>
+                    <th><FinancialTooltip term="P&L" /> (VND)</th>
+                    <th><FinancialTooltip term="P&L" /> (%)</th>
+                    <th><FinancialTooltip term="Stop Loss" /></th>
+                    <th><FinancialTooltip term="Take Profit" /></th>
+                    <th className="text-left">Hanh Dong</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -661,7 +674,61 @@ export const PortfolioView: React.FC<Props> = ({
                   })}
                 </tbody>
               </table>
-            )}
+              </div>
+              {/* Mobile cards */}
+              <div className="lg:hidden space-y-2">
+                {openPositions.map((pos) => {
+                  const entry = Number(pos.entry_price ?? 0);
+                  const current = Number((pos as any).current_price ?? pos.entry_price ?? 0);
+                  const qty = Number(pos.quantity ?? 0);
+                  const isShort = (pos.side ?? 'LONG').toUpperCase() === 'SHORT';
+                  const pnl = isShort ? (entry - current) * qty : (current - entry) * qty;
+                  const sl = Number((pos as any).stop_loss ?? 0);
+                  const tp = Number((pos as any).take_profit ?? 0);
+                  return (
+                    <div key={pos.id} className="card-flat p-3 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-text-main text-[13px]">{pos.symbol}</span>
+                          <span className={`text-[9px] font-bold px-1 rounded ${isShort ? 'text-negative bg-negative/10' : 'text-positive bg-positive/10'}`}>
+                            {isShort ? 'SHORT' : 'LONG'}
+                          </span>
+                        </div>
+                        <span className={`text-[13px] font-bold font-mono ${pnl >= 0 ? 'text-positive' : 'text-negative'}`}>
+                          {pnl !== 0 ? (pnl >= 0 ? '+' : '') + formatNumberVI(pnl, { maximumFractionDigits: 0 }) : '0'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-[10px] text-text-muted">
+                        <div>Vao: <span className="text-text-main font-mono">{entry > 0 ? toPoint(entry / 1000).toFixed(2) : '-'}</span></div>
+                        <div>HT: <span className="text-text-main font-mono">{current > 0 ? toPoint(current / 1000).toFixed(2) : '-'}</span></div>
+                        <div>KL: <span className="text-text-main font-mono">{qty > 0 ? formatNumberVI(qty, { maximumFractionDigits: 0 }) : '-'}</span></div>
+                      </div>
+                      <div className="flex gap-3 text-[10px]">
+                        {sl > 0 && <span className="text-negative">SL: {toPoint(sl / 1000).toFixed(2)}</span>}
+                        {tp > 0 && <span className="text-positive">TP: {toPoint(tp / 1000).toFixed(2)}</span>}
+                      </div>
+                      <div className="flex gap-1 pt-1">
+                        <button
+                          onClick={() => {
+                            setEditMsg('');
+                            setEditModal({
+                              pos,
+                              stopLoss: sl > 0 ? toPoint(sl / 1000).toFixed(2) : '',
+                              takeProfit: tp > 0 ? toPoint(tp / 1000).toFixed(2) : '',
+                            });
+                          }}
+                          className="px-2 py-1 rounded text-[10px] font-bold bg-accent/15 text-accent hover:bg-accent/30 transition-colors"
+                        >Sua SL/TP</button>
+                        <button
+                          onClick={() => { setCloseMsg(''); setCloseModal({ pos, reason: 'CLOSED_MANUAL' }); }}
+                          className="px-2 py-1 rounded text-[10px] font-bold bg-negative/15 text-negative hover:bg-negative/30 transition-colors"
+                        >Dong</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>)}
           </div>
         </div>
 
@@ -732,7 +799,7 @@ export const PortfolioView: React.FC<Props> = ({
         </div>
         <div className="overflow-x-auto">
           {loadingClosed ? (
-            <div className="text-center py-6 text-text-muted text-[12px]">Đang tải...</div>
+            <div className="p-3"><SkeletonTable rows={3} /></div>
           ) : closedPositions.length === 0 ? (
             <div className="text-center py-8 text-text-muted text-[12px]">Chưa có lệnh đóng nào</div>
           ) : (
@@ -744,9 +811,9 @@ export const PortfolioView: React.FC<Props> = ({
                   <th>Giá Vào</th>
                   <th>Giá Đóng</th>
                   <th>KL</th>
-                  <th>P&L (VND)</th>
-                  <th>P&L (%)</th>
-                  <th className="text-left">Lý Do</th>
+                  <th><FinancialTooltip term="P&L" /> (VND)</th>
+                  <th><FinancialTooltip term="P&L" /> (%)</th>
+                  <th className="text-left">Ly Do</th>
                 </tr>
               </thead>
               <tbody>
