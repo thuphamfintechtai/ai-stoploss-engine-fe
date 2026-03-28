@@ -17,6 +17,7 @@ import { AiSignalsView } from './components/AiSignalsView';
 import { NotificationsView } from './components/NotificationsView';
 import { SettingsView } from './components/SettingsView';
 import { MobileBottomNav } from './components/ui/MobileBottomNav';
+import { OnboardingWizard } from './components/OnboardingWizard';
 import { PaperOrderManager } from './components/PaperOrderManager';
 import { PaperVirtualBalance } from './components/PaperVirtualBalance';
 // Heavy components — lazy loaded để giảm initial bundle size
@@ -2434,6 +2435,16 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [wsDisconnected, setWsDisconnected] = useState(false);
 
+  // Onboarding wizard — show once for new users
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    return !localStorage.getItem('tradeguard_onboarding_complete');
+  });
+
+  const handleOnboardingComplete = () => {
+    localStorage.setItem('tradeguard_onboarding_complete', 'true');
+    setShowOnboarding(false);
+  };
+
   // Core State
   const [portfolio, setPortfolio] = useState<any>(null);
   const [totalBalance, setTotalBalance] = useState(0);
@@ -4216,6 +4227,14 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Onboarding wizard — first login only */}
+      {showOnboarding && (
+        <OnboardingWizard
+          onComplete={handleOnboardingComplete}
+          onNavigate={setCurrentView}
+        />
       )}
 
     </div>
