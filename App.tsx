@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar, ComposedChart } from 'recharts';
 import { createChart, ColorType, CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
 import { TraderProfile, AiAnalysis } from './types';
@@ -1646,6 +1645,11 @@ const ChartModal = ({ isOpen, onClose, symbol, exchange, data, loading, stocks, 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => !!localStorage.getItem('auth_token'));
 
+  const handleLogout = useCallback(async () => {
+    await authApi.logout();
+    setIsAuthenticated(false);
+  }, []);
+
   useEffect(() => {
     const handler = () => setIsAuthenticated(false);
     window.addEventListener('auth:logout', handler);
@@ -1655,11 +1659,6 @@ function App() {
   if (!isAuthenticated) {
     return <AuthView onSuccess={() => setIsAuthenticated(true)} />;
   }
-
-  const handleLogout = async () => {
-    await authApi.logout();
-    setIsAuthenticated(false);
-  };
 
   return (
     <AppErrorBoundary onReset={handleLogout}>
