@@ -74,7 +74,6 @@ const CandlestickChartLW = ({ data, loading }: { data: any[], loading: boolean }
       return;
     }
 
-    console.log('CandlestickChartLW: Creating chart...');
     const isLight = () => document.documentElement.getAttribute('data-theme') === 'light';
     const chartColors = (light: boolean) => light
       ? { bg: '#FFFFFF', text: '#334155', grid: 'rgba(0,0,0,0.06)', border: 'rgba(0,0,0,0.10)' }
@@ -103,7 +102,6 @@ const CandlestickChartLW = ({ data, loading }: { data: any[], loading: boolean }
       },
     });
 
-    console.log('CandlestickChartLW: Chart created, adding series...');
     const candlestickSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#22C55E',
       downColor: '#EF4444',
@@ -115,7 +113,6 @@ const CandlestickChartLW = ({ data, loading }: { data: any[], loading: boolean }
     // Assign to refs for external access (drawing tools)
     chartRef.current = chart;
     seriesRef.current = candlestickSeries;
-    console.log('Chart and series refs assigned');
 
     // Add volume histogram
     const volumeSeries = chart.addSeries(HistogramSeries, {
@@ -153,7 +150,6 @@ const CandlestickChartLW = ({ data, loading }: { data: any[], loading: boolean }
     volumeSeriesRef.current = volumeSeries;
     ma20SeriesRef.current = ma20Series;
     ma50SeriesRef.current = ma50Series;
-    console.log('CandlestickChartLW: Chart initialized successfully!', { chart, series: candlestickSeries, volume: volumeSeries });
 
     // Responsive resize
     const handleResize = () => {
@@ -188,7 +184,6 @@ const CandlestickChartLW = ({ data, loading }: { data: any[], loading: boolean }
   // Effect 2: Update data when changed
   useEffect(() => {
     if (!seriesRef.current || !data || data.length === 0) {
-      console.log('CandlestickChartLW: Skipping data update', { hasRef: !!seriesRef.current, dataLength: data?.length });
       return;
     }
 
@@ -424,14 +419,10 @@ const TradingModal = ({ isOpen, onClose, symbol, exchange, data, loading, onTime
         marketApi.getOrderBook(symbol)
       ])
         .then(([matchingRes, orderBookRes]) => {
-          console.log('🔍 MATCHING RESPONSE:', matchingRes.data);
-          console.log('🔍 ORDER BOOK RESPONSE:', orderBookRes.data);
           if (matchingRes.data.success) {
-            console.log('matchingHistory:', matchingRes.data.data);
             setMatchingHistory(matchingRes.data.data);
           }
           if (orderBookRes.data.success) {
-            console.log('orderBook:', orderBookRes.data.data);
             setOrderBook(orderBookRes.data.data);
           }
         })
@@ -2932,7 +2923,6 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
     }
 
     wsService.onRiskUpdate((data) => {
-      console.log('Risk update:', data);
       if (portfolio) {
         loadData();
       }
