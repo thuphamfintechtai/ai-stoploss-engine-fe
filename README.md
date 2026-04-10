@@ -1,11 +1,11 @@
 # TradeGuard AI - Frontend
 
-Giao dien web cho he thong ho tro dung lo va chot loi nhuan tang cuong AI, phuc vu nha dau tu chung khoan Viet Nam.
+Giao diện web cho hệ thống hỗ trợ dừng lỗ và chốt lợi nhuận tăng cường AI, phục vụ nhà đầu tư chứng khoán Việt Nam.
 
-Ung dung cung cap giao dien giao dich, quan ly danh muc, phan tich rui ro va tin hieu AI. Ho tro ca giao dich that (Portfolio Management) va giao dich mo phong (Paper Trading).
+Ứng dụng cung cấp giao diện giao dịch, quản lý danh mục, phân tích rủi ro và tín hiệu AI. Hỗ trợ cả giao dịch thật (Portfolio Management) và giao dịch mô phỏng (Paper Trading).
 
 
-## Cong nghe
+## Công nghệ
 
 - **Framework:** React 19
 - **Language:** TypeScript
@@ -17,103 +17,103 @@ Ung dung cung cap giao dien giao dich, quan ly danh muc, phan tich rui ro va tin
 - **HTTP:** Axios
 
 
-## Cau truc thu muc
+## Cấu trúc thư mục
 
 ```
 ai-stoploss-engine-fe/
 ├── index.html                  # HTML entry point
 ├── index.tsx                   # React DOM render
 ├── index.css                   # Global styles, Tailwind config
-├── App.tsx                     # Component chinh, routing, state management
+├── App.tsx                     # Component chính, routing, state management
 ├── types.ts                    # TypeScript type definitions
-├── constants.ts                # Hang so ung dung (colors, config)
+├── constants.ts                # Hằng số ứng dụng (colors, config)
 ├── services/
-│   ├── api.ts                  # HTTP client - tat ca API calls
-│   ├── websocket.ts            # WebSocket client - du lieu real-time
+│   ├── api.ts                  # HTTP client - tất cả API calls
+│   ├── websocket.ts            # WebSocket client - dữ liệu real-time
 │   └── geminiService.ts        # Google Gemini AI client
 ├── utils/
-│   └── vnStockRules.ts         # Quy tac chung khoan VN (buoc gia, bien do)
+│   └── vnStockRules.ts         # Quy tắc chứng khoán VN (bước giá, biên độ)
 ├── chart-plugins/
 │   ├── plugin-base.ts          # Base class cho chart plugin
-│   ├── rectangle-drawing-tool.ts # Cong cu ve hinh chu nhat tren chart
+│   ├── rectangle-drawing-tool.ts # Công cụ vẽ hình chữ nhật trên chart
 │   ├── index.ts                # Exports
-│   └── helpers/                # Tinh toan kich thuoc, vi tri
+│   └── helpers/                # Tính toán kích thước, vị trí
 ├── components/
-│   ├── ui/                     # UI primitives (dung lai duoc)
-│   │   ├── Tooltip.tsx             # Tooltip tai chinh
-│   │   ├── InfoCard.tsx            # The thong tin
-│   │   ├── StatCard.tsx            # The so lieu thong ke
-│   │   ├── EmptyState.tsx          # Trang thai rong
+│   ├── ui/                     # UI primitives (dùng lại được)
+│   │   ├── Tooltip.tsx             # Tooltip tài chính
+│   │   ├── InfoCard.tsx            # Thẻ thông tin
+│   │   ├── StatCard.tsx            # Thẻ số liệu thống kê
+│   │   ├── EmptyState.tsx          # Trạng thái rỗng
 │   │   ├── SkeletonLoader.tsx      # Loading skeleton
 │   │   └── MobileBottomNav.tsx     # Navigation mobile
-│   ├── AuthView.tsx            # Dang nhap, dang ky
-│   ├── Sidebar.tsx             # Thanh dieu huong chinh
-│   ├── HomeView.tsx            # Trang chu tong quan
-│   ├── DashboardView.tsx       # Dashboard - thong ke, AI insights
-│   ├── TradingTerminal.tsx     # Giao dien giao dich chinh
-│   ├── PortfolioView.tsx       # Quan ly danh muc dau tu
-│   ├── RiskManagerView.tsx     # Phan tich rui ro (VaR, Monte Carlo, Stress Test)
-│   ├── WatchlistView.tsx       # Danh sach theo doi co phieu
-│   ├── AiSignalsView.tsx       # Tin hieu giao dich tu AI
-│   ├── AiMonitorPanel.tsx      # Bang giam sat AI
-│   ├── NotificationsView.tsx   # Thong bao
-│   ├── MarketNewsView.tsx      # Tin tuc thi truong
-│   ├── SettingsView.tsx        # Cai dat nguoi dung
-│   ├── OnboardingWizard.tsx    # Huong dan 3 buoc cho nguoi moi
-│   ├── TraderCard.tsx          # The thong tin trader
-│   ├── RiskProgressBar.tsx     # Thanh tien trinh rui ro
-│   ├── AppErrorBoundary.tsx    # Xu ly loi React
-│   ├── PaperVirtualBalance.tsx # So du paper trading
-│   ├── PaperOrderManager.tsx   # Quan ly lenh paper
-│   ├── PaperPerformanceReport.tsx # Bao cao hieu suat paper
+│   ├── AuthView.tsx            # Đăng nhập, đăng ký
+│   ├── Sidebar.tsx             # Thanh điều hướng chính
+│   ├── HomeView.tsx            # Trang chủ tổng quan
+│   ├── DashboardView.tsx       # Dashboard - thống kê, AI insights
+│   ├── TradingTerminal.tsx     # Giao diện giao dịch chính
+│   ├── PortfolioView.tsx       # Quản lý danh mục đầu tư
+│   ├── RiskManagerView.tsx     # Phân tích rủi ro (VaR, Monte Carlo, Stress Test)
+│   ├── WatchlistView.tsx       # Danh sách theo dõi cổ phiếu
+│   ├── AiSignalsView.tsx       # Tín hiệu giao dịch từ AI
+│   ├── AiMonitorPanel.tsx      # Bảng giám sát AI
+│   ├── NotificationsView.tsx   # Thông báo
+│   ├── MarketNewsView.tsx      # Tin tức thị trường
+│   ├── SettingsView.tsx        # Cài đặt người dùng
+│   ├── OnboardingWizard.tsx    # Hướng dẫn 3 bước cho người mới
+│   ├── TraderCard.tsx          # Thẻ thông tin trader
+│   ├── RiskProgressBar.tsx     # Thanh tiến trình rủi ro
+│   ├── AppErrorBoundary.tsx    # Xử lý lỗi React
+│   ├── PaperVirtualBalance.tsx # Số dư paper trading
+│   ├── PaperOrderManager.tsx   # Quản lý lệnh paper
+│   ├── PaperPerformanceReport.tsx # Báo cáo hiệu suất paper
 │   ├── charts/
-│   │   └── CandlestickChart.tsx # Bieu do nen (OHLCV)
-│   └── portfolio/              # Cac component danh muc
-│       ├── PortfolioHeroCard.tsx   # Tong quan danh muc
-│       ├── PortfolioSummaryCard.tsx # Tom tat tai san
-│       ├── CashBalanceCard.tsx     # So du tien mat
-│       ├── RealPositionsTable.tsx  # Bang vi the
-│       ├── RealOrderForm.tsx       # Form dat lenh
-│       ├── ClosePositionModal.tsx  # Modal dong vi the
-│       └── TransactionHistory.tsx  # Lich su giao dich
+│   │   └── CandlestickChart.tsx # Biểu đồ nến (OHLCV)
+│   └── portfolio/              # Các component danh mục
+│       ├── PortfolioHeroCard.tsx   # Tổng quan danh mục
+│       ├── PortfolioSummaryCard.tsx # Tóm tắt tài sản
+│       ├── CashBalanceCard.tsx     # Số dư tiền mặt
+│       ├── RealPositionsTable.tsx  # Bảng vị thế
+│       ├── RealOrderForm.tsx       # Form đặt lệnh
+│       ├── ClosePositionModal.tsx  # Modal đóng vị thế
+│       └── TransactionHistory.tsx  # Lịch sử giao dịch
 └── public/
     ├── favicon.svg
     └── logo.png
 ```
 
 
-## Cai dat
+## Cài đặt
 
-### Yeu cau
+### Yêu cầu
 
 - Node.js v18+
 
-### Cac buoc
+### Các bước
 
-1. Cai dat dependencies:
+1. Cài đặt dependencies:
 
 ```bash
 npm install
 ```
 
-2. Cau hinh bien moi truong (tuy chon):
+2. Cấu hình biến môi trường (tùy chọn):
 
-Tao file `.env.local`:
+Tạo file `.env.local`:
 
 ```
 VITE_API_URL=http://localhost:3000
 VITE_GEMINI_API_KEY=your-gemini-api-key
 ```
 
-Neu khong tao file nay, ung dung se dung gia tri mac dinh ket noi den `localhost:3000`.
+Nếu không tạo file này, ứng dụng sẽ dùng giá trị mặc định kết nối đến `localhost:3000`.
 
-3. Khoi dong:
+3. Khởi động:
 
 ```bash
 npm run dev
 ```
 
-Ung dung chay tai `http://localhost:5173`.
+Ứng dụng chạy tại `http://localhost:5173`.
 
 
 ## Build Production
@@ -122,82 +122,82 @@ Ung dung chay tai `http://localhost:5173`.
 npm run build
 ```
 
-Output nam trong thu muc `dist/`, co the deploy len bat ky static hosting nao (Vercel, Netlify, Nginx, ...).
+Output nằm trong thư mục `dist/`, có thể deploy lên bất kỳ static hosting nào (Vercel, Netlify, Nginx, ...).
 
 ```bash
-# Xem truoc ban build
+# Xem trước bản build
 npm run preview
 ```
 
 
-## Cac man hinh chinh
+## Các màn hình chính
 
 ### Authentication
-- Dang nhap va dang ky tai khoan.
-- Luu JWT token trong localStorage.
+- Đăng nhập và đăng ký tài khoản.
+- Lưu JWT token trong localStorage.
 
 ### Dashboard
-- Tong quan tai san, loi/lo, phan bo danh muc.
-- Tin hieu AI moi nhat, hanh dong nhanh.
-- Widget thi truong real-time.
+- Tổng quan tài sản, lời/lỗ, phân bổ danh mục.
+- Tín hiệu AI mới nhất, hành động nhanh.
+- Widget thị trường real-time.
 
 ### Trading Terminal
-- Giao dien giao dich voi bieu do nen (candlestick).
-- Dat lenh mua/ban (paper va that).
-- Cong cu ve ky thuat tren chart.
-- Toggle che do nang cao / don gian.
+- Giao diện giao dịch với biểu đồ nến (candlestick).
+- Đặt lệnh mua/bán (paper và thật).
+- Công cụ vẽ kỹ thuật trên chart.
+- Toggle chế độ nâng cao / đơn giản.
 
 ### Portfolio Management
-- Quan ly danh muc dau tu that.
-- Bang vi the, form dat lenh, lich su giao dich.
-- Dong vi the, tinh phi, loi/lo.
-- So du tien mat va quan ly von.
+- Quản lý danh mục đầu tư thật.
+- Bảng vị thế, form đặt lệnh, lịch sử giao dịch.
+- Đóng vị thế, tính phí, lời/lỗ.
+- Số dư tiền mặt và quản lý vốn.
 
 ### Paper Trading
-- Mo phong giao dich voi so du ao.
-- Dat lenh, theo doi khop lenh, bao cao hieu suat.
-- Khong anh huong tai san that.
+- Mô phỏng giao dịch với số dư ảo.
+- Đặt lệnh, theo dõi khớp lệnh, báo cáo hiệu suất.
+- Không ảnh hưởng tài sản thật.
 
 ### Risk Manager
-- Value at Risk (VaR) - do rui ro toi da.
-- Monte Carlo Simulation - mo phong ngau nhien.
-- Stress Test - kiem tra chiu dung thi truong cuc doan.
-- Phan tich tap trung nganh.
+- Value at Risk (VaR) - đo rủi ro tối đa.
+- Monte Carlo Simulation - mô phỏng ngẫu nhiên.
+- Stress Test - kiểm tra chịu đựng thị trường cực đoan.
+- Phân tích tập trung ngành.
 
 ### AI Signals
-- Tin hieu giao dich tu Google Gemini.
-- Khuyen nghi stop loss, take profit.
-- Phan tich vi the hien tai.
+- Tín hiệu giao dịch từ Google Gemini.
+- Khuyến nghị stop loss, take profit.
+- Phân tích vị thế hiện tại.
 
 ### Watchlist
-- Theo doi gia co phieu real-time.
-- Dat canh bao gia.
+- Theo dõi giá cổ phiếu real-time.
+- Đặt cảnh báo giá.
 
 ### Settings
-- Cai dat nguoi dung, thong so rui ro.
-- Cau hinh AI va thong bao.
+- Cài đặt người dùng, thông số rủi ro.
+- Cấu hình AI và thông báo.
 
 
-## Ket noi Backend
+## Kết nối Backend
 
-Frontend ket noi voi backend qua:
+Frontend kết nối với backend qua:
 
-- **REST API** (Axios) - tat ca thao tac CRUD, phan tich AI.
-- **WebSocket** (Socket.IO) - nhan cap nhat gia, trang thai vi the, thong bao real-time.
+- **REST API** (Axios) - tất cả thao tác CRUD, phân tích AI.
+- **WebSocket** (Socket.IO) - nhận cập nhật giá, trạng thái vị thế, thông báo real-time.
 
-Mac dinh ket noi den `http://localhost:3000`. Thay doi bang bien moi truong `VITE_API_URL`.
+Mặc định kết nối đến `http://localhost:3000`. Thay đổi bằng biến môi trường `VITE_API_URL`.
 
 
 ## Responsive
 
-Ung dung ho tro responsive:
-- Desktop: sidebar navigation, layout nhieu cot.
-- Mobile: bottom navigation, layout 1 cot, card thu gon.
+Ứng dụng hỗ trợ responsive:
+- Desktop: sidebar navigation, layout nhiều cột.
+- Mobile: bottom navigation, layout 1 cột, card thu gọn.
 
 
-## Ghi chu
+## Ghi chú
 
-- Gia tri tien te hien thi theo dinh dang VND (dau phay phan cach hang nghin).
-- Bieu do su dung Lightweight Charts (TradingView open-source).
-- Ung dung ho tro dark theme.
-- Onboarding wizard huong dan nguoi moi 3 buoc co ban.
+- Giá trị tiền tệ hiển thị theo định dạng VND (dấu phẩy phân cách hàng nghìn).
+- Biểu đồ sử dụng Lightweight Charts (TradingView open-source).
+- Ứng dụng hỗ trợ dark theme.
+- Onboarding wizard hướng dẫn người mới 3 bước cơ bản.
