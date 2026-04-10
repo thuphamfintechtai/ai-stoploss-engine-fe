@@ -146,7 +146,7 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
 
   useEffect(() => {
     // Lắng nghe price_update để cập nhật quotes realtime
-    wsService.onPriceUpdate((data: any) => {
+    const priceHandler = (data: any) => {
       if (!data?.symbol) return;
       const priceDisplay = data.price != null ? parseFloat(data.price) : null;
       if (priceDisplay == null) return;
@@ -165,21 +165,23 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
           },
         };
       });
-    });
+    };
 
     // Lắng nghe notifications mới từ WS
-    wsService.onNotification((notif: any) => {
+    const notifHandler = (notif: any) => {
       if (notif?.type === 'PRICE_ALERT') {
         setNotifications((prev) => [notif, ...prev.slice(0, 19)]);
         setUnreadCount((c) => c + 1);
-        // Reload alerts để cập nhật trạng thái triggered
         loadAlerts();
       }
-    });
+    };
+
+    wsService.onPriceUpdate(priceHandler);
+    wsService.onNotification(notifHandler);
 
     return () => {
-      wsService.off('price_update');
-      wsService.off('notification');
+      wsService.off('price_update', priceHandler);
+      wsService.off('notification', notifHandler);
     };
   }, [loadAlerts]);
 
