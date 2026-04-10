@@ -141,10 +141,12 @@ export const RiskManagerView: React.FC<Props> = ({
       const riskVnd = getPositionRiskVnd(pos);
       const riskPct = totalBalance > 0 ? (riskVnd / totalBalance) * 100 : 0;
       const entry = Number(pos.entry_price ?? 0);
-      const current = Number((pos as any).current_price ?? pos.entry_price ?? 0);
+      const rawCurrent = (pos as any).current_price != null ? Number((pos as any).current_price) : null;
+      const current = rawCurrent != null && Number.isFinite(rawCurrent) && rawCurrent > 0 ? rawCurrent : entry;
       const qty = Number(pos.quantity ?? 0);
       const sl = Number((pos as any).stop_loss ?? 0);
-      const pnl = (current - entry) * qty;
+      const hasCurrent = rawCurrent != null && rawCurrent > 0;
+      const pnl = hasCurrent ? (current - entry) * qty : null;
       const slDistance = entry > 0 && sl > 0 ? ((entry - sl) / entry) * 100 : 0;
       return { ...pos, riskVnd, riskPct, pnl, slDistance };
     }).sort((a, b) => b.riskPct - a.riskPct);
@@ -224,8 +226,8 @@ export const RiskManagerView: React.FC<Props> = ({
                         <span className="text-[9px] text-text-muted">{pos.exchange}</span>
                       </div>
                       <div className="flex items-center gap-3 text-[10px] font-mono">
-                        <span className={pos.pnl >= 0 ? 'text-positive' : 'text-negative'}>
-                          {pos.pnl !== 0 ? (pos.pnl >= 0 ? '+' : '') + formatNumberVI(pos.pnl, { maximumFractionDigits: 0 }) : '—'}
+                        <span className={pos.pnl != null && pos.pnl >= 0 ? 'text-positive' : pos.pnl != null ? 'text-negative' : 'text-text-muted'}>
+                          {pos.pnl != null ? (pos.pnl >= 0 ? '+' : '') + formatNumberVI(pos.pnl, { maximumFractionDigits: 0 }) : '—'}
                         </span>
                         <span className={pos.riskPct < 2 ? 'text-positive' : pos.riskPct < 4 ? 'text-warning' : 'text-negative'}>
                           {pos.riskPct.toFixed(2)}%
@@ -412,8 +414,8 @@ export const RiskManagerView: React.FC<Props> = ({
                       <td className="text-negative">
                         {pos.slDistance > 0 ? '-' + pos.slDistance.toFixed(2) + '%' : '—'}
                       </td>
-                      <td className={pos.pnl >= 0 ? 'text-positive' : 'text-negative'}>
-                        {pos.pnl !== 0 ? (pos.pnl >= 0 ? '+' : '') + formatNumberVI(pos.pnl, { maximumFractionDigits: 0 }) : '—'}
+                      <td className={pos.pnl != null && pos.pnl >= 0 ? 'text-positive' : pos.pnl != null ? 'text-negative' : 'text-text-muted'}>
+                        {pos.pnl != null ? (pos.pnl >= 0 ? '+' : '') + formatNumberVI(pos.pnl, { maximumFractionDigits: 0 }) : '—'}
                       </td>
                     </tr>
                   );
