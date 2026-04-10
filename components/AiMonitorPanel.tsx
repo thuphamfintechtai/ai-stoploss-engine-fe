@@ -330,12 +330,10 @@ export const AiMonitorPanel: React.FC<Props> = ({ portfolioId, openPositions, on
     dynamicSLRef.current = handler;
     wsService.off('DYNAMIC_SL_UPDATE');
     wsService.off('dynamic_sl_update');
-    // Listen cả 2 event name (uppercase và lowercase)
-    (wsService as any).socket?.on('DYNAMIC_SL_UPDATE', handler);
-    (wsService as any).socket?.on('dynamic_sl_update', handler);
+    wsService.onDynamicSLUpdate(handler);
     return () => {
-      (wsService as any).socket?.off('DYNAMIC_SL_UPDATE', handler);
-      (wsService as any).socket?.off('dynamic_sl_update', handler);
+      wsService.off('DYNAMIC_SL_UPDATE', handler);
+      wsService.off('dynamic_sl_update', handler);
     };
   }, []);
 

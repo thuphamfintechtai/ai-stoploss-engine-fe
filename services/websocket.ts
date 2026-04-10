@@ -156,6 +156,23 @@ class WebSocketService {
   }
 
   /**
+   * Listen to dynamic SL updates (cả uppercase và lowercase event)
+   */
+  onDynamicSLUpdate(callback: (data: any) => void) {
+    if (!this.socket) return;
+    this.socket.on('DYNAMIC_SL_UPDATE', callback);
+    this.socket.on('dynamic_sl_update', callback);
+  }
+
+  /**
+   * Generic on listener
+   */
+  on(event: string, callback: (...args: any[]) => void) {
+    if (!this.socket) return;
+    this.socket.on(event, callback);
+  }
+
+  /**
    * Remove listener for an event. If callback provided, removes only that listener.
    */
   off(event: string, callback?: (...args: any[]) => void) {
