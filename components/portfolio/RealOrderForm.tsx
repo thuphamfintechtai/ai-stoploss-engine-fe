@@ -34,7 +34,7 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
   const totalValue = qty * price;
 
   const buyFeeRate = 0.0015;
-  const sellFeeRate = 0.0025;
+  const sellFeeRate = 0.0015;
   const fee = side === 'BUY' ? totalValue * buyFeeRate : totalValue * sellFeeRate;
 
   const remainingCash =

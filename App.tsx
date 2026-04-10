@@ -71,9 +71,7 @@ const CandlestickChartLW = ({ data, loading }: { data: any[], loading: boolean }
 
   // Effect 1: Initialize chart on mount
   useEffect(() => {
-    console.log('CandlestickChartLW: Initializing chart, container:', chartContainerRef.current);
     if (!chartContainerRef.current) {
-      console.error('CandlestickChartLW: Container ref is null!');
       return;
     }
 
@@ -196,13 +194,14 @@ const CandlestickChartLW = ({ data, loading }: { data: any[], loading: boolean }
     }
 
     // Transform data: { time: '12/2/2026', ... } → { time: '2026-02-12', ... }
-    console.log('CandlestickChartLW: Raw data sample:', data[0]);
+    // Raw data transform
     const transformed = data.map(d => ({
       time: convertToLightweightTime(d.time),
       open: d.open,
       high: d.high,
       low: d.low,
       close: d.close,
+      volume: d.volume || 0,
     }));
 
     // Remove duplicates and sort ascending by time
@@ -219,19 +218,17 @@ const CandlestickChartLW = ({ data, loading }: { data: any[], loading: boolean }
       return timeA - timeB; // Ascending order
     });
 
-    console.log('CandlestickChartLW: Transformed data sample:', sortedData[0]);
-    console.log('CandlestickChartLW: All transformed times:', sortedData.map(d => d.time));
-    console.log('CandlestickChartLW: Setting data, count:', sortedData.length);
+    // Set chart data
 
     // Set candlestick data
     seriesRef.current.setData(sortedData);
 
     // Set volume data (with colors based on price direction)
     if (volumeSeriesRef.current) {
-      const volumeData = sortedData.map((d, i) => ({
+      const volumeData = sortedData.map((d: any) => ({
         time: d.time,
-        value: data[i]?.volume || 0,
-        color: d.close >= d.open ? '#22C55E80' : '#EF444480', // Green/Red with transparency
+        value: d.volume || 0,
+        color: d.close >= d.open ? '#22C55E80' : '#EF444480',
       }));
       volumeSeriesRef.current.setData(volumeData);
     }

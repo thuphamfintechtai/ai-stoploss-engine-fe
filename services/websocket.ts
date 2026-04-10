@@ -62,6 +62,9 @@ class WebSocketService {
       }
       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
         this.socket?.removeAllListeners();
+        this.socket?.disconnect();
+        this.socket = null;
+        this.reconnectAttempts = 0;
         // Dispatch event để App hiện banner "Mất kết nối"
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('ws:disconnected'));
@@ -162,6 +165,16 @@ class WebSocketService {
     } else {
       this.socket.off(event);
     }
+  }
+
+  /**
+   * Reconnect - dọn dẹp kết nối cũ và kết nối lại
+   */
+  reconnect() {
+    this.disconnect();
+    this.reconnectAttempts = 0;
+    this.hasLoggedConnectionRefused = false;
+    this.connect();
   }
 
   /**

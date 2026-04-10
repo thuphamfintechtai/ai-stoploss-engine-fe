@@ -154,13 +154,13 @@ function RecommendationList({
                       </p>
                     </div>
                   )}
-                  {(rec.new_stop_loss || rec.new_take_profit) && (
+                  {(rec.new_stop_loss != null || rec.new_take_profit != null) && (
                     <div className="p-2 rounded-md border border-accent/30" style={{ background: 'var(--color-accent-subtle)' }}>
                       <p className="text-[9px] text-accent uppercase tracking-wider mb-1">AI Đề Xuất</p>
-                      {rec.new_stop_loss && (
+                      {rec.new_stop_loss != null && (
                         <p className="text-[11px] font-mono">SL: <span className="text-negative font-semibold">{(rec.new_stop_loss / 1000).toFixed(2)}</span></p>
                       )}
-                      {rec.new_take_profit && (
+                      {rec.new_take_profit != null && (
                         <p className="text-[11px] font-mono">TP: <span className="text-positive font-semibold">{(rec.new_take_profit / 1000).toFixed(2)}</span></p>
                       )}
                     </div>

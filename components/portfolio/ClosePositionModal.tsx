@@ -49,7 +49,7 @@ export const ClosePositionModal: React.FC<ClosePositionModalProps> = ({
   const sellRevenue = sell * quantity;
   const buyFee = buyCost * 0.0015;
   const sellFee = sellRevenue * 0.0015;
-  const sellTax = sellRevenue * 0.001;
+  const sellTax = sellRevenue * 0.0010;
   const netPnl = grossPnl - buyFee - sellFee - sellTax;
 
   const handleSubmit = async (e: React.FormEvent) => {
