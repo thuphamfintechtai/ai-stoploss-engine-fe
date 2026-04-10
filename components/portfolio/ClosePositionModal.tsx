@@ -55,8 +55,8 @@ export const ClosePositionModal: React.FC<ClosePositionModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!sell || sell <= 0) { setError('Vui long nhap gia ban hop le'); return; }
-    if (!sellDate) { setError('Vui long chon ngay ban'); return; }
+    if (!sell || sell <= 0) { setError('Vui lòng nhập giá bán hợp lệ'); return; }
+    if (!sellDate) { setError('Vui lòng chọn ngày bán'); return; }
 
     setLoading(true);
     try {
@@ -71,7 +71,7 @@ export const ClosePositionModal: React.FC<ClosePositionModalProps> = ({
       setError(
         err?.response?.data?.message ||
         err?.response?.data?.error ||
-        'Dong vi the that bai'
+        'Đóng vị thế thất bại'
       );
     } finally {
       setLoading(false);
@@ -84,7 +84,7 @@ export const ClosePositionModal: React.FC<ClosePositionModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700">
           <h2 className="text-sm font-bold text-white">
-            Dong vi the{' '}
+            Đóng vị thế{' '}
             <span className="text-blue-400 font-mono">{position.symbol}</span>
           </h2>
           <button
@@ -99,11 +99,11 @@ export const ClosePositionModal: React.FC<ClosePositionModalProps> = ({
           {/* Position Info */}
           <div className="bg-gray-700/50 rounded-lg p-3 grid grid-cols-2 gap-2 text-[11px]">
             <div>
-              <span className="text-gray-400">Gia vao:</span>
+              <span className="text-gray-400">Giá vào:</span>
               <span className="ml-2 text-white font-mono">{formatVND(entryPrice)} VND</span>
             </div>
             <div>
-              <span className="text-gray-400">So luong:</span>
+              <span className="text-gray-400">Số lượng:</span>
               <span className="ml-2 text-white font-mono">{quantity.toLocaleString()}</span>
             </div>
           </div>
@@ -111,7 +111,7 @@ export const ClosePositionModal: React.FC<ClosePositionModalProps> = ({
           {/* Gia ban */}
           <div>
             <label className="block text-[11px] font-semibold text-gray-400 mb-1">
-              Gia Ban (VND)
+              Giá Bán (VND)
             </label>
             <input
               type="number"
@@ -119,7 +119,7 @@ export const ClosePositionModal: React.FC<ClosePositionModalProps> = ({
               onChange={(e) => setSellPrice(e.target.value)}
               min={0}
               step={100}
-              placeholder="Nhap gia ban"
+              placeholder="Nhập giá bán"
               required
               className="w-full bg-gray-700 text-white text-sm rounded-lg px-3 py-2 border border-gray-600 focus:border-blue-500 focus:outline-none"
             />
@@ -128,7 +128,7 @@ export const ClosePositionModal: React.FC<ClosePositionModalProps> = ({
           {/* Ngay ban */}
           <div>
             <label className="block text-[11px] font-semibold text-gray-400 mb-1">
-              Ngay Ban
+              Ngày Bán
             </label>
             <input
               type="date"
@@ -176,13 +176,13 @@ export const ClosePositionModal: React.FC<ClosePositionModalProps> = ({
           {/* Ghi chu */}
           <div>
             <label className="block text-[11px] font-semibold text-gray-400 mb-1">
-              Ghi Chu (tuy chon)
+              Ghi Chú (tùy chọn)
             </label>
             <input
               type="text"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Ly do dong vi the..."
+              placeholder="Lý do đóng vị thế..."
               className="w-full bg-gray-700 text-white text-sm rounded-lg px-3 py-2 border border-gray-600 focus:border-blue-500 focus:outline-none"
             />
           </div>
@@ -198,14 +198,14 @@ export const ClosePositionModal: React.FC<ClosePositionModalProps> = ({
               onClick={onClose}
               className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-gray-400 border border-gray-600 hover:border-gray-500 hover:text-gray-300 transition-colors"
             >
-              Huy
+              Hủy
             </button>
             <button
               type="submit"
               disabled={loading}
               className="flex-1 py-2.5 rounded-lg text-sm font-bold bg-red-600 hover:bg-red-700 text-white transition-colors disabled:opacity-50"
             >
-              {loading ? 'Dang dong...' : 'Xac Nhan Dong'}
+              {loading ? 'Đang đóng...' : 'Xác Nhận Đóng'}
             </button>
           </div>
         </form>
