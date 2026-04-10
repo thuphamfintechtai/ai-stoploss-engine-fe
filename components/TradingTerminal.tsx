@@ -250,7 +250,9 @@ export const TradingTerminal: React.FC<Props> = ({
     }
 
     // Debounce 800ms để tránh spam API
+    let cancelled = false;
     riskEvalTimerRef.current = setTimeout(async () => {
+      if (cancelled) return;
       setRiskEvalLoading(true);
       try {
         const res = await aiApi.evaluateRisk({
@@ -262,13 +264,13 @@ export const TradingTerminal: React.FC<Props> = ({
           take_profit: tpVnd,
           quantity: qty,
         });
-        if (res.data?.success) setRiskEval(res.data.data);
+        if (!cancelled && res.data?.success) setRiskEval(res.data.data);
       } catch { /* silent – risk eval là optional */ } finally {
-        setRiskEvalLoading(false);
+        if (!cancelled) setRiskEvalLoading(false);
       }
     }, 800);
 
-    return () => { if (riskEvalTimerRef.current) clearTimeout(riskEvalTimerRef.current); };
+    return () => { cancelled = true; if (riskEvalTimerRef.current) clearTimeout(riskEvalTimerRef.current); };
   }, [portfolioId, orderSymbol, symbol, orderExchange, exchange, entryPoints, orderSide,
       stopType, stopPrice, stopPercent, stopMaxLossVnd,
       takeProfitType, takeProfitPrice, takeProfitPercent, takeProfitRR, effectiveQty]);
