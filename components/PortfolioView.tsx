@@ -269,9 +269,11 @@ export const PortfolioView: React.FC<Props> = ({
 
   // Summary metrics
   const totalOpenPnl = openPositions.reduce((s, p) => s + getPositionPnl(p), 0);
-  const totalClosedPnl = closedPositions.reduce((s, p) => s + getPositionPnl(p), 0);
+  // Dùng total_pnl_vnd từ API (tính trên toàn bộ closed positions), fallback sang page hiện tại
+  const totalClosedPnl = (performance as any)?.total_pnl_vnd ?? closedPositions.reduce((s, p) => s + getPositionPnl(p), 0);
   const winCount = closedPositions.filter((p) => getPositionPnl(p) >= 0).length;
-  const winRate = closedPositions.length > 0 ? (winCount / closedPositions.length) * 100 : 0;
+  const totalClosedCount = (performance as any)?.total_closed_count ?? closedPositions.length;
+  const winRate = totalClosedCount > 0 ? (winCount / totalClosedCount) * 100 : 0;
   const maxRiskAmount = (totalBalance * maxRiskPercent) / 100;
 
   // Equity curve từ API performance data (real), fallback sang tính từ closed positions
