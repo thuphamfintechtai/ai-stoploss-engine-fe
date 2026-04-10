@@ -221,7 +221,7 @@ export const DashboardView: React.FC<Props> = ({
     try {
       const res = await aiApi.getMarketRegime(false);
       if (res.data?.success) setMarketRegime(res.data.data);
-    } catch { /* optional */ } finally {
+    } catch (err) { if (import.meta.env.DEV) console.warn('DashboardView load failed:', err); } finally {
       setRegimeLoading(false);
     }
   }, []);
@@ -234,7 +234,7 @@ export const DashboardView: React.FC<Props> = ({
       if (res.data?.success && res.data.data) {
         setPerformance(res.data.data);
       }
-    } catch { /* optional */ } finally {
+    } catch (err) { if (import.meta.env.DEV) console.warn('DashboardView load failed:', err); } finally {
       setPerfLoading(false);
     }
   }, [portfolioId]);
@@ -246,7 +246,7 @@ export const DashboardView: React.FC<Props> = ({
       if (res.data?.success && Array.isArray(res.data.data)) {
         setAiInsights(res.data.data.slice(0, 3));
       }
-    } catch { /* optional */ } finally {
+    } catch (err) { if (import.meta.env.DEV) console.warn('DashboardView load failed:', err); } finally {
       setAiInsightsLoading(false);
     }
   }, []);
@@ -260,7 +260,7 @@ export const DashboardView: React.FC<Props> = ({
         setLivePositions(res.data.data);
         setLastPnlRefresh(new Date());
       }
-    } catch { /* silent */ }
+    } catch (err) { if (import.meta.env.DEV) console.warn('DashboardView load failed:', err); }
   }, [portfolioId]);
 
   useEffect(() => {

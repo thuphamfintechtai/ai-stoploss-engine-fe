@@ -120,8 +120,8 @@ export const PortfolioView: React.FC<Props> = ({
         setClosedTotal(pagination?.total ?? res.data.total ?? 0);
         setTotalPages(pagination?.totalPages ?? Math.max(1, Math.ceil((pagination?.total ?? res.data.total ?? 0) / CLOSED_PAGE_SIZE)));
       }
-    } catch {
-      // fallback
+    } catch (err) {
+      if (import.meta.env.DEV) console.warn('loadClosed failed:', err);
     } finally {
       setLoadingClosed(false);
     }
@@ -138,7 +138,7 @@ export const PortfolioView: React.FC<Props> = ({
     try {
       const res = await orderApi.list(portfolioId, { status: 'PENDING,PARTIALLY_FILLED', limit: 50 });
       if (res.data?.success) setPendingOrders(res.data.data ?? []);
-    } catch { /* ignore */ } finally {
+    } catch (err) { if (import.meta.env.DEV) console.warn('PortfolioView load failed:', err); } finally {
       setLoadingOrders(false);
     }
   }, [portfolioId]);
@@ -153,7 +153,7 @@ export const PortfolioView: React.FC<Props> = ({
     try {
       const res = await portfolioApi.getPerformance(portfolioId);
       if (res.data?.success) setPerformance(res.data.data);
-    } catch { /* optional */ } finally {
+    } catch (err) { if (import.meta.env.DEV) console.warn('PortfolioView load failed:', err); } finally {
       setPerfLoading(false);
     }
   }, [portfolioId]);
@@ -192,8 +192,8 @@ export const PortfolioView: React.FC<Props> = ({
           closed_count: Number(s.closed_count ?? 0),
         });
       }
-    } catch {
-      // fallback
+    } catch (err) {
+      if (import.meta.env.DEV) console.warn('PortfolioView fetchRealData failed:', err);
     } finally {
       setRealPositionsLoading(false);
       setSummaryLoading(false);
