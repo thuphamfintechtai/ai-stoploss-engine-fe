@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { realPortfolioApi } from '../../services/api';
 import type { RealOrder } from '../../services/api';
+import { resolveFeeRates, type PortfolioFeeConfig } from '../../utils/feeConstants';
 
 interface TransactionHistoryProps {
   portfolioId: string;
+  /** Portfolio fee config (D-02). Dùng cho fallback khi BE response thiếu fee_vnd. */
+  portfolio?: PortfolioFeeConfig | null;
 }
 
 const formatVND = (value: number) =>
@@ -16,12 +19,15 @@ const formatDate = (dateStr: string) =>
     year: 'numeric',
   });
 
-export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ portfolioId }) => {
+export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ portfolioId, portfolio }) => {
   const [orders, setOrders] = useState<RealOrder[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const LIMIT = 50;
+
+  // D-02 MAP-04: fee rates từ portfolio prop, fallback default constants (chỉ dùng khi BE thiếu fee_vnd)
+  const { buyFeePct, sellFeePct, sellTaxPct } = resolveFeeRates(portfolio);
 
   const fetchOrders = useCallback(async () => {
     if (!portfolioId) return;
@@ -87,8 +93,30 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ portfoli
               <tbody>
                 {orders.map((order) => {
                   const isBuy = order.side === 'BUY';
-                  const totalValue = Number(order.quantity) * Number(order.filled_price);
-                  const fee = order.fee ?? totalValue * (isBuy ? 0.0015 : 0.0025);
+                  // MAP-05 integer VND math
+                  const totalValue = Math.round(Number(order.quantity) * Number(order.filled_price));
+
+                  // WARNING 5: ưu tiên fee_vnd từ BE (source-of-truth), fallback compute với label "ước tính"
+                  const feeFromBE =
+                    order.fee_vnd != null ? Number(order.fee_vnd) : null;
+                  const hasBackendFee =
+                    feeFromBE != null && Number.isFinite(feeFromBE);
+                  // Legacy fallback: order.fee (number) nếu BE chưa expose fee_vnd
+                  const feeLegacy =
+                    order.fee != null ? Number(order.fee) : null;
+                  const hasLegacyFee =
+                    feeLegacy != null && Number.isFinite(feeLegacy);
+                  // Rate fallback: SELL = sellFee + tax (phí bán chuẩn VN)
+                  const rate = isBuy ? buyFeePct : sellFeePct + sellTaxPct;
+                  const fee = hasBackendFee
+                    ? Math.round(feeFromBE as number)
+                    : hasLegacyFee
+                      ? Math.round(feeLegacy as number)
+                      : Math.round(totalValue * rate);
+                  const feeLabel = hasBackendFee ? 'Phí' : 'Phí (ước tính)';
+                  const feeTooltip = hasBackendFee
+                    ? undefined
+                    : 'Giá trị ước tính — backend chưa trả fee_vnd cho lệnh này';
                   return (
                     <tr
                       key={order.id}
@@ -121,8 +149,12 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ portfoli
                       <td className="px-3 py-2.5 text-right font-mono text-[var(--color-text-muted)]">
                         {formatVND(totalValue)}
                       </td>
-                      <td className="px-3 py-2.5 text-right font-mono text-[var(--color-text-dim)]">
-                        {formatVND(fee)}
+                      <td
+                        className="px-3 py-2.5 text-right font-mono text-[var(--color-text-dim)]"
+                        title={feeTooltip}
+                      >
+                        <span className="block text-[9px] text-[var(--color-text-dim)] leading-tight">{feeLabel}</span>
+                        <span className="block">{formatVND(fee)}</span>
                       </td>
                     </tr>
                   );
