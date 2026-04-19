@@ -3,6 +3,7 @@ import { aiApi, watchlistApi } from '../services/api';
 import { FinancialTooltip } from './ui/Tooltip';
 import { EmptyState } from './ui/EmptyState';
 import { InfoCard } from './ui/InfoCard';
+import { AiDisclaimer } from './ui/AiDisclaimer';
 
 interface Props {
   traders?: any[];
@@ -370,6 +371,8 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
               <div className="text-[9px] text-text-dim text-center">
                 Phân tích lúc {new Date(sel.generated_at).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}
               </div>
+              {/* AIT-08: Disclaimer mandatory ở footer mọi AI output (D-08) */}
+              <AiDisclaimer />
             </div>
           </div>
         )}

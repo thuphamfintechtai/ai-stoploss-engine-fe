@@ -6,6 +6,9 @@ import wsService from '../services/websocket';
 import { FinancialTooltip } from './ui/Tooltip';
 import { EmptyState } from './ui/EmptyState';
 import { InfoCard } from './ui/InfoCard';
+import { AiDisclaimer } from './ui/AiDisclaimer';
+import { ConfidenceBar } from './ui/ConfidenceBar';
+import { ClampedBadge } from './ui/ClampedBadge';
 
 interface DynamicSLUpdate {
   symbol: string;
@@ -28,6 +31,12 @@ interface PositionReview {
   reasoning: string;
   urgency: 'LOW' | 'MEDIUM' | 'HIGH';
   key_concern?: string;
+  /** Gemini confidence 0-100 (AIT-04 — optional, BE fill khi có) */
+  confidence_score?: number | null;
+  /** Metadata snap/clamp từ Plan 04-01 (snapAndClampReview) */
+  _clamped?: { new_stop_loss?: boolean; new_take_profit?: boolean };
+  _original?: { new_stop_loss?: number; new_take_profit?: number };
+  _clamp_meta?: { exchange?: string; reference_price?: number };
 }
 
 interface ReviewResult {
@@ -138,6 +147,13 @@ function RecommendationList({
 
             {isExpanded && (
               <div className="px-4 pb-4 border-t border-border-subtle pt-3 space-y-3">
+                {/* AIT-04: ConfidenceBar từ confidence_score Gemini — chỉ render khi BE cung cấp */}
+                {rec.confidence_score != null && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] text-text-dim uppercase tracking-wider whitespace-nowrap">Độ tin cậy AI</span>
+                    <ConfidenceBar value={rec.confidence_score} />
+                  </div>
+                )}
                 <p className="text-[12px] text-text-main leading-relaxed">{rec.reasoning}</p>
                 {rec.key_concern && (
                   <p className="text-[11px] text-text-muted italic">⚠ {rec.key_concern}</p>
@@ -158,10 +174,28 @@ function RecommendationList({
                     <div className="p-2 rounded-md border border-accent/30" style={{ background: 'var(--color-accent-subtle)' }}>
                       <p className="text-[9px] text-accent uppercase tracking-wider mb-1">AI Đề Xuất</p>
                       {rec.new_stop_loss != null && (
-                        <p className="text-[11px] font-mono">SL: <span className="text-negative font-semibold">{(rec.new_stop_loss / 1000).toFixed(2)}</span></p>
+                        <p className="text-[11px] font-mono flex items-center gap-1.5 flex-wrap">
+                          <span>SL: <span className="text-negative font-semibold">{(rec.new_stop_loss / 1000).toFixed(2)}</span></span>
+                          {rec._clamped?.new_stop_loss && (
+                            <ClampedBadge
+                              original={rec._original?.new_stop_loss}
+                              adjusted={rec.new_stop_loss}
+                              exchange={rec._clamp_meta?.exchange ?? pos?.exchange}
+                            />
+                          )}
+                        </p>
                       )}
                       {rec.new_take_profit != null && (
-                        <p className="text-[11px] font-mono">TP: <span className="text-positive font-semibold">{(rec.new_take_profit / 1000).toFixed(2)}</span></p>
+                        <p className="text-[11px] font-mono flex items-center gap-1.5 flex-wrap">
+                          <span>TP: <span className="text-positive font-semibold">{(rec.new_take_profit / 1000).toFixed(2)}</span></span>
+                          {rec._clamped?.new_take_profit && (
+                            <ClampedBadge
+                              original={rec._original?.new_take_profit}
+                              adjusted={rec.new_take_profit}
+                              exchange={rec._clamp_meta?.exchange ?? pos?.exchange}
+                            />
+                          )}
+                        </p>
                       )}
                     </div>
                   )}
@@ -607,6 +641,11 @@ export const AiMonitorPanel: React.FC<Props> = ({ portfolioId, openPositions, on
       {activeTab === 'history' && portfolioId && (
         <HistoryTab portfolioId={portfolioId} />
       )}
+
+      {/* AIT-08: Disclaimer footer panel (D-08) — 1 lần cho toàn AI Monitor */}
+      <div className="pt-2">
+        <AiDisclaimer />
+      </div>
     </div>
   );
 };

@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { FinancialTooltip } from './ui/Tooltip';
+import { AiDisclaimer } from './ui/AiDisclaimer';
+import { ConfidenceBar } from './ui/ConfidenceBar';
+import { ClampedBadge } from './ui/ClampedBadge';
 import { CandlestickChart } from './charts/CandlestickChart';
 import { marketApi, positionApi, orderApi, watchlistApi, aiApi, getPositionSizing } from '../services/api';
 import type { Position, PositionSizingResult } from '../services/api';
@@ -1571,6 +1574,24 @@ export const TradingTerminal: React.FC<Props> = ({
                             </div>
                             <button onClick={() => { setAiSuggestions(null); setAiSuggestError(''); }} className="text-[9px] text-text-dim">✕</button>
                           </div>
+                          {/* AIT-04: ConfidenceBar — chỉ render khi BE có confidence_score Gemini */}
+                          {aiSuggestions.confidence_score != null && (
+                            <div className="flex items-center gap-2 px-0.5">
+                              <span className="text-[8px] text-text-dim uppercase tracking-wider whitespace-nowrap">Độ tin cậy</span>
+                              <ConfidenceBar value={aiSuggestions.confidence_score} />
+                            </div>
+                          )}
+                          {/* AIT-02: Clamped warning (top-level) nếu BE trả clamp_warning từ snapAndClampPrices */}
+                          {aiSuggestions.clamp_warning && (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <ClampedBadge
+                                original={aiSuggestions._original?.stop_loss ?? aiSuggestions._original?.entry_price}
+                                adjusted={aiSuggestions.stop_loss ?? aiSuggestions.entry_price}
+                                exchange={aiSuggestions._clamp_meta?.exchange ?? aiSuggestions.exchange}
+                              />
+                              <span className="text-[9px] text-amber-300/80 leading-relaxed">{aiSuggestions.clamp_warning}</span>
+                            </div>
+                          )}
                           <div className="grid grid-cols-3 gap-1.5">
                             {['aggressive', 'moderate', 'conservative'].map((type) => {
                               const s = aiSuggestions.suggestions?.find((x: any) => x.type === type);
@@ -1633,12 +1654,8 @@ export const TradingTerminal: React.FC<Props> = ({
                             </div>
                           )}
 
-                          {/* Disclaimer bắt buộc */}
-                          {aiSuggestions.disclaimer && (
-                            <div className="px-2 py-1.5 rounded bg-warning/5 border border-warning/20">
-                              <p className="text-[7.5px] text-warning/80 leading-relaxed">{aiSuggestions.disclaimer}</p>
-                            </div>
-                          )}
+                          {/* AIT-08: Disclaimer mandatory ở footer AI suggestion block (D-08) */}
+                          <AiDisclaimer compact className="px-0.5" />
                         </div>
                       )}
 
