@@ -16,6 +16,7 @@ import { AiSignalsView } from './components/AiSignalsView';
 import { NotificationsView } from './components/NotificationsView';
 import { SettingsView } from './components/SettingsView';
 import { MobileBottomNav } from './components/ui/MobileBottomNav';
+import { RateLimitBanner } from './components/ui/RateLimitBanner';
 import { OnboardingWizard } from './components/OnboardingWizard';
 import { analyzeTrader } from './services/geminiService';
 import { portfolioApi, positionApi, marketApi, authApi } from './services/api';
@@ -1649,6 +1650,7 @@ function App() {
 
   return (
     <AppErrorBoundary onReset={handleLogout}>
+      <RateLimitBanner />
       <MainApp onLogout={handleLogout} />
     </AppErrorBoundary>
   );
