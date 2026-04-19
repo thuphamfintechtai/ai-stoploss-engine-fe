@@ -735,6 +735,8 @@ export interface CreateRealOrderRequest {
   filled_price: number;
   filled_date: string;
   notes?: string;
+  /** D-05 MAP-01: FILLED (mặc định) vs PENDING — khi PENDING BE lock pending_buy_lock, không trừ available_cash */
+  order_status?: 'FILLED' | 'PENDING';
 }
 
 export interface RealOrder {
@@ -746,9 +748,13 @@ export interface RealOrder {
   quantity: number;
   filled_price: number;
   filled_date: string;
+  /** @deprecated Legacy alias — prefer fee_vnd (WARNING 5) */
   fee?: number;
+  /** WARNING 5: source-of-truth phí từ BE (Order.fee_vnd NUMERIC). FE hiển thị "Phí". */
+  fee_vnd?: number | string | null;
   notes?: string | null;
   created_at: string;
+  status?: 'PENDING' | 'FILLED' | 'RECORDED' | 'CANCELLED' | string;
 }
 
 export interface RealPosition {
