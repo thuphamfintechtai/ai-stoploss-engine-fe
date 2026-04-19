@@ -2,7 +2,7 @@
 
 Giao diện web cho hệ thống hỗ trợ dừng lỗ và chốt lợi nhuận tăng cường AI, phục vụ nhà đầu tư chứng khoán Việt Nam.
 
-Ứng dụng cung cấp giao diện giao dịch, quản lý danh mục, phân tích rủi ro và tín hiệu AI. Hỗ trợ cả giao dịch thật (Portfolio Management) và giao dịch mô phỏng (Paper Trading).
+Ứng dụng cung cấp giao diện giao dịch, quản lý danh mục, phân tích rủi ro và tín hiệu AI. Hỗ trợ giao dịch thật (Portfolio Management) với AI tư vấn stop loss, take profit.
 
 
 ## Công nghệ
@@ -63,9 +63,6 @@ ai-stoploss-engine-fe/
 │   ├── TraderCard.tsx          # Thẻ thông tin trader
 │   ├── RiskProgressBar.tsx     # Thanh tiến trình rủi ro
 │   ├── AppErrorBoundary.tsx    # Xử lý lỗi React
-│   ├── PaperVirtualBalance.tsx # Số dư paper trading
-│   ├── PaperOrderManager.tsx   # Quản lý lệnh paper
-│   ├── PaperPerformanceReport.tsx # Báo cáo hiệu suất paper
 │   ├── charts/
 │   │   └── CandlestickChart.tsx # Biểu đồ nến (OHLCV)
 │   └── portfolio/              # Các component danh mục
@@ -143,7 +140,7 @@ npm run preview
 
 ### Trading Terminal
 - Giao diện giao dịch với biểu đồ nến (candlestick).
-- Đặt lệnh mua/bán (paper và thật).
+- Đặt lệnh mua/bán (thật).
 - Công cụ vẽ kỹ thuật trên chart.
 - Toggle chế độ nâng cao / đơn giản.
 
@@ -152,11 +149,6 @@ npm run preview
 - Bảng vị thế, form đặt lệnh, lịch sử giao dịch.
 - Đóng vị thế, tính phí, lời/lỗ.
 - Số dư tiền mặt và quản lý vốn.
-
-### Paper Trading
-- Mô phỏng giao dịch với số dư ảo.
-- Đặt lệnh, theo dõi khớp lệnh, báo cáo hiệu suất.
-- Không ảnh hưởng tài sản thật.
 
 ### Risk Manager
 - Value at Risk (VaR) - đo rủi ro tối đa.
