@@ -11,6 +11,7 @@ import { formatNumberVI, PRICE_LOCALE, PRICE_FRACTION_OPTIONS, STOCK_PRICE_DISPL
 const RiskManagerView = React.lazy(() => import('./RiskManagerView').then(m => ({ default: m.RiskManagerView })));
 import { AiMonitorPanel } from './AiMonitorPanel';
 import { PortfolioHeroCard } from './portfolio/PortfolioHeroCard';
+import { PortfolioSummaryCard } from './portfolio/PortfolioSummaryCard';
 import { RealOrderForm } from './portfolio/RealOrderForm';
 import { RealPositionsTable } from './portfolio/RealPositionsTable';
 import { ClosePositionModal } from './portfolio/ClosePositionModal';
@@ -69,6 +70,8 @@ export const PortfolioView: React.FC<Props> = ({
   const [realSummary, setRealSummary] = useState<{
     total_value: number;
     total_pnl: number;
+    total_realized_pnl: number;   // D-08 / MAP-06: CLOSED positions aggregate
+    total_unrealized_pnl: number; // D-08 / MAP-06: OPEN positions mark-to-market
     percent_return: number;
     position_count: number;
     closed_count: number;
@@ -169,6 +172,8 @@ export const PortfolioView: React.FC<Props> = ({
         setRealSummary({
           total_value: Number(s.total_value ?? 0),
           total_pnl: Number(s.total_pnl ?? 0),
+          total_realized_pnl: Number(s.total_realized_pnl ?? 0),     // MAP-06 D-08
+          total_unrealized_pnl: Number(s.total_unrealized_pnl ?? 0), // MAP-06 D-08
           percent_return: Number(s.percent_return ?? 0),
           position_count: Number(s.position_count ?? 0),
           closed_count: Number(s.closed_count ?? 0),
@@ -350,6 +355,18 @@ export const PortfolioView: React.FC<Props> = ({
             availableCash={cashBalance.available_cash}
             pendingSettlement={cashBalance.pending_settlement_cash}
             totalPnl={realSummary?.total_pnl ?? 0}
+            percentReturn={realSummary?.percent_return ?? 0}
+            positionCount={realSummary?.position_count ?? 0}
+            closedCount={realSummary?.closed_count ?? 0}
+            loading={summaryLoading}
+          />
+
+          {/* Summary Card — tách realized vs unrealized P/L (MAP-06 D-08, WARNING 6: totalPnl giữ nguyên prop) */}
+          <PortfolioSummaryCard
+            totalValue={realSummary?.total_value ?? 0}
+            totalPnl={realSummary?.total_pnl ?? 0}                          // GIỮ (WARNING 6)
+            realizedPnl={realSummary?.total_realized_pnl ?? 0}              // NEW — MAP-06
+            unrealizedPnl={realSummary?.total_unrealized_pnl ?? 0}          // NEW — D-08 mark-to-market
             percentReturn={realSummary?.percent_return ?? 0}
             positionCount={realSummary?.position_count ?? 0}
             closedCount={realSummary?.closed_count ?? 0}
