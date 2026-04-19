@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { realPortfolioApi } from '../../services/api';
 import type { RealPosition } from '../../services/api';
+import { resolveFeeRates, type PortfolioFeeConfig } from '../../utils/feeConstants';
 
 interface ClosePositionModalProps {
   position: RealPosition | null;
   portfolioId: string;
+  /** Portfolio fee config (D-02). Nếu null/undefined → fallback default constants. */
+  portfolio?: PortfolioFeeConfig | null;
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
@@ -18,6 +21,7 @@ const formatVND = (value: number) =>
 export const ClosePositionModal: React.FC<ClosePositionModalProps> = ({
   position,
   portfolioId,
+  portfolio,
   isOpen,
   onClose,
   onSuccess,
@@ -43,13 +47,16 @@ export const ClosePositionModal: React.FC<ClosePositionModalProps> = ({
   const quantity = Number(position.quantity);
   const sell = parseFloat(sellPrice) || 0;
 
-  // P&L calculations
-  const grossPnl = (sell - entryPrice) * quantity;
-  const buyCost = entryPrice * quantity;
-  const sellRevenue = sell * quantity;
-  const buyFee = buyCost * 0.0015;
-  const sellFee = sellRevenue * 0.0015;
-  const sellTax = sellRevenue * 0.0010;
+  // D-02 MAP-04: đọc fee rates từ portfolio prop, fallback default constants
+  const { buyFeePct, sellFeePct, sellTaxPct } = resolveFeeRates(portfolio);
+
+  // P&L calculations — MAP-05 integer VND math
+  const buyCost = Math.round(entryPrice * quantity);
+  const sellRevenue = Math.round(sell * quantity);
+  const grossPnl = sellRevenue - buyCost;
+  const buyFee = Math.round(buyCost * buyFeePct);
+  const sellFee = Math.round(sellRevenue * sellFeePct);
+  const sellTax = Math.round(sellRevenue * sellTaxPct);
   const netPnl = grossPnl - buyFee - sellFee - sellTax;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -149,15 +156,15 @@ export const ClosePositionModal: React.FC<ClosePositionModalProps> = ({
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-400">Phi mua (0.15%):</span>
+                <span className="text-gray-400">Phi mua ({(buyFeePct * 100).toFixed(2)}%):</span>
                 <span className="font-mono text-yellow-400">-{formatVND(buyFee)} VND</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-400">Phi ban (0.15%):</span>
+                <span className="text-gray-400">Phi ban ({(sellFeePct * 100).toFixed(2)}%):</span>
                 <span className="font-mono text-yellow-400">-{formatVND(sellFee)} VND</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-400">Thue ban (0.1%):</span>
+                <span className="text-gray-400">Thue ban ({(sellTaxPct * 100).toFixed(2)}%):</span>
                 <span className="font-mono text-yellow-400">-{formatVND(sellTax)} VND</span>
               </div>
               <div className="flex justify-between border-t border-gray-700 pt-1.5">
