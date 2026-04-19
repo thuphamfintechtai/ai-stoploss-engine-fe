@@ -3,10 +3,13 @@ import { realPortfolioApi } from '../../services/api';
 import { useMarketRules } from '../../hooks/useMarketRules';
 import { OrderFieldError } from './OrderFieldError';
 import { ERRORS } from '../../utils/vnStockRules';
+import { resolveFeeRates, type PortfolioFeeConfig } from '../../utils/feeConstants';
 
 interface RealOrderFormProps {
   portfolioId: string;
   availableCash: number;
+  /** Portfolio fee config (D-02). Nếu null/undefined → fallback default constants. */
+  portfolio?: PortfolioFeeConfig | null;
   onSuccess: () => void;
 }
 
@@ -18,6 +21,7 @@ const formatVND = (value: number) =>
 export const RealOrderForm: React.FC<RealOrderFormProps> = ({
   portfolioId,
   availableCash,
+  portfolio,
   onSuccess,
 }) => {
   const [symbol, setSymbol] = useState('');
@@ -27,6 +31,8 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
   const [filledPrice, setFilledPrice] = useState('');
   const [filledDate, setFilledDate] = useState(today());
   const [notes, setNotes] = useState('');
+  // D-05 MAP-01: trạng thái lệnh — FILLED (mặc định) | PENDING (limit đã đặt, chưa khớp)
+  const [orderStatus, setOrderStatus] = useState<'FILLED' | 'PENDING'>('FILLED');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -36,11 +42,12 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
 
   const qty = parseFloat(quantity) || 0;
   const price = parseFloat(filledPrice) || 0;
-  const totalValue = qty * price;
+  const totalValue = Math.round(qty * price);
 
-  const buyFeeRate = 0.0015;
-  const sellFeeRate = 0.0015;
-  const fee = side === 'BUY' ? totalValue * buyFeeRate : totalValue * sellFeeRate;
+  // D-02 MAP-04: đọc fee rates từ portfolio prop, fallback default constants
+  const { buyFeePct, sellFeePct } = resolveFeeRates(portfolio);
+  // MAP-05: integer VND math — Math.round trước khi hiển thị / cộng dồn
+  const fee = Math.round(totalValue * (side === 'BUY' ? buyFeePct : sellFeePct));
 
   const remainingCash =
     side === 'BUY' ? availableCash - totalValue - fee : null;
@@ -81,6 +88,10 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
 
     setLoading(true);
     try {
+      // D-05 MAP-01: SELL luôn gửi FILLED (PENDING flow chỉ áp dụng cho BUY limit order)
+      const effectiveOrderStatus: 'FILLED' | 'PENDING' =
+        side === 'BUY' ? orderStatus : 'FILLED';
+
       await realPortfolioApi.createOrder(portfolioId, {
         symbol: symbol.toUpperCase().trim(),
         exchange,
@@ -89,13 +100,19 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
         filled_price: price,
         filled_date: filledDate,
         notes: notes.trim() || undefined,
+        order_status: effectiveOrderStatus,
       });
-      setSuccess('Ghi nhận lệnh thành công!');
+      setSuccess(
+        effectiveOrderStatus === 'PENDING'
+          ? 'Đã ghi nhận lệnh chờ khớp (tiền đã được lock)'
+          : 'Ghi nhận lệnh thành công!'
+      );
       setSymbol('');
       setQuantity('');
       setFilledPrice('');
       setFilledDate(today());
       setNotes('');
+      setOrderStatus('FILLED');
       onSuccess();
     } catch (err: any) {
       setError(
@@ -266,6 +283,38 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
                   {formatVND(remainingCash)}
                 </span>
               </span>
+            )}
+          </div>
+        )}
+
+        {/* D-05 MAP-01: Radio trạng thái lệnh — chỉ hiển thị khi MUA */}
+        {side === 'BUY' && (
+          <div>
+            <label className={labelCls}>Trạng thái lệnh</label>
+            <div className="inline-flex rounded-md overflow-hidden border border-[var(--color-border-subtle)] h-[34px]">
+              <button
+                type="button"
+                onClick={() => setOrderStatus('FILLED')}
+                className={`px-3 text-[11px] font-bold transition-all ${
+                  orderStatus === 'FILLED'
+                    ? 'bg-[var(--color-accent)] text-white'
+                    : 'bg-[var(--color-background)] text-[var(--color-text-dim)] hover:text-[var(--color-accent)]'
+                }`}
+              >Đã khớp</button>
+              <button
+                type="button"
+                onClick={() => setOrderStatus('PENDING')}
+                className={`px-3 text-[11px] font-bold transition-all border-l border-[var(--color-border-subtle)] ${
+                  orderStatus === 'PENDING'
+                    ? 'bg-[var(--color-warning)] text-white'
+                    : 'bg-[var(--color-background)] text-[var(--color-text-dim)] hover:text-[var(--color-warning)]'
+                }`}
+              >Chờ khớp</button>
+            </div>
+            {orderStatus === 'PENDING' && (
+              <p className="text-[10px] text-[var(--color-text-dim)] mt-1">
+                Lệnh limit đã đặt trên broker, chưa khớp — tiền sẽ được lock.
+              </p>
             )}
           </div>
         )}
