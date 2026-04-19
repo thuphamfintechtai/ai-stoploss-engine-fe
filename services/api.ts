@@ -342,7 +342,7 @@ export interface EvaluateRiskRequest {
   quantity: number;
 }
 
-// ─── Order API (paper trading order lifecycle) ─────────────────────────────
+// ─── Order API (order lifecycle) ─────────────────────────────
 
 export type OrderType = 'LO' | 'ATO' | 'ATC' | 'MP';
 export type OrderSide = 'BUY' | 'SELL';
@@ -383,32 +383,6 @@ export interface Order {
   notes?: string | null;
 }
 
-export interface PaperPerformanceData {
-  total_trades: number;
-  winning_trades: number;
-  losing_trades: number;
-  win_rate: number;
-  total_pnl: number;
-  avg_win: number;
-  avg_loss: number;
-  profit_factor: number;
-  max_drawdown_vnd: number;
-  max_drawdown_pct: number;
-  buy_hold: {
-    return: number;
-    return_pct: number;
-    value: number;
-    cost: number;
-  } | null;
-}
-
-export interface VirtualBalance {
-  virtual_balance: number;
-  paper_available_cash: number;
-  paper_pending_settlement: number;
-  paper_deployed: number;
-}
-
 export const orderApi = {
   /** POST /portfolios/:portfolioId/orders — Đặt lệnh */
   create: (portfolioId: string, body: CreateOrderRequest) =>
@@ -425,24 +399,6 @@ export const orderApi = {
   /** DELETE /portfolios/:portfolioId/orders/:id — Hủy lệnh */
   cancel: (portfolioId: string, orderId: string) =>
     apiClient.delete(`/portfolios/${portfolioId}/orders/${orderId}`),
-
-  /** PATCH /portfolios/:portfolioId/orders/:id — Sửa lệnh PENDING */
-  editPaperOrder: (portfolioId: string, orderId: string, data: { limit_price?: number; quantity?: number }) =>
-    apiClient.patch<{ success: boolean; data: Order }>(
-      `/portfolios/${portfolioId}/orders/${orderId}`, data
-    ),
-
-  /** GET /portfolios/:portfolioId/paper-performance — Lấy performance report */
-  getPaperPerformance: (portfolioId: string, period: 'all' | 'week' | 'month' = 'all') =>
-    apiClient.get<{ success: boolean; data: PaperPerformanceData }>(
-      `/portfolios/${portfolioId}/paper-performance`, { params: { period } }
-    ),
-
-  /** GET /portfolios/:portfolioId/virtual-balance — Lấy số dư ảo */
-  getPaperVirtualBalance: (portfolioId: string) =>
-    apiClient.get<{ success: boolean; data: VirtualBalance }>(
-      `/portfolios/${portfolioId}/virtual-balance`
-    ),
 };
 
 export const aiApi = {

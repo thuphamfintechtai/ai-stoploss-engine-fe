@@ -100,18 +100,12 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, 
                 Danh mục giúp bạn theo dõi tất cả vị thế, lãi/lỗ, và rủi ro tại một nơi.
               </p>
 
-              {/* 2 cards: Real vs Paper */}
-              <div className="grid grid-cols-2 gap-3 w-full mt-2">
+              {/* Single card: Danh mục thật */}
+              <div className="w-full mt-2">
                 <div className="p-3 rounded-xl border-2 border-blue-500/40 bg-blue-500/5 text-left">
                   <div className="text-xs font-bold text-blue-400 mb-1">Danh mục thật</div>
                   <div className="text-[11px] text-text-muted leading-relaxed">
-                    Ghi nhận lệnh đã đặt trên sàn (VPS, SSI,...)
-                  </div>
-                </div>
-                <div className="p-3 rounded-xl border-2 border-violet-500/40 bg-violet-500/5 text-left">
-                  <div className="text-xs font-bold text-violet-400 mb-1">Mô phỏng</div>
-                  <div className="text-[11px] text-text-muted leading-relaxed">
-                    Tập chơi không mất tiền thật -- học hỏi trước khi đầu tư
+                    Ghi nhận lệnh đã đặt trên sàn (VPS, SSI,...) để theo dõi và quản lý rủi ro.
                   </div>
                 </div>
               </div>
@@ -150,24 +144,17 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, 
               </h2>
 
               <p className="text-text-muted text-sm leading-relaxed max-w-sm">
-                Bạn có thể nhập lệnh thật đã đặt trên sàn, hoặc thử mô phỏng lệnh ảo để làm quen.
+                Vào trang Quản lý vốn để ghi nhận lệnh đã đặt trên sàn.
               </p>
 
-              {/* 2 CTA buttons */}
-              <div className="grid grid-cols-2 gap-3 w-full mt-2">
+              {/* Single CTA button */}
+              <div className="w-full mt-2">
                 <button
                   onClick={() => handleNavigateAndComplete('portfolio')}
-                  className="p-4 rounded-xl border-2 border-blue-500/40 bg-blue-500/5 hover:bg-blue-500/10 transition-colors text-left"
+                  className="w-full p-4 rounded-xl border-2 border-blue-500/40 bg-blue-500/5 hover:bg-blue-500/10 transition-colors text-left"
                 >
                   <div className="text-xs font-bold text-blue-400 mb-1">Nhập lệnh thật</div>
-                  <div className="text-[11px] text-text-muted">Ghi nhận lệnh trên sàn</div>
-                </button>
-                <button
-                  onClick={() => handleNavigateAndComplete('paper-trading')}
-                  className="p-4 rounded-xl border-2 border-violet-500/40 bg-violet-500/5 hover:bg-violet-500/10 transition-colors text-left"
-                >
-                  <div className="text-xs font-bold text-violet-400 mb-1">Thử mô phỏng</div>
-                  <div className="text-[11px] text-text-muted">Làm quen với giao dịch</div>
+                  <div className="text-[11px] text-text-muted">Ghi nhận lệnh trên sàn vào danh mục</div>
                 </button>
               </div>
 

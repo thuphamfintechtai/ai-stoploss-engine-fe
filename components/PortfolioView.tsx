@@ -1,10 +1,7 @@
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, ReferenceLine } from 'recharts';
-import { positionApi, portfolioApi, orderApi, realPortfolioApi } from '../services/api';
-import type { Position, Order, RealPosition } from '../services/api';
-import { PaperVirtualBalance } from './PaperVirtualBalance';
-import { PaperOrderManager } from './PaperOrderManager';
-import { PaperPerformanceReport } from './PaperPerformanceReport';
+import { positionApi, portfolioApi, realPortfolioApi } from '../services/api';
+import type { Position, RealPosition } from '../services/api';
 import { StatCard } from './ui/StatCard';
 import { EmptyState } from './ui/EmptyState';
 import { FinancialTooltip } from './ui/Tooltip';
@@ -30,7 +27,7 @@ interface Props {
   onOpenSetup: () => void;
 }
 
-type PortfolioTab = 'real' | 'paper' | 'orders' | 'risk' | 'ai_monitor';
+type PortfolioTab = 'real' | 'risk' | 'ai_monitor';
 
 const toPoint = (v: number) => (v >= 1000 ? v / 1000 : v);
 
@@ -82,11 +79,6 @@ export const PortfolioView: React.FC<Props> = ({
   const [totalPages, setTotalPages] = useState(1);
   const CLOSED_PAGE_SIZE = 20;
 
-  // ── Pending Orders ──
-  const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
-  const [loadingOrders, setLoadingOrders] = useState(false);
-  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
-
   const [performance, setPerformance] = useState<any>(null);
   const [perfLoading, setPerfLoading] = useState(false);
 
@@ -100,10 +92,6 @@ export const PortfolioView: React.FC<Props> = ({
   const [editModal, setEditModal] = useState<{ pos: Position; stopLoss: string; takeProfit: string } | null>(null);
   const [editing, setEditing] = useState(false);
   const [editMsg, setEditMsg] = useState('');
-
-  // ── Paper Trading extras ──
-  const [simulationMode, setSimulationMode] = useState<'INSTANT' | 'REALISTIC'>('REALISTIC');
-  const [paperBalanceRefresh, setPaperBalanceRefresh] = useState(0);
 
   const loadClosed = useCallback(async () => {
     if (!portfolioId) return;
@@ -131,21 +119,6 @@ export const PortfolioView: React.FC<Props> = ({
     if (!portfolioId) return;
     loadClosed();
   }, [loadClosed]);
-
-  const loadOrders = useCallback(async () => {
-    if (!portfolioId) return;
-    setLoadingOrders(true);
-    try {
-      const res = await orderApi.list(portfolioId, { status: 'PENDING,PARTIALLY_FILLED', limit: 50 });
-      if (res.data?.success) setPendingOrders(res.data.data ?? []);
-    } catch (err) { if (import.meta.env.DEV) console.warn('PortfolioView load failed:', err); } finally {
-      setLoadingOrders(false);
-    }
-  }, [portfolioId]);
-
-  useEffect(() => {
-    if (activeTab === 'orders') loadOrders();
-  }, [activeTab, loadOrders]);
 
   const loadPerformance = useCallback(async () => {
     if (!portfolioId) return;
@@ -224,20 +197,6 @@ export const PortfolioView: React.FC<Props> = ({
       setCloseMsg(e?.response?.data?.message || 'Đóng lệnh thất bại');
     } finally {
       setClosing(false);
-    }
-  };
-
-  // ── Cancel Order ──
-  const handleCancelOrder = async (orderId: string) => {
-    if (!portfolioId) return;
-    setCancellingOrderId(orderId);
-    try {
-      await orderApi.cancel(portfolioId, orderId);
-      setPendingOrders((prev) => prev.filter((o) => o.id !== orderId));
-    } catch (e: any) {
-      alert(e?.response?.data?.message || 'Hủy lệnh thất bại');
-    } finally {
-      setCancellingOrderId(null);
     }
   };
 
@@ -322,8 +281,6 @@ export const PortfolioView: React.FC<Props> = ({
 
   const TABS: { id: PortfolioTab; label: string; badge?: number }[] = [
     { id: 'real', label: 'Danh mục thật' },
-    { id: 'paper', label: 'Mô phỏng' },
-    { id: 'orders', label: 'Lệnh chờ', badge: pendingOrders.length || undefined },
     { id: 'risk', label: 'Rủi ro' },
     { id: 'ai_monitor', label: 'AI Giám sát' },
   ];
@@ -462,43 +419,6 @@ export const PortfolioView: React.FC<Props> = ({
         />
       )}
 
-      {/* ── PAPER TAB CONTENT ── */}
-      {activeTab === 'paper' && (<>
-
-      {/* ── PAPER: Virtual Balance + Simulation Mode ── */}
-      {portfolioId && (
-        <div className="space-y-3">
-          <PaperVirtualBalance portfolioId={portfolioId} refreshTrigger={paperBalanceRefresh} />
-          <div className="panel-section px-4 py-3 flex flex-wrap items-center gap-3">
-            <p className="text-[11px] font-semibold text-[var(--color-text-muted)]">Chế độ khớp lệnh:</p>
-            <div className="inline-flex p-0.5 rounded-md bg-[var(--color-background)] border border-[var(--color-border-subtle)]">
-              {(['REALISTIC', 'INSTANT'] as const).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => setSimulationMode(mode)}
-                  className={`px-3 py-1.5 rounded text-[10px] font-semibold transition-all ${
-                    simulationMode === mode
-                      ? mode === 'REALISTIC'
-                        ? 'bg-[var(--color-secondary)] text-white shadow-sm'
-                        : 'bg-[var(--color-warning)] text-[var(--color-text-inverse)] shadow-sm'
-                      : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-main)]'
-                  }`}
-                >
-                  {mode === 'REALISTIC' ? 'Chờ khớp' : 'Khớp ngay'}
-                </button>
-              ))}
-            </div>
-            <span className="text-[9px] text-[var(--color-text-dim)]">
-              {simulationMode === 'REALISTIC'
-                ? 'Lệnh LO chờ giá thị trường · MP có slippage thực tế'
-                : 'Mọi lệnh khớp ngay theo giá thị trường'}
-            </span>
-          </div>
-        </div>
-      )}
-
-      </>)}
-
       {/* ── RISK TAB ── */}
       {activeTab === 'risk' && (
         <Suspense fallback={<div className="flex items-center justify-center h-64"><span className="text-[var(--color-text-muted)] text-sm">Đang tải...</span></div>}>
@@ -520,383 +440,6 @@ export const PortfolioView: React.FC<Props> = ({
           onNavigate={onNavigate}
         />
       )}
-
-      {/* ── PENDING ORDERS TAB ── */}
-      {activeTab === 'orders' && portfolioId && (
-        <PaperOrderManager
-          portfolioId={portfolioId}
-          orders={pendingOrders}
-          onRefresh={() => {
-            loadOrders();
-            setPaperBalanceRefresh((n) => n + 1);
-          }}
-        />
-      )}
-      {activeTab === 'orders' && !portfolioId && (
-        <EmptyState title="Chưa chọn danh mục" description="Vui lòng chọn danh mục để xem lệnh chờ." />
-      )}
-
-      {/* ── PAPER PORTFOLIO (stats + positions + equity + closed trades) ── */}
-      {activeTab === 'paper' && portfolioId && (<>
-      {/* ── HEADER BAR ── */}
-      {perfLoading ? (
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard />
-          </div>
-          <SkeletonTable rows={5} />
-        </div>
-      ) : (
-      <div className="space-y-3">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <StatCard
-            label="Tổng vốn"
-            value={formatNumberVI(totalBalance)}
-            suffix=" VND"
-            tooltip="Tổng số vốn đầu tư ban đầu"
-            size="md"
-          />
-          <StatCard
-            label="Lãi/Lỗ chưa chốt"
-            value={totalOpenPnl !== 0 ? formatNumberVI(totalOpenPnl, { maximumFractionDigits: 0 }) : '0'}
-            change={totalOpenPnl}
-            suffix=" VND"
-            tooltip="Lãi/lỗ chưa hiện thực từ các vị thế đang mở"
-            size="md"
-          />
-          <StatCard
-            label="Lãi/Lỗ đã chốt"
-            value={performance?.total_pnl_vnd != null
-              ? formatNumberVI(performance.total_pnl_vnd, { maximumFractionDigits: 0 })
-              : totalClosedPnl !== 0 ? formatNumberVI(totalClosedPnl, { maximumFractionDigits: 0 }) : '0'}
-            change={performance?.total_pnl_vnd ?? totalClosedPnl}
-            suffix=" VND"
-            tooltip="Lãi/lỗ đã hiện thực từ các lệnh đã đóng"
-            size="md"
-          />
-          <StatCard
-            label="Tỷ lệ thắng"
-            value={performance?.win_rate != null
-              ? Number(performance.win_rate).toFixed(1)
-              : closedPositions.length > 0 ? winRate.toFixed(1) : '0'}
-            change={performance?.win_rate != null ? Number(performance.win_rate) - 50 : winRate - 50}
-            suffix="%"
-            tooltip="Tỷ lệ lệnh có lãi trên tổng số lệnh đã đóng"
-            size="md"
-          />
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <StatCard
-            label="Hệ số lợi nhuận"
-            value={(performance?.profit_factor ?? 0) > 0
-              ? Number(performance!.profit_factor).toFixed(2)
-              : '0'}
-            change={(performance?.profit_factor ?? 0) > 0 ? (performance!.profit_factor >= 1 ? 1 : -1) : undefined}
-            tooltip="Tỷ số giữa tổng lãi và tổng lỗ. > 1.5 là xuất sắc"
-            size="sm"
-          />
-          <StatCard
-            label="Hạn mức rủi ro"
-            value={maxRiskPercent.toFixed(0)}
-            suffix="%"
-            tooltip="Phần trăm vốn tối đa có thể mất"
-            size="sm"
-          />
-        </div>
-      </div>
-      )}
-
-      {/* ── ROW 2: Holdings + Equity Curve ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-3">
-        {/* Holdings Table */}
-        <div className="xl:col-span-3 panel-section flex flex-col" style={{ maxHeight: 420 }}>
-          <div className="px-4 py-2.5 border-b border-border-subtle shrink-0">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Vị thế đang mở ({openPositions.length})</span>
-          </div>
-          <div className="flex-1 overflow-y-auto dense-scroll">
-            {openPositions.length === 0 ? (
-              <EmptyState
-                title="Chưa có vị thế nào"
-                description="Nhập lệnh đầu tiên để bắt đầu theo dõi danh mục của bạn."
-                actionLabel="Nhập lệnh mới"
-                onAction={() => onNavigate('terminal')}
-              />
-            ) : (<>
-              {/* Desktop table */}
-              <div className="hidden lg:block">
-              <table className="table-terminal w-full">
-                <thead>
-                  <tr>
-                    <th className="text-left">Mã</th>
-                    <th className="text-left">Sàn</th>
-                    <th>Giá vào</th>
-                    <th>Hiện tại</th>
-                    <th>KL</th>
-                    <th><FinancialTooltip term="P&L" /> (VND)</th>
-                    <th><FinancialTooltip term="P&L" /> (%)</th>
-                    <th><FinancialTooltip term="Stop Loss" /></th>
-                    <th><FinancialTooltip term="Take Profit" /></th>
-                    <th className="text-left">Hành động</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {openPositions.map((pos) => {
-                    const entry = Number(pos.entry_price ?? 0);
-                    const current = Number((pos as any).current_price ?? pos.entry_price ?? 0);
-                    const qty = Number(pos.quantity ?? 0);
-                    const isShort = (pos.side ?? 'LONG').toUpperCase() === 'SHORT';
-                    const pnl = isShort ? (entry - current) * qty : (current - entry) * qty;
-                    const pnlPct = entry > 0 ? (isShort ? ((entry - current) / entry) : ((current - entry) / entry)) * 100 : 0;
-                    const sl = Number((pos as any).stop_loss ?? 0);
-                    const tp = Number((pos as any).take_profit ?? 0);
-                    return (
-                      <tr key={pos.id} className={pnl >= 0 ? 'row-profit' : 'row-loss'}>
-                        <td className="text-left">
-                          <span className="font-bold text-text-main">{pos.symbol}</span>
-                          <span className={`ml-1 text-[9px] font-bold px-1 rounded ${isShort ? 'text-negative bg-negative/10' : 'text-positive bg-positive/10'}`}>
-                            {isShort ? 'SHORT' : 'LONG'}
-                          </span>
-                        </td>
-                        <td className="text-left text-text-muted text-[10px]">{pos.exchange || '—'}</td>
-                        <td className="text-text-muted">{entry > 0 ? toPoint(entry / 1000).toFixed(2) : '—'}</td>
-                        <td className={current > 0 ? (current > entry ? 'text-positive' : current < entry ? 'text-negative' : 'text-warning') : 'text-text-muted'}>
-                          {current > 0 ? toPoint(current / 1000).toFixed(2) : '—'}
-                        </td>
-                        <td>{qty > 0 ? formatNumberVI(qty, { maximumFractionDigits: 0 }) : '—'}</td>
-                        <td className={pnl >= 0 ? 'text-positive' : 'text-negative'}>
-                          {pnl !== 0 ? (pnl >= 0 ? '+' : '') + formatNumberVI(pnl, { maximumFractionDigits: 0 }) : '—'}
-                        </td>
-                        <td className={pnlPct >= 0 ? 'text-positive' : 'text-negative'}>
-                          {pnlPct !== 0 ? (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(2) + '%' : '—'}
-                        </td>
-                        <td className="text-negative">{sl > 0 ? toPoint(sl / 1000).toFixed(2) : '—'}</td>
-                        <td className="text-positive">{tp > 0 ? toPoint(tp / 1000).toFixed(2) : '—'}</td>
-                        <td className="text-left">
-                          <div className="flex gap-1">
-                            <button
-                              onClick={() => {
-                                setEditMsg('');
-                                setEditModal({
-                                  pos,
-                                  stopLoss: sl > 0 ? toPoint(sl / 1000).toFixed(2) : '',
-                                  takeProfit: tp > 0 ? toPoint(tp / 1000).toFixed(2) : '',
-                                });
-                              }}
-                              className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-accent/15 text-accent hover:bg-accent/30 transition-colors"
-                              title="Sửa SL/TP"
-                            >Sửa</button>
-                            <button
-                              onClick={() => { setCloseMsg(''); setCloseModal({ pos, reason: 'CLOSED_MANUAL' }); }}
-                              className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-negative/15 text-negative hover:bg-negative/30 transition-colors"
-                              title="Đóng vị thế"
-                            >Đóng</button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              </div>
-              {/* Mobile cards */}
-              <div className="lg:hidden space-y-2">
-                {openPositions.map((pos) => {
-                  const entry = Number(pos.entry_price ?? 0);
-                  const current = Number((pos as any).current_price ?? pos.entry_price ?? 0);
-                  const qty = Number(pos.quantity ?? 0);
-                  const isShort = (pos.side ?? 'LONG').toUpperCase() === 'SHORT';
-                  const pnl = isShort ? (entry - current) * qty : (current - entry) * qty;
-                  const sl = Number((pos as any).stop_loss ?? 0);
-                  const tp = Number((pos as any).take_profit ?? 0);
-                  return (
-                    <div key={pos.id} className="card-flat p-3 space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-text-main text-[13px]">{pos.symbol}</span>
-                          <span className={`text-[9px] font-bold px-1 rounded ${isShort ? 'text-negative bg-negative/10' : 'text-positive bg-positive/10'}`}>
-                            {isShort ? 'SHORT' : 'LONG'}
-                          </span>
-                        </div>
-                        <span className={`text-[13px] font-bold font-mono ${pnl >= 0 ? 'text-positive' : 'text-negative'}`}>
-                          {pnl !== 0 ? (pnl >= 0 ? '+' : '') + formatNumberVI(pnl, { maximumFractionDigits: 0 }) : '0'}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 text-[10px] text-text-muted">
-                        <div>Vao: <span className="text-text-main font-mono">{entry > 0 ? toPoint(entry / 1000).toFixed(2) : '-'}</span></div>
-                        <div>HT: <span className="text-text-main font-mono">{current > 0 ? toPoint(current / 1000).toFixed(2) : '-'}</span></div>
-                        <div>KL: <span className="text-text-main font-mono">{qty > 0 ? formatNumberVI(qty, { maximumFractionDigits: 0 }) : '-'}</span></div>
-                      </div>
-                      <div className="flex gap-3 text-[10px]">
-                        {sl > 0 && <span className="text-negative">SL: {toPoint(sl / 1000).toFixed(2)}</span>}
-                        {tp > 0 && <span className="text-positive">TP: {toPoint(tp / 1000).toFixed(2)}</span>}
-                      </div>
-                      <div className="flex gap-1 pt-1">
-                        <button
-                          onClick={() => {
-                            setEditMsg('');
-                            setEditModal({
-                              pos,
-                              stopLoss: sl > 0 ? toPoint(sl / 1000).toFixed(2) : '',
-                              takeProfit: tp > 0 ? toPoint(tp / 1000).toFixed(2) : '',
-                            });
-                          }}
-                          className="px-2 py-1 rounded text-[10px] font-bold bg-accent/15 text-accent hover:bg-accent/30 transition-colors"
-                        >Sửa SL/TP</button>
-                        <button
-                          onClick={() => { setCloseMsg(''); setCloseModal({ pos, reason: 'CLOSED_MANUAL' }); }}
-                          className="px-2 py-1 rounded text-[10px] font-bold bg-negative/15 text-negative hover:bg-negative/30 transition-colors"
-                        >Đóng</button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </>)}
-          </div>
-        </div>
-
-        {/* Equity Curve */}
-        <div className="xl:col-span-2 panel-section flex flex-col">
-          <div className="px-4 py-2.5 border-b border-border-subtle shrink-0 flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Đường Vốn (90 ngày)</span>
-            {perfLoading && <div className="w-3 h-3 border border-accent border-t-transparent rounded-full animate-spin" />}
-          </div>
-          <div className="flex-1 p-3" style={{ minHeight: 200 }}>
-            {equityCurve.length < 2 ? (
-              <div className="flex flex-col items-center justify-center h-full text-text-dim gap-2">
-                <svg className="w-8 h-8 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
-                </svg>
-                <p className="text-[11px]">Chưa đủ dữ liệu để vẽ đường vốn</p>
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={180}>
-                <LineChart data={equityCurve}>
-                  <CartesianGrid strokeDasharray="2 2" stroke="var(--color-divider)" />
-                  <XAxis dataKey="date" tick={{ fill: 'var(--color-text-dim)', fontSize: 9 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-                  <YAxis tick={{ fill: 'var(--color-text-dim)', fontSize: 9 }} tickLine={false} axisLine={false} width={55}
-                    tickFormatter={(v) => (v / 1e6).toFixed(0) + 'M'} />
-                  <ReferenceLine y={totalBalance} stroke="var(--color-border-standard)" strokeDasharray="3 3" />
-                  <Tooltip
-                    contentStyle={{ background: 'var(--color-panel)', border: '1px solid var(--color-border-standard)', borderRadius: 6, fontSize: 11 }}
-                    labelStyle={{ color: 'var(--color-text-muted)' }}
-                    formatter={(v: any, name: string) => [
-                      formatNumberVI(v, { maximumFractionDigits: 0 }),
-                      name === 'value' ? 'Tổng vốn' : 'P&L ngày'
-                    ]}
-                  />
-                  <Line type="monotone" dataKey="value" stroke="var(--color-accent)" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-px border-t border-border-subtle">
-            <div className="p-3">
-              <p className="text-[9px] text-text-dim uppercase tracking-wide mb-0.5">Max Drawdown</p>
-              <p className={`text-[13px] font-bold font-mono ${(performance?.max_drawdown_pct ?? 0) > 15 ? 'text-negative' : (performance?.max_drawdown_pct ?? 0) > 5 ? 'text-warning' : 'text-positive'}`}>
-                {performance?.max_drawdown_pct != null ? `-${Number(performance.max_drawdown_pct).toFixed(1)}%` : '—'}
-              </p>
-            </div>
-            <div className="p-3">
-              <p className="text-[9px] text-text-dim uppercase tracking-wide mb-0.5">TB Lãi / TB Lỗ</p>
-              <p className="text-[13px] font-bold font-mono text-text-muted">
-                {performance?.avg_win_vnd > 0
-                  ? `${(performance.avg_win_vnd / 1000).toFixed(0)}K / ${(performance.avg_loss_vnd / 1000).toFixed(0)}K`
-                  : '—'}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── ROW 3: Closed Trades ── */}
-      <div className="panel-section">
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-subtle">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Lịch Sử Lệnh Đóng</span>
-          <div className="flex items-center gap-2 text-[10px] text-text-muted">
-            <span className="text-[10px] text-text-dim">{closedTotal} vị thế</span>
-            <button onClick={() => setClosedPage(Math.max(1, closedPage - 1))} disabled={closedPage <= 1} className="px-2 py-0.5 rounded border border-border-standard disabled:opacity-40">Trước</button>
-            <span>{closedPage}/{totalPages}</span>
-            <button onClick={() => setClosedPage(p => Math.min(totalPages, p + 1))} disabled={closedPage >= totalPages} className="px-2 py-0.5 rounded border border-border-standard disabled:opacity-40">Sau</button>
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          {loadingClosed ? (
-            <div className="p-3"><SkeletonTable rows={3} /></div>
-          ) : closedPositions.length === 0 ? (
-            <div className="text-center py-8 text-text-muted text-[12px]">Chưa có lệnh đóng nào</div>
-          ) : (
-            <table className="table-terminal w-full">
-              <thead>
-                <tr>
-                  <th className="text-left">Mã</th>
-                  <th className="text-left">Sàn</th>
-                  <th>Giá Vào</th>
-                  <th>Giá Đóng</th>
-                  <th>KL</th>
-                  <th><FinancialTooltip term="P&L" /> (VND)</th>
-                  <th><FinancialTooltip term="P&L" /> (%)</th>
-                  <th className="text-left">Lý do</th>
-                </tr>
-              </thead>
-              <tbody>
-                {closedPositions.map((pos) => {
-                  const entry = Number(pos.entry_price ?? 0);
-                  const close = Number((pos as any).closed_price ?? (pos as any).current_price ?? entry);
-                  const qty = Number(pos.quantity ?? 0);
-                  const isShort = (pos.side ?? 'LONG').toUpperCase() === 'SHORT';
-                  // Ưu tiên dùng profit_loss_vnd từ DB (chính xác nhất)
-                  const pnl = pos.profit_loss_vnd != null
-                    ? Number(pos.profit_loss_vnd)
-                    : (isShort ? (entry - close) * qty : (close - entry) * qty);
-                  const grossPnl = (pos as any).gross_pnl_vnd != null ? Number((pos as any).gross_pnl_vnd) : null;
-                  const totalFee = (() => {
-                    const bf = Number((pos as any).buy_fee_vnd ?? 0);
-                    const sf = Number((pos as any).sell_fee_vnd ?? 0);
-                    const st = Number((pos as any).sell_tax_vnd ?? 0);
-                    return bf + sf + st;
-                  })();
-                  // P&L% = pnl / (entry * qty) × 100 (không phụ thuộc chiều vào)
-                  const invested = entry * qty;
-                  const pnlPct = invested > 0 ? (pnl / invested) * 100 : 0;
-                  return (
-                    <tr key={pos.id} className={pnl >= 0 ? 'row-profit' : 'row-loss'}>
-                      <td className="text-left">
-                        <span className="font-bold text-text-main">{pos.symbol}</span>
-                        <span className={`ml-1 text-[9px] font-bold px-1 rounded ${isShort ? 'text-negative bg-negative/10' : 'text-positive bg-positive/10'}`}>
-                          {isShort ? 'SHORT' : 'LONG'}
-                        </span>
-                      </td>
-                      <td className="text-left text-text-muted">{pos.exchange || '—'}</td>
-                      <td>{entry > 0 ? toPoint(entry / 1000).toFixed(2) : '—'}</td>
-                      <td>{close > 0 ? toPoint(close / 1000).toFixed(2) : '—'}</td>
-                      <td>{qty > 0 ? formatNumberVI(qty, { maximumFractionDigits: 0 }) : '—'}</td>
-                      <td className={pnl >= 0 ? 'text-positive' : 'text-negative'}>
-                        <div>{pnl !== 0 ? (pnl >= 0 ? '+' : '') + formatNumberVI(pnl, { maximumFractionDigits: 0 }) : '—'}</div>
-                        {grossPnl != null && totalFee > 0 && (
-                          <div className="text-[8px] text-text-dim">
-                            Gộp {grossPnl >= 0 ? '+' : ''}{formatNumberVI(grossPnl, { maximumFractionDigits: 0 })} / Phí {formatNumberVI(totalFee, { maximumFractionDigits: 0 })}
-                          </div>
-                        )}
-                      </td>
-                      <td className={pnlPct >= 0 ? 'text-positive' : 'text-negative'}>
-                        {pnlPct !== 0 ? (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(2) + '%' : '—'}
-                      </td>
-                      <td className="text-left"><StatusBadge status={pos.status ?? ''} /></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
-
-      {/* ── PAPER PERFORMANCE REPORT ── */}
-      {portfolioId && (
-        <PaperPerformanceReport portfolioId={portfolioId} refreshTrigger={paperBalanceRefresh} />
-      )}
-      </>)}
 
       {/* ── CLOSE POSITION MODAL ── */}
       {closeModal && (

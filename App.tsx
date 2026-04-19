@@ -17,16 +17,12 @@ import { NotificationsView } from './components/NotificationsView';
 import { SettingsView } from './components/SettingsView';
 import { MobileBottomNav } from './components/ui/MobileBottomNav';
 import { OnboardingWizard } from './components/OnboardingWizard';
-import { PaperOrderManager } from './components/PaperOrderManager';
-import { PaperVirtualBalance } from './components/PaperVirtualBalance';
-// Heavy components — lazy loaded để giảm initial bundle size
-const PaperPerformanceReport = React.lazy(() => import('./components/PaperPerformanceReport').then(m => ({ default: m.PaperPerformanceReport })));
 import { analyzeTrader } from './services/geminiService';
 import { portfolioApi, positionApi, marketApi, authApi } from './services/api';
 import type { Position as PositionType, CreatePositionRequest } from './services/api';
 import wsService from './services/websocket';
 import { STOCK_PRICE_DISPLAY_SCALE, PRICE_FRACTION_OPTIONS, PRICE_LOCALE, EXCHANGES, formatNumberVI, formatPricePoints, MARKET_INDEX_CODES_BANG_GIA, INDUSTRY_CODES, SINGLE_CHOICE_GROUPS } from './constants';
-
+import { createPortal } from 'react-dom'  
 // --- Helper: Convert Vietnamese date to Lightweight Charts format ---
 function convertToLightweightTime(dateStr: string): string {
   // Input: "12/2/2026" (dd/mm/yyyy)
@@ -3157,8 +3153,6 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
             onOpenSetup={() => setShowSetupModal(true)}
           />
         )}
-
-        {/* Paper Trading — gộp vào Portfolio (tab "Mô phỏng") */}
 
         {/* Watchlist View */}
         {currentView === 'watchlist' && (
