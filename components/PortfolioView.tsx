@@ -15,6 +15,7 @@ import { RealOrderForm } from './portfolio/RealOrderForm';
 import { RealPositionsTable } from './portfolio/RealPositionsTable';
 import { ClosePositionModal } from './portfolio/ClosePositionModal';
 import { TransactionHistory } from './portfolio/TransactionHistory';
+import { type PortfolioFeeConfig } from '../utils/feeConstants';
 
 interface Props {
   portfolioId: string | null;
@@ -63,6 +64,8 @@ export const PortfolioView: React.FC<Props> = ({
     available_cash: 0,
     pending_settlement_cash: 0,
   });
+  // D-02 MAP-04: portfolio fee config load từ portfolioApi.getById, pass xuống children
+  const [portfolioConfig, setPortfolioConfig] = useState<PortfolioFeeConfig | null>(null);
   const [realSummary, setRealSummary] = useState<{
     total_value: number;
     total_pnl: number;
@@ -153,6 +156,12 @@ export const PortfolioView: React.FC<Props> = ({
           total_balance: Number(p.total_balance ?? totalBalance ?? 0),
           available_cash: Number(p.available_cash ?? 0),
           pending_settlement_cash: Number(p.pending_settlement_cash ?? 0),
+        });
+        // D-02 MAP-04: extract fee config từ portfolio response (migration 006)
+        setPortfolioConfig({
+          buy_fee_percent: p.buy_fee_percent,
+          sell_fee_percent: p.sell_fee_percent,
+          sell_tax_percent: p.sell_tax_percent,
         });
       }
       if (summaryRes.data?.success && summaryRes.data?.data) {
@@ -356,7 +365,7 @@ export const PortfolioView: React.FC<Props> = ({
                 onClosePosition={setClosingPosition}
                 loading={realPositionsLoading}
               />
-              <TransactionHistory portfolioId={portfolioId} />
+              <TransactionHistory portfolioId={portfolioId} portfolio={portfolioConfig} />
             </div>
 
             {/* Right column — form + quick stats */}
@@ -364,6 +373,7 @@ export const PortfolioView: React.FC<Props> = ({
               <RealOrderForm
                 portfolioId={portfolioId}
                 availableCash={cashBalance.available_cash}
+                portfolio={portfolioConfig}
                 onSuccess={fetchRealData}
               />
 
@@ -403,6 +413,7 @@ export const PortfolioView: React.FC<Props> = ({
           <ClosePositionModal
             position={closingPosition}
             portfolioId={portfolioId}
+            portfolio={portfolioConfig}
             isOpen={!!closingPosition}
             onClose={() => setClosingPosition(null)}
             onSuccess={fetchRealData}
