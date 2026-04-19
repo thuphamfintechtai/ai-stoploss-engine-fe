@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { realPortfolioApi } from '../../services/api';
+import { useMarketRules } from '../../hooks/useMarketRules';
+import { OrderFieldError } from './OrderFieldError';
+import { ERRORS } from '../../utils/vnStockRules';
 
 interface RealOrderFormProps {
   portfolioId: string;
@@ -29,6 +32,8 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
   const [success, setSuccess] = useState('');
   const [collapsed, setCollapsed] = useState(false);
 
+  const rules = useMarketRules(exchange);
+
   const qty = parseFloat(quantity) || 0;
   const price = parseFloat(filledPrice) || 0;
   const totalValue = qty * price;
@@ -40,6 +45,25 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
   const remainingCash =
     side === 'BUY' ? availableCash - totalValue - fee : null;
 
+  // Inline validation errors (null = không error)
+  const qtyError = useMemo<string | null>(() => {
+    if (qty <= 0) return null; // empty state — không hiển thị lỗi
+    const r = rules.validateLot(qty);
+    return r.ok ? null : r.reason ?? null;
+  }, [qty, rules]);
+
+  const priceError = useMemo<string | null>(() => {
+    if (price <= 0) return null;
+    const tick = rules.tickSize(price);
+    if (price % tick !== 0) {
+      return ERRORS.TICK_INVALID(tick, exchange);
+    }
+    return null;
+  }, [price, exchange, rules]);
+
+  const hasFieldError = qtyError !== null || priceError !== null;
+  const dynamicTickStep = price > 0 ? rules.tickSize(price) : 100;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -50,6 +74,10 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
     if (qty <= 0) { setError('Số lượng phải lớn hơn 0'); return; }
     if (price <= 0) { setError('Giá khớp phải lớn hơn 0'); return; }
     if (!filledDate) { setError('Vui lòng chọn ngày khớp'); return; }
+    if (hasFieldError) {
+      setError('Vui lòng sửa các lỗi quy tắc sàn trước khi gửi lệnh');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -173,6 +201,14 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
           </div>
         </div>
 
+        {/* Session indicator (informational — không gate submit) */}
+        <div className="text-[10px] text-[var(--color-text-dim)] px-1">
+          Phiên hiện tại: <span className="font-mono">{rules.session}</span>
+          {!rules.isOpen && (
+            <span className="ml-2 text-[var(--color-warning)]">• Thị trường đóng cửa</span>
+          )}
+        </div>
+
         {/* Row 2: SL + Giá + Ngày */}
         <div className="grid grid-cols-2 xl:grid-cols-3 gap-2">
           <div>
@@ -185,7 +221,9 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
               step={100}
               placeholder="100"
               className={inputCls}
+              aria-invalid={qtyError !== null}
             />
+            <OrderFieldError message={qtyError} />
           </div>
           <div>
             <label className={labelCls}>Giá khớp (VND)</label>
@@ -194,10 +232,12 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
               value={filledPrice}
               onChange={(e) => setFilledPrice(e.target.value)}
               min={0}
-              step={100}
+              step={dynamicTickStep}
               placeholder="72500"
               className={inputCls}
+              aria-invalid={priceError !== null}
             />
+            <OrderFieldError message={priceError} />
           </div>
           <div>
             <label className={labelCls}>Ngày khớp</label>
@@ -244,7 +284,7 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
           </div>
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || hasFieldError}
             className={`h-[34px] px-5 rounded-md text-[12px] font-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
               side === 'BUY'
                 ? 'bg-[var(--color-positive)] hover:brightness-110'
