@@ -519,6 +519,28 @@ export const notificationsApi = {
     apiClient.delete('/notifications/read'),
 };
 
+// ─── Market Indices (MDI-06) ─────────────────────────────────────────────────
+
+/**
+ * Một chỉ số thị trường trong response của GET /api/market/indices.
+ * Normalized shape từ BE plan 05-02 (VPBS adapter + Promise.allSettled).
+ */
+export interface MarketIndex {
+  indexCode: 'VNINDEX' | 'VN30' | 'HNXINDEX';
+  success: boolean;
+  value?: number;          // e.g. 1287.5
+  change?: number;         // tuyệt đối (ví dụ 15.2)
+  changePercent?: number;  // %
+  timestamp?: string;      // ISO time, upstream hoặc server
+  error?: string;          // khi success=false
+}
+
+export interface IndicesResponse {
+  success: boolean;
+  data: MarketIndex[];
+  timestamp: string;
+}
+
 // Market API
 export const marketApi = {
   getSymbols: (params?: { exchange?: string; is_enabled?: boolean }) =>
@@ -543,6 +565,16 @@ export const marketApi = {
     apiClient.get('/market/intraday-indices', {
       params: codes?.length ? { codes: codes.join(',') } : undefined,
     }),
+
+  /**
+   * MDI-06 — Dashboard market indices (VN-Index / VN30 / HNX-Index).
+   * Normalized endpoint từ BE plan 05-02: shape ổn định không phụ thuộc VPBS payload thô.
+   * Nhận optional AbortSignal để caller hủy in-flight request khi unmount / re-poll.
+   */
+  getIndices: async (signal?: AbortSignal): Promise<IndicesResponse> => {
+    const res = await apiClient.get<IndicesResponse>('/market/indices', { signal, timeout: 10000 });
+    return res.data;
+  },
 
   /** Tóm tắt chỉ số (Neopro marketIndexDetail). indexCode: VNINDEX,VN30,VNXALL,HNX30,... */
   getMarketIndexDetail: (params?: { indexCode?: string }) => {
