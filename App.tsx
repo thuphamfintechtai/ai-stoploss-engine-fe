@@ -1641,7 +1641,23 @@ function App() {
   useEffect(() => {
     const handler = () => setIsAuthenticated(false);
     window.addEventListener('auth:logout', handler);
-    return () => window.removeEventListener('auth:logout', handler);
+
+    // MDI-02: BE reject WS connection (UNAUTHENTICATED/INVALID_TOKEN) → websocket.ts dispatch
+    // 'ws:unauthenticated' → clear token + chuyển về AuthView (reuse auth:logout flow).
+    const handleWsUnauth = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { reason?: string } | undefined;
+      console.warn('[App] WS unauthenticated:', detail?.reason);
+      // Clear token + user tương tự axios 401 interceptor, rồi reuse handler phía trên.
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user');
+      window.dispatchEvent(new CustomEvent('auth:logout'));
+    };
+    window.addEventListener('ws:unauthenticated', handleWsUnauth);
+
+    return () => {
+      window.removeEventListener('auth:logout', handler);
+      window.removeEventListener('ws:unauthenticated', handleWsUnauth);
+    };
   }, []);
 
   if (!isAuthenticated) {
