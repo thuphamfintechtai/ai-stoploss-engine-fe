@@ -53,7 +53,27 @@ class WebSocketService {
       if (this.reconnectAttempts > 0) return;
     });
 
-    this.socket.on('connect_error', () => {
+    this.socket.on('connect_error', (err: Error | { message?: string }) => {
+      const errMessage = (err as { message?: string })?.message;
+
+      // MDI-02: BE reject connection qua next(new Error('UNAUTHENTICATED' | 'INVALID_TOKEN'))
+      // → socket.io emit 'connect_error' với error.message === 'UNAUTHENTICATED' | 'INVALID_TOKEN'.
+      // Với auth error: KHÔNG retry, cleanup socket, dispatch event để App logout flow chạy.
+      if (errMessage === 'UNAUTHENTICATED' || errMessage === 'INVALID_TOKEN') {
+        console.warn('WebSocket: Authentication failed, logging out.');
+        this.socket?.removeAllListeners();
+        this.socket?.disconnect();
+        this.socket = null;
+        this.reconnectAttempts = 0;
+        this.hasLoggedConnectionRefused = false;
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('ws:unauthenticated', { detail: { reason: errMessage } }));
+        }
+        return;
+      }
+
+      // Network error (backend down / mạng chập chờn) — giữ logic cũ: increment attempts, retry,
+      // log 1 lần, dispatch 'ws:disconnected' khi vượt max.
       this.reconnectAttempts++;
       // Chỉ log 1 lần khi backend không chạy (ERR_CONNECTION_REFUSED)
       if (!this.hasLoggedConnectionRefused) {
