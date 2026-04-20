@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, ReferenceLine } from 'recharts';
 import { positionApi, portfolioApi, realPortfolioApi } from '../services/api';
 import type { Position, RealPosition } from '../services/api';
+import wsService from '../services/websocket';
 import { StatCard } from './ui/StatCard';
 import { EmptyState } from './ui/EmptyState';
 import { FinancialTooltip } from './ui/Tooltip';
@@ -60,6 +61,13 @@ export const PortfolioView: React.FC<Props> = ({
   const [realPositions, setRealPositions] = useState<RealPosition[]>([]);
   const [realPositionsLoading, setRealPositionsLoading] = useState(false);
   const [closingPosition, setClosingPosition] = useState<RealPosition | null>(null);
+
+  // MDI-04: theo dõi timestamp lần cuối nhận giá từ WS cho từng symbol.
+  // Ref để update không trigger re-render; ageTick là state tăng mỗi 5s để
+  // kích hoạt re-render cho label "Delayed" cập nhật mượt mà.
+  const priceReceivedAtRef = useRef<Record<string, number>>({});
+  const [priceReceivedAtBySymbol, setPriceReceivedAtBySymbol] = useState<Record<string, number>>({});
+  const [ageTick, setAgeTick] = useState(0);
   const [cashBalance, setCashBalance] = useState({
     total_balance: 0,
     available_cash: 0,
@@ -192,6 +200,40 @@ export const PortfolioView: React.FC<Props> = ({
       fetchRealData();
     }
   }, [activeTab, portfolioId, fetchRealData]);
+
+  // MDI-04: subscribe WS price_update để ghi nhận thời điểm nhận giá mới nhất
+  // cho mỗi symbol đang có trong real positions → RealPositionsTable render "Delayed" khi stale.
+  useEffect(() => {
+    const handler = (data: any) => {
+      const symbol = data?.symbol;
+      if (!symbol || typeof symbol !== 'string') return;
+      priceReceivedAtRef.current = {
+        ...priceReceivedAtRef.current,
+        [symbol]: Date.now(),
+      };
+      // Publish snapshot cho children — chỉ update state khi symbol mới xuất hiện,
+      // tránh re-render trên mỗi tick WS.
+      setPriceReceivedAtBySymbol((prev) => {
+        if (prev[symbol] != null) return prev; // đã track → dùng ref, không cần state update
+        return { ...prev, [symbol]: Date.now() };
+      });
+    };
+    wsService.onPriceUpdate(handler);
+    return () => {
+      wsService.off('price_update', handler);
+    };
+  }, []);
+
+  // Tick age mỗi 5s để PriceFreshness label cập nhật (khi age vượt ngưỡng 10s).
+  useEffect(() => {
+    if (activeTab !== 'real') return;
+    const intervalId = setInterval(() => {
+      // Merge ref snapshot vào state để trigger re-render RealPositionsTable.
+      setPriceReceivedAtBySymbol({ ...priceReceivedAtRef.current });
+      setAgeTick((t) => t + 1);
+    }, 5000);
+    return () => clearInterval(intervalId);
+  }, [activeTab]);
 
   // ── Close Position ──
   const handleClosePosition = async () => {
@@ -381,6 +423,8 @@ export const PortfolioView: React.FC<Props> = ({
                 positions={realPositions}
                 onClosePosition={setClosingPosition}
                 loading={realPositionsLoading}
+                priceReceivedAtBySymbol={priceReceivedAtBySymbol}
+                ageTick={ageTick}
               />
               <TransactionHistory portfolioId={portfolioId} portfolio={portfolioConfig} />
             </div>

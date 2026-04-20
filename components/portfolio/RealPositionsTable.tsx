@@ -1,10 +1,21 @@
 import React from 'react';
 import type { RealPosition } from '../../services/api';
+import { PriceFreshness } from '../ui/PriceFreshness';
 
 interface RealPositionsTableProps {
   positions: RealPosition[];
   onClosePosition: (position: RealPosition) => void;
   loading?: boolean;
+  /**
+   * MDI-04 — map symbol → timestamp (ms) lần cuối nhận price từ WS.
+   * Optional: khi undefined/rỗng → không render label Delayed (hành vi an toàn khi chưa có WS).
+   */
+  priceReceivedAtBySymbol?: Record<string, number>;
+  /**
+   * MDI-04 — tick counter từ parent để force re-render định kỳ (ví dụ 5s/lần)
+   * giúp age tăng trực quan mà không cần state trong mỗi row.
+   */
+  ageTick?: number;
 }
 
 const formatVND = (value: number) =>
@@ -21,7 +32,16 @@ export const RealPositionsTable: React.FC<RealPositionsTableProps> = ({
   positions,
   onClosePosition,
   loading = false,
+  priceReceivedAtBySymbol,
+  ageTick: _ageTick, // Dùng như prop-trigger re-render (không reference trong body)
 }) => {
+  // Tính age cho mỗi row; ageTick chỉ để tạo re-render, Date.now() lấy tại render time.
+  const now = Date.now();
+  const ageFor = (symbol: string): number => {
+    const received = priceReceivedAtBySymbol?.[symbol];
+    if (!received || !Number.isFinite(received)) return 0;
+    return Math.max(0, now - received);
+  };
   if (loading) {
     return (
       <div className="panel-section">
@@ -104,9 +124,12 @@ export const RealPositionsTable: React.FC<RealPositionsTableProps> = ({
                     </td>
                     <td className="px-3 py-2.5 text-right font-mono">
                       {pos.current_price != null ? (
-                        <span className="text-[var(--color-text-muted)]">
-                          {formatVND(Number(pos.current_price))}
-                        </span>
+                        <div className="inline-flex flex-col items-end gap-0.5">
+                          <span className="text-[var(--color-text-muted)]">
+                            {formatVND(Number(pos.current_price))}
+                          </span>
+                          <PriceFreshness ageMs={ageFor(pos.symbol)} />
+                        </div>
                       ) : (
                         <span className="text-[var(--color-text-disabled)]">—</span>
                       )}

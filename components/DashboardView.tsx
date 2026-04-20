@@ -8,6 +8,7 @@ import { StatCard } from './ui/StatCard';
 import { Tooltip, FinancialTooltip } from './ui/Tooltip';
 import { EmptyState } from './ui/EmptyState';
 import { InfoCard } from './ui/InfoCard';
+import { MarketIndexBar } from './ui/MarketIndexBar';
 
 interface IndexData {
   indexCode: string;
@@ -321,6 +322,9 @@ export const DashboardView: React.FC<Props> = ({
 
   return (
     <div className="space-y-4 animate-fade-in">
+
+      {/* ── MARKET INDEX BAR (MDI-06) — top-of-view, poll 30s ── */}
+      <MarketIndexBar className="px-1" />
 
       {/* ── SECTION 1: Hero Portfolio Overview (D-16) ── */}
       <div className="bg-gradient-to-r from-[var(--color-accent-subtle)] to-[var(--color-panel)] rounded-lg p-5 border border-border-subtle">
