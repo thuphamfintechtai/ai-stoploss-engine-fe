@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { FinancialTooltip } from './ui/Tooltip';
 import { AiDisclaimer } from './ui/AiDisclaimer';
 import { ConfidenceBar } from './ui/ConfidenceBar';
@@ -126,9 +126,6 @@ export const TradingTerminal: React.FC<Props> = ({
   const [selectedSuggType, setSelectedSuggType] = useState<'aggressive' | 'moderate' | 'conservative'>('moderate');
 
   // AI Risk Evaluation (live, khi user điền form)
-  const [riskEval, setRiskEval] = useState<any>(null);
-  const [riskEvalLoading, setRiskEvalLoading] = useState(false);
-  const riskEvalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Position Sizing AI
   const [positionSizing, setPositionSizing] = useState<PositionSizingResult | null>(null);
@@ -192,93 +189,6 @@ export const TradingTerminal: React.FC<Props> = ({
     if (tpVnd) { setTakeProfitType('FIXED'); setTakeProfitPrice(String((tpVnd / 1000).toFixed(2))); }
     setSelectedSuggType(type);
   }, [aiSuggestions]);
-
-  // Auto risk evaluation khi form đủ dữ liệu: entry + stopLoss + qty + portfolioId
-  useEffect(() => {
-    if (riskEvalTimerRef.current) clearTimeout(riskEvalTimerRef.current);
-
-    const sym = orderSymbol || symbol;
-    const entryVnd = entryPoints != null ? Math.round(entryPoints * 1000) : null;
-    const qty = effectiveQty;
-
-    // Tính slVnd từ nhiều stop type khác nhau
-    let slVnd: number | null = null;
-    if (stopType === 'FIXED') {
-      const spRaw = parseFloat(stopPrice);
-      if (!isNaN(spRaw) && spRaw > 0) slVnd = Math.round(spRaw * 1000);
-    } else if (stopType === 'PERCENT' && entryVnd != null) {
-      const pct = parseFloat(stopPercent);
-      if (!isNaN(pct) && pct > 0) {
-        slVnd = orderSide === 'BAN'
-          ? Math.round(entryVnd * (1 + pct / 100))
-          : Math.round(entryVnd * (1 - pct / 100));
-      }
-    } else if (stopType === 'MAX_LOSS' && entryVnd != null && qty != null) {
-      const ml = parseFloat(stopMaxLossVnd);
-      if (!isNaN(ml) && ml > 0 && qty > 0) {
-        slVnd = orderSide === 'BAN'
-          ? Math.round(entryVnd + ml / qty)
-          : Math.round(entryVnd - ml / qty);
-      }
-    }
-
-    // Tính tpVnd từ nhiều TP type
-    let tpVnd: number | undefined;
-    if (takeProfitType === 'FIXED') {
-      const tpRaw = parseFloat(takeProfitPrice);
-      if (!isNaN(tpRaw) && tpRaw > 0) tpVnd = Math.round(tpRaw * 1000);
-    } else if (takeProfitType === 'PERCENT' && entryVnd != null) {
-      const pct = parseFloat(takeProfitPercent);
-      if (!isNaN(pct) && pct > 0) {
-        tpVnd = orderSide === 'BAN'
-          ? Math.round(entryVnd * (1 - pct / 100))
-          : Math.round(entryVnd * (1 + pct / 100));
-      }
-    } else if (takeProfitType === 'R_RATIO' && entryVnd != null && slVnd != null) {
-      const rr = parseFloat(takeProfitRR);
-      if (!isNaN(rr) && rr > 0) {
-        const risk = Math.abs(entryVnd - slVnd);
-        tpVnd = orderSide === 'BAN'
-          ? Math.round(entryVnd - risk * rr)
-          : Math.round(entryVnd + risk * rr);
-      }
-    }
-
-    // Validate direction: LONG → SL < Entry, SHORT → SL > Entry
-    const directionOk = slVnd != null && entryVnd != null && (
-      orderSide === 'BAN' ? slVnd > entryVnd : slVnd < entryVnd
-    );
-
-    if (!portfolioId || !sym || !entryVnd || !slVnd || !qty || !directionOk) {
-      setRiskEval(null);
-      return;
-    }
-
-    // Debounce 800ms để tránh spam API
-    let cancelled = false;
-    riskEvalTimerRef.current = setTimeout(async () => {
-      if (cancelled) return;
-      setRiskEvalLoading(true);
-      try {
-        const res = await aiApi.evaluateRisk({
-          symbol: sym,
-          exchange: orderExchange || exchange || 'HOSE',
-          portfolio_id: portfolioId,
-          entry_price: entryVnd,
-          stop_loss: slVnd!,
-          take_profit: tpVnd,
-          quantity: qty,
-        });
-        if (!cancelled && res.data?.success) setRiskEval(res.data.data);
-      } catch { /* silent – risk eval là optional */ } finally {
-        if (!cancelled) setRiskEvalLoading(false);
-      }
-    }, 800);
-
-    return () => { cancelled = true; if (riskEvalTimerRef.current) clearTimeout(riskEvalTimerRef.current); };
-  }, [portfolioId, orderSymbol, symbol, orderExchange, exchange, entryPoints, orderSide,
-      stopType, stopPrice, stopPercent, stopMaxLossVnd,
-      takeProfitType, takeProfitPrice, takeProfitPercent, takeProfitRR, effectiveQty]);
 
   // Load chart data
   const loadChart = useCallback(async (sym: string, exch: string, tf: string) => {
@@ -689,7 +599,6 @@ export const TradingTerminal: React.FC<Props> = ({
       setTakeProfitPercent('');
       setTakeProfitRR('');
       setAiSuggestions(null);
-      setRiskEval(null);
       setTimeout(() => onNavigate?.('dashboard'), 1500);
     } catch (e: any) {
       setOrderMsg({ type: 'err', text: e?.response?.data?.message || 'Đặt lệnh thất bại.' });
@@ -1655,21 +1564,6 @@ export const TradingTerminal: React.FC<Props> = ({
                         </div>
                       )}
 
-                      {/* Risk eval */}
-                      {(riskEval || riskEvalLoading) && (
-                        <div className="p-2.5 rounded-lg border border-border-subtle bg-background/50 flex items-center gap-2 flex-wrap">
-                          {riskEvalLoading && <div className="w-3 h-3 border border-accent border-t-transparent rounded-full animate-spin" />}
-                          {riskEval && !riskEvalLoading && (
-                            <>
-                              <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${riskEval.risk_level === 'LOW' ? 'text-positive bg-positive/10' : riskEval.risk_level === 'MEDIUM' ? 'text-warning bg-warning/10' : 'text-negative bg-negative/10'}`}>
-                                {riskEval.risk_level === 'LOW' ? 'RỦI RO THẤP' : riskEval.risk_level === 'MEDIUM' ? 'TRUNG BÌNH' : 'CAO'}
-                              </span>
-                              {riskEval.risk_reward_ratio > 0 && <span className="text-[9px] font-mono text-text-dim"><FinancialTooltip term="R:R Ratio" /> <span className={riskEval.risk_reward_ratio >= 2 ? 'text-positive' : 'text-warning'}>{riskEval.risk_reward_ratio.toFixed(1)}</span></span>}
-                              {riskEval.risk_percent_of_portfolio > 0 && <span className="text-[9px] font-mono text-text-dim">Rủi ro <span className={riskEval.risk_percent_of_portfolio > 3 ? 'text-negative' : 'text-text-main'}>{riskEval.risk_percent_of_portfolio.toFixed(1)}%</span> vốn</span>}
-                            </>
-                          )}
-                        </div>
-                      )}
 
                       {/* Position sizing suggestion — advanced only */}
                       {showAdvanced && portfolioId && (positionSizingLoading || positionSizing) && (

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ResponsiveContainer, AreaChart, Area, ReferenceLine } from 'recharts';
-import { marketApi, realPortfolioApi, aiApi, portfolioApi } from '../services/api';
+import { marketApi, realPortfolioApi, aiApi, portfolioApi, orderApi } from '../services/api';
 import { STOCK_PRICE_DISPLAY_SCALE, PRICE_LOCALE, formatNumberVI } from '../constants';
-import type { Position } from '../services/api';
+import type { Position, Order } from '../services/api';
 import wsService from '../services/websocket';
 import { EmptyState } from './ui/EmptyState';
 
@@ -23,13 +23,6 @@ interface PerformanceStats {
   losing_trades: number;
   win_rate: number;
   total_pnl_vnd: number;
-}
-
-interface AiInsight {
-  symbol: string;
-  action: string;
-  recommendation: string;
-  confidence: number;
 }
 
 interface NewsArticle {
@@ -276,46 +269,6 @@ const RiskGauge: React.FC<{ percentage: number; used: number; max: number }> = (
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// AI Signal Card
-// ═══════════════════════════════════════════════════════════════════════════
-const AiSignalCard: React.FC<{ insight: AiInsight; onClick: () => void }> = ({ insight, onClick }) => {
-  const act = (insight.action || 'HOLD').toUpperCase();
-  const isBuy = act === 'BUY' || act === 'MUA';
-  const isSell = act === 'SELL' || act === 'BAN' || act === 'BÁN';
-
-  const actionStyle = isBuy
-    ? 'bg-[var(--color-positive)]/10 text-[var(--color-positive)] border-[var(--color-positive)]/20'
-    : isSell
-      ? 'bg-[var(--color-negative)]/10 text-[var(--color-negative)] border-[var(--color-negative)]/20'
-      : 'bg-[var(--color-warning)]/10 text-[var(--color-warning)] border-[var(--color-warning)]/20';
-
-  const confColor = insight.confidence >= 70 ? 'var(--color-positive)' : insight.confidence >= 50 ? 'var(--color-warning)' : 'var(--color-negative)';
-
-  return (
-    <button
-      onClick={onClick}
-      className="w-full text-left p-3 rounded-lg bg-[var(--color-background)] hover:bg-[var(--color-panel-hover)] transition-colors flex items-center gap-3"
-    >
-      <span className={`text-[10px] font-bold px-2 py-1 rounded border shrink-0 ${actionStyle}`}>
-        {isBuy ? 'MUA' : isSell ? 'BÁN' : 'GIỮ'}
-      </span>
-      <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-bold text-[var(--color-text-main)]">{insight.symbol}</p>
-        <p className="text-[11px] text-[var(--color-text-muted)] truncate">{insight.recommendation}</p>
-      </div>
-      {insight.confidence > 0 && (
-        <div className="shrink-0 text-right">
-          <p className="text-[14px] font-bold tabular-nums" style={{ color: confColor }}>
-            {insight.confidence}%
-          </p>
-          <p className="text-[9px] text-[var(--color-text-dim)]">tin cậy</p>
-        </div>
-      )}
-    </button>
-  );
-};
-
-// ═══════════════════════════════════════════════════════════════════════════
 // Position Row
 // ═══════════════════════════════════════════════════════════════════════════
 const PositionRow: React.FC<{ position: Position; onClick: () => void }> = ({ position, onClick }) => {
@@ -386,8 +339,8 @@ export const DashboardView: React.FC<Props> = ({
   const [performance, setPerformance] = useState<PerformanceStats | null>(null);
   const [livePositions, setLivePositions] = useState<Position[]>(openPositions);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
-  const [aiInsights, setAiInsights] = useState<AiInsight[]>([]);
-  const [aiLoading, setAiLoading] = useState(false);
+  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
   const [news, setNews] = useState<NewsArticle[]>([]);
   const [newsLoading, setNewsLoading] = useState(false);
 
@@ -426,17 +379,18 @@ export const DashboardView: React.FC<Props> = ({
     } catch {}
   }, [portfolioId]);
 
-  const loadAiInsights = useCallback(async () => {
-    setAiLoading(true);
+  const loadRecentOrders = useCallback(async () => {
+    if (!portfolioId) return;
+    setOrdersLoading(true);
     try {
-      const res = await aiApi.getSignals({ limit: 4 });
+      const res = await orderApi.list(portfolioId, { limit: 5 });
       if (res.data?.success && Array.isArray(res.data.data)) {
-        setAiInsights(res.data.data.slice(0, 4));
+        setRecentOrders(res.data.data);
       }
     } finally {
-      setAiLoading(false);
+      setOrdersLoading(false);
     }
-  }, []);
+  }, [portfolioId]);
 
   const loadNews = useCallback(async () => {
     setNewsLoading(true);
@@ -483,7 +437,7 @@ export const DashboardView: React.FC<Props> = ({
     loadIndices();
     loadMarketRegime();
     loadPerformance();
-    loadAiInsights();
+    loadRecentOrders();
     loadNews();
     refreshLivePnL();
 
@@ -494,7 +448,7 @@ export const DashboardView: React.FC<Props> = ({
       clearInterval(indexInterval);
       clearInterval(pnlInterval);
     };
-  }, [loadIndices, loadMarketRegime, loadPerformance, loadAiInsights, loadNews, refreshLivePnL]);
+  }, [loadIndices, loadMarketRegime, loadPerformance, loadRecentOrders, loadNews, refreshLivePnL]);
 
   // Computed values
   const riskPct = maxRisk > 0 ? (riskUsed / maxRisk) * 100 : 0;
@@ -692,33 +646,76 @@ export const DashboardView: React.FC<Props> = ({
               </div>
             </div>
 
-            {/* AI Signals */}
+            {/* Recent Activity */}
             <div className="p-4 space-y-2">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-dim)] mb-3">
-                Gợi ý hôm nay
+                Hoạt động gần đây
               </p>
-              {aiLoading ? (
+              {ordersLoading ? (
                 <div className="space-y-2">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-14 rounded-lg bg-[var(--color-background)] animate-pulse" />
+                    <div key={i} className="h-12 rounded-lg bg-[var(--color-background)] animate-pulse" />
                   ))}
                 </div>
-              ) : aiInsights.length > 0 ? (
+              ) : recentOrders.length > 0 ? (
                 <div className="space-y-2">
-                  {aiInsights.map((insight, i) => (
-                    <AiSignalCard key={i} insight={insight} onClick={() => onNavigate('signals')} />
+                  {recentOrders.slice(0, 5).map((order) => (
+                    <div
+                      key={order.id}
+                      className="flex items-center justify-between p-2.5 rounded-lg bg-[var(--color-background)] hover:bg-[var(--color-background-hover)] transition-colors cursor-pointer"
+                      onClick={() => onNavigate('portfolio')}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold ${
+                          order.side === 'BUY'
+                            ? 'bg-[var(--color-positive)]/10 text-[var(--color-positive)]'
+                            : 'bg-[var(--color-negative)]/10 text-[var(--color-negative)]'
+                        }`}>
+                          {order.side === 'BUY' ? 'MUA' : 'BÁN'}
+                        </div>
+                        <div>
+                          <p className="text-[12px] font-semibold text-[var(--color-text-main)]">
+                            {order.symbol}
+                          </p>
+                          <p className="text-[10px] text-[var(--color-text-dim)]">
+                            {order.quantity.toLocaleString()} CP × {formatNumberVI(order.limit_price ? order.limit_price / 1000 : 0)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                          order.status === 'FILLED' ? 'bg-[var(--color-positive)]/10 text-[var(--color-positive)]' :
+                          order.status === 'PENDING' ? 'bg-[var(--color-warning)]/10 text-[var(--color-warning)]' :
+                          order.status === 'CANCELLED' ? 'bg-[var(--color-text-dim)]/10 text-[var(--color-text-dim)]' :
+                          'bg-[var(--color-negative)]/10 text-[var(--color-negative)]'
+                        }`}>
+                          {order.status === 'FILLED' ? 'Khớp' :
+                           order.status === 'PENDING' ? 'Chờ' :
+                           order.status === 'CANCELLED' ? 'Huỷ' :
+                           order.status === 'PARTIALLY_FILLED' ? 'Khớp 1 phần' : order.status}
+                        </span>
+                        <p className="text-[9px] text-[var(--color-text-dim)] mt-0.5">
+                          {new Date(order.created_at).toLocaleDateString('vi-VN')}
+                        </p>
+                      </div>
+                    </div>
                   ))}
                 </div>
               ) : (
-                <div className="py-6 text-center">
-                  <p className="text-[11px] text-[var(--color-text-muted)]">
-                    AI đang phân tích thị trường
+                <div className="flex flex-col items-center justify-center py-6 px-4">
+                  <div className="w-10 h-10 rounded-lg bg-[var(--color-background)] flex items-center justify-center mb-2">
+                    <svg className="w-5 h-5 text-[var(--color-text-dim)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <p className="text-[11px] text-[var(--color-text-muted)] text-center">
+                    Chưa có hoạt động nào
                   </p>
                   <button
-                    onClick={() => onNavigate('watchlist')}
-                    className="mt-2 text-[11px] text-[var(--color-accent)] hover:underline"
+                    onClick={() => onNavigate('terminal')}
+                    className="mt-2 text-[11px] font-medium text-[var(--color-accent)] hover:underline"
                   >
-                    Thêm mã theo dõi →
+                    Đặt lệnh đầu tiên →
                   </button>
                 </div>
               )}
