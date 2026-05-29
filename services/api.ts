@@ -775,6 +775,10 @@ export interface CreateRealOrderRequest {
   notes?: string;
   /** D-05 MAP-01: FILLED (mặc định) vs PENDING — khi PENDING BE lock pending_buy_lock, không trừ available_cash */
   order_status?: 'FILLED' | 'PENDING';
+  /** Stop Loss price in VND (optional) */
+  stop_loss?: number;
+  /** Take Profit price in VND (optional) */
+  take_profit?: number;
 }
 
 export interface RealOrder {

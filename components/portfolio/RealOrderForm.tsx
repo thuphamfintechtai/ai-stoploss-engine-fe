@@ -29,6 +29,7 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
   const [side, setSide] = useState<'BUY' | 'SELL'>('BUY');
   const [quantity, setQuantity] = useState('');
   const [filledPrice, setFilledPrice] = useState('');
+  const [stopLoss, setStopLoss] = useState('');
   const [filledDate, setFilledDate] = useState(today());
   const [notes, setNotes] = useState('');
   // D-05 MAP-01: trạng thái lệnh — FILLED (mặc định) | PENDING (limit đã đặt, chưa khớp)
@@ -92,6 +93,7 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
       const effectiveOrderStatus: 'FILLED' | 'PENDING' =
         side === 'BUY' ? orderStatus : 'FILLED';
 
+      const slPrice = parseFloat(stopLoss) || undefined;
       await realPortfolioApi.createOrder(portfolioId, {
         symbol: symbol.toUpperCase().trim(),
         exchange,
@@ -101,6 +103,7 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
         filled_date: filledDate,
         notes: notes.trim() || undefined,
         order_status: effectiveOrderStatus,
+        stop_loss: slPrice,
       });
       setSuccess(
         effectiveOrderStatus === 'PENDING'
@@ -110,6 +113,7 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
       setSymbol('');
       setQuantity('');
       setFilledPrice('');
+      setStopLoss('');
       setFilledDate(today());
       setNotes('');
       setOrderStatus('FILLED');
@@ -255,6 +259,18 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
               aria-invalid={priceError !== null}
             />
             <OrderFieldError message={priceError} />
+          </div>
+          <div>
+            <label className={labelCls}>Stop Loss (VND)</label>
+            <input
+              type="number"
+              value={stopLoss}
+              onChange={(e) => setStopLoss(e.target.value)}
+              min={0}
+              step={dynamicTickStep}
+              placeholder="Tuỳ chọn"
+              className={inputCls}
+            />
           </div>
           <div>
             <label className={labelCls}>Ngày khớp</label>
