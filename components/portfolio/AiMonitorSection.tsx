@@ -115,11 +115,23 @@ export const AiMonitorSection: React.FC<AiMonitorSectionProps> = ({
           <div className="text-[11px] text-[var(--color-text-muted)] mb-3">
             Lần rà soát kế tiếp:{' '}
             <span className="font-mono text-[var(--color-text-main)]">
-              {new Date(state.next_run_at).toLocaleTimeString('vi-VN', {
+              {new Date(state.next_run_at).toLocaleString('vi-VN', {
                 hour: '2-digit',
                 minute: '2-digit',
+                day: '2-digit',
+                month: '2-digit',
               })}
             </span>
+            {state?.last_run_at && (
+              <span className="ml-3 text-[var(--color-text-dim)]">
+                · Lần cuối: {new Date(state.last_run_at).toLocaleString('vi-VN', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  day: '2-digit',
+                  month: '2-digit',
+                })}
+              </span>
+            )}
           </div>
         )}
 
