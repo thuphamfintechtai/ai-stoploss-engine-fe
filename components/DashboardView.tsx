@@ -383,8 +383,10 @@ export const DashboardView: React.FC<Props> = ({
     if (!portfolioId) return;
     setOrdersLoading(true);
     try {
-      const res = await orderApi.list(portfolioId, { limit: 5 });
-      if (res.data?.success && Array.isArray(res.data.data)) {
+      const res = await realPortfolioApi.getTransactionHistory(portfolioId, 1, 5);
+      if (res.data?.success && Array.isArray(res.data.data?.orders)) {
+        setRecentOrders(res.data.data.orders);
+      } else if (res.data?.success && Array.isArray(res.data.data)) {
         setRecentOrders(res.data.data);
       }
     } finally {
