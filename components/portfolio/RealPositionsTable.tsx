@@ -156,7 +156,7 @@ export const RealPositionsTable: React.FC<RealPositionsTableProps> = ({
                         onClick={() => onClosePosition(pos)}
                         className="text-[9px] font-semibold bg-[var(--color-negative)]/15 text-[var(--color-negative)] hover:bg-[var(--color-negative)]/25 px-2 py-1 rounded transition-colors"
                       >
-                        Đóng vị thế
+                        Ghi nhận BÁN
                       </button>
                     </td>
                   </tr>

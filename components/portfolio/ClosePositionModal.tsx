@@ -78,7 +78,7 @@ export const ClosePositionModal: React.FC<ClosePositionModalProps> = ({
       setError(
         err?.response?.data?.message ||
         err?.response?.data?.error ||
-        'Đóng vị thế thất bại'
+        'Ghi nhận lệnh bán thất bại'
       );
     } finally {
       setLoading(false);
@@ -91,7 +91,7 @@ export const ClosePositionModal: React.FC<ClosePositionModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700">
           <h2 className="text-sm font-bold text-white">
-            Đóng vị thế{' '}
+            Ghi nhận đã bán{' '}
             <span className="text-blue-400 font-mono">{position.symbol}</span>
           </h2>
           <button
@@ -189,7 +189,7 @@ export const ClosePositionModal: React.FC<ClosePositionModalProps> = ({
               type="text"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Lý do đóng vị thế..."
+              placeholder="Ghi chú về lệnh bán..."
               className="w-full bg-gray-700 text-white text-sm rounded-lg px-3 py-2 border border-gray-600 focus:border-blue-500 focus:outline-none"
             />
           </div>
@@ -210,9 +210,9 @@ export const ClosePositionModal: React.FC<ClosePositionModalProps> = ({
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 py-2.5 rounded-lg text-sm font-bold bg-red-600 hover:bg-red-700 text-white transition-colors disabled:opacity-50"
+              className="flex-1 py-2.5 rounded-lg text-sm font-bold bg-[var(--color-negative)] hover:brightness-110 text-white transition-colors disabled:opacity-50"
             >
-              {loading ? 'Đang đóng...' : 'Xác Nhận Đóng'}
+              {loading ? 'Đang lưu...' : 'Ghi nhận BÁN'}
             </button>
           </div>
         </form>

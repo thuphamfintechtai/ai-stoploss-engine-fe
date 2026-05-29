@@ -47,11 +47,10 @@ interface Props {
   initialExchange?: string;
   initialStopLoss?: number;   // VND
   initialTakeProfit?: number; // VND
-  initialSide?: 'LONG' | 'SHORT';
   sidebarWidth: number;
   onOpenPosition?: () => void;
   onNavigate?: (view: string) => void;
-  openPositions?: Position[]; // Các vị thế đang mở (để kiểm tra holdings khi BÁN)
+  openPositions?: Position[];
 }
 
 const toPoint = (v: number) => (v >= 1000 ? v / 1000 : v);
@@ -62,7 +61,6 @@ export const TradingTerminal: React.FC<Props> = ({
   initialExchange = 'HOSE',
   initialStopLoss,
   initialTakeProfit,
-  initialSide,
   sidebarWidth,
   onOpenPosition,
   onNavigate,
@@ -96,7 +94,8 @@ export const TradingTerminal: React.FC<Props> = ({
   // Order entry state
   const [orderSymbol, setOrderSymbol] = useState('');
   const [orderExchange, setOrderExchange] = useState('');
-  const [orderSide, setOrderSide] = useState<'MUA' | 'BAN'>('MUA');
+  // Portfolio tracking: chỉ ghi nhận MUA, BÁN = đóng vị thế qua modal riêng
+  const orderSide = 'MUA' as const;
   const [orderType, setOrderType] = useState<OrderTypeCode>('LO');
   const [isOddLotOrder, setIsOddLotOrder] = useState(false);
   const [tradingSession, setTradingSession] = useState(() => getCurrentSession(initialExchange || 'HOSE'));
@@ -163,7 +162,7 @@ export const TradingTerminal: React.FC<Props> = ({
         exchange: orderExchange || exchange || 'HOSE',
         current_price: entryPts != null ? Math.round(entryPts * 1000) : (marketPrice != null ? Math.round(marketPrice * (marketPrice >= 1000 ? 1 : 1000)) : undefined),
         rr_ratio: parseFloat(localStorage.getItem('default_rr') ?? '2'),
-        side: orderSide === 'BAN' ? 'SHORT' : 'LONG',
+        side: 'LONG',
       });
       if (res.data?.success) {
         setAiSuggestions(res.data.data);
@@ -323,8 +322,7 @@ export const TradingTerminal: React.FC<Props> = ({
     loadSymbolData(symbol, exchange);
     setOrderSymbol(symbol);
     setOrderExchange(exchange);
-    // Áp dụng giá trị khởi tạo từ WatchlistView nếu có
-    if (initialSide) setOrderSide(initialSide === 'SHORT' ? 'BAN' : 'MUA');
+    // Áp dụng giá trị SL/TP khởi tạo từ WatchlistView nếu có
     if (initialStopLoss != null && initialStopLoss > 0) {
       setStopType('FIXED');
       setStopPrice((initialStopLoss >= 1000 ? initialStopLoss / 1000 : initialStopLoss).toFixed(2));
@@ -473,54 +471,16 @@ export const TradingTerminal: React.FC<Props> = ({
   const totalHeldQty = symbolHoldings.reduce((s, p) => s + Number(p.quantity ?? 0), 0);
   const selectedHolding = symbolHoldings.find((p) => p.id === selectedPositionId) ?? symbolHoldings[0] ?? null;
 
-  // Auto-select vị thế đầu tiên khi chuyển sang BÁN hoặc đổi symbol
+  // Portfolio tracking: luôn MUA, không cần select position
   useEffect(() => {
-    if (orderSide === 'BAN' && symbolHoldings.length > 0) {
-      setSelectedPositionId(symbolHoldings[0].id);
-      // Auto-fill qty = số lượng của vị thế được chọn
-      setQuantityInput(String(Number(symbolHoldings[0].quantity ?? 0)));
-    }
-    if (orderSide === 'MUA') {
-      setSelectedPositionId(null);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderSide, orderSymbol]);
+    setSelectedPositionId(null);
+  }, [orderSymbol]);
 
   const handleSubmitOrder = async () => {
     if (!portfolioId) { setOrderMsg({ type: 'err', text: 'Chưa có portfolio.' }); return; }
     if (!orderSymbol) { setOrderMsg({ type: 'err', text: 'Chưa chọn mã CK.' }); return; }
 
-    // ── BÁN: đóng vị thế đang chọn ──
-    if (orderSide === 'BAN') {
-      if (!selectedHolding) {
-        setOrderMsg({ type: 'err', text: `Không có vị thế MUA nào cho ${orderSymbol} đang mở.` });
-        return;
-      }
-      if (!effectiveQty || effectiveQty <= 0) { setOrderMsg({ type: 'err', text: 'Nhập khối lượng bán.' }); return; }
-      const holdingQty = Number(selectedHolding.quantity ?? 0);
-      if (effectiveQty > holdingQty) {
-        setOrderMsg({ type: 'err', text: `Số CP bán (${effectiveQty}) vượt số đang nắm (${holdingQty}).` }); return;
-      }
-      // Giá bán: LO cần nhập giá, market orders thì để server dùng giá thị trường
-      const closedPriceVnd = isMarketEntry ? undefined : (entryPoints != null ? Math.round(entryPoints * 1000) : undefined);
-      if (!isMarketEntry && !closedPriceVnd) { setOrderMsg({ type: 'err', text: 'Nhập giá bán hợp lệ.' }); return; }
-      setSubmitting(true); setOrderMsg(null);
-      try {
-        await positionApi.close(portfolioId, selectedHolding.id, {
-          reason: 'CLOSED_MANUAL',
-          use_market_price: isMarketEntry,
-          ...(closedPriceVnd ? { closed_price: closedPriceVnd } : {}),
-        } as any);
-        setOrderMsg({ type: 'ok', text: `Đã bán ${effectiveQty} CP ${orderSymbol} thành công!` });
-        onOpenPosition?.();
-        setTimeout(() => onNavigate?.('dashboard'), 1500);
-      } catch (e: any) {
-        setOrderMsg({ type: 'err', text: e?.response?.data?.message || 'Đặt lệnh bán thất bại.' });
-      } finally { setSubmitting(false); }
-      return;
-    }
-
-    // ── MUA: đặt lệnh qua order API ──
+    // ── Ghi nhận lệnh MUA qua order API ──
     if (!effectiveQty || effectiveQty <= 0) { setOrderMsg({ type: 'err', text: 'Nhập khối lượng hợp lệ.' }); return; }
     if (effectiveOrderType === 'LO' && (!entryPoints || entryPoints <= 0)) {
       setOrderMsg({ type: 'err', text: 'Nhập giá vào hợp lệ cho lệnh LO.' }); return;
@@ -581,7 +541,7 @@ export const TradingTerminal: React.FC<Props> = ({
       const statusText = position
         ? `Lệnh khớp ngay — vị thế #${position.id?.slice(0, 8)} đã mở`
         : `Lệnh ${order.id?.slice(0, 8)} đặt thành công, chờ khớp`;
-      setOrderMsg({ type: 'ok', text: `${orderSide} ${orderSymbol}: ${statusText}` });
+      setOrderMsg({ type: 'ok', text: `Ghi nhận MUA ${orderSymbol}: ${statusText}` });
       onOpenPosition?.();
 
       if (!inWatchlist) {
@@ -711,21 +671,17 @@ export const TradingTerminal: React.FC<Props> = ({
           </button>
         </div>
 
-        {/* ĐẶT LỆNH button */}
+        {/* GHI NHẬN MUA button */}
         <div className="flex items-center border-l border-border-standard h-full px-3 gap-2 shrink-0">
           <button
             onClick={() => setShowOrderModal(true)}
-            className={`flex items-center gap-1.5 px-3 h-7 rounded text-[11px] font-black tracking-wide transition-all active:scale-95 ${
-              orderSide === 'MUA'
-                ? 'bg-positive text-white hover:brightness-110'
-                : 'bg-negative text-white hover:brightness-110'
-            }`}
-            style={{ boxShadow: orderSide === 'MUA' ? '0 0 12px color-mix(in srgb, var(--color-positive) 30%, transparent)' : '0 0 12px color-mix(in srgb, var(--color-negative) 30%, transparent)' }}
+            className="flex items-center gap-1.5 px-3 h-7 rounded text-[11px] font-black tracking-wide transition-all active:scale-95 bg-positive text-white hover:brightness-110"
+            style={{ boxShadow: '0 0 12px color-mix(in srgb, var(--color-positive) 30%, transparent)' }}
           >
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
-            ĐẶT LỆNH
+            GHI NHẬN
           </button>
         </div>
 
@@ -1167,63 +1123,13 @@ export const TradingTerminal: React.FC<Props> = ({
                   )}
                 </div>
 
-                {/* 2. MUA / BÁN */}
-                <div className="flex rounded-xl overflow-hidden border-2 border-border-standard">
-                  <button
-                    onClick={() => setOrderSide('MUA')}
-                    className={`flex-1 py-3.5 text-[16px] font-black tracking-widest transition-all ${orderSide === 'MUA' ? 'bg-positive text-white' : 'text-text-dim/60 hover:text-positive hover:bg-positive/8'}`}
-                    style={orderSide === 'MUA' ? { boxShadow: 'inset 0 -3px 0 rgba(0,0,0,0.2)' } : {}}
-                  >MUA</button>
-                  <button
-                    onClick={() => setOrderSide('BAN')}
-                    className={`flex-1 py-3.5 text-[16px] font-black tracking-widest transition-all border-l border-border-standard ${orderSide === 'BAN' ? 'bg-negative text-white' : 'text-text-dim/60 hover:text-negative hover:bg-negative/8'}`}
-                    style={orderSide === 'BAN' ? { boxShadow: 'inset 0 -3px 0 rgba(0,0,0,0.2)' } : {}}
-                  >BÁN</button>
+                {/* Portfolio tracking: chỉ ghi nhận MUA */}
+                <div className="rounded-xl overflow-hidden border-2 border-positive/50 bg-positive/10">
+                  <div className="py-3.5 text-[16px] font-black tracking-widest text-center text-positive">
+                    GHI NHẬN MUA
+                  </div>
                 </div>
 
-                {/* 2b. Holdings khi BÁN */}
-                {orderSide === 'BAN' && (
-                  <div className={`rounded-lg border p-2.5 ${symbolHoldings.length > 0 ? 'border-negative/25 bg-negative/5' : 'border-warning/30 bg-warning/5'}`}>
-                    {symbolHoldings.length === 0 ? (
-                      <div className="flex items-center gap-2 text-[10px] text-warning">
-                        <span>⚠</span>
-                        <span>Không có vị thế MUA nào cho <strong>{orderSymbol || symbol}</strong> đang mở trong hệ thống. Không thể bán.</span>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="text-[8px] font-bold uppercase tracking-wider text-text-dim mb-1.5">
-                          Vị thế đang nắm — {totalHeldQty.toLocaleString()} CP tổng cộng
-                        </div>
-                        <div className="space-y-1">
-                          {symbolHoldings.map((pos) => {
-                            const entryPts = toPoint(Number(pos.entry_price ?? 0) / 1000);
-                            const qty = Number(pos.quantity ?? 0);
-                            const isSel = selectedPositionId === pos.id || (!selectedPositionId && pos === symbolHoldings[0]);
-                            return (
-                              <button
-                                key={pos.id}
-                                onClick={() => {
-                                  setSelectedPositionId(pos.id);
-                                  setQuantityInput(String(qty));
-                                }}
-                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-[10px] border transition-all ${isSel ? 'border-negative/50 bg-negative/10 text-text-main' : 'border-border-subtle bg-background text-text-dim hover:border-border-standard'}`}
-                              >
-                                <span className="font-bold">{pos.symbol}</span>
-                                <span className="font-mono">{qty.toLocaleString()} CP @ {entryPts > 0 ? entryPts.toFixed(2) : '—'}</span>
-                                {isSel && <span className="text-negative text-[8px] font-bold">✓ Chọn</span>}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        {selectedHolding && (
-                          <p className="text-[8px] text-text-dim mt-1.5">
-                            Số CP tối đa được bán: <span className="text-text-muted font-mono font-bold">{Number(selectedHolding.quantity ?? 0).toLocaleString()}</span>
-                          </p>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
 
                 {/* Toggle nang cao */}
                 <button
@@ -1271,7 +1177,7 @@ export const TradingTerminal: React.FC<Props> = ({
                         <div className="w-16 h-1 rounded-full bg-border-subtle relative overflow-hidden">
                           <div className="absolute inset-y-0 left-0 rounded-full transition-all" style={{
                             width: `${Math.min(100, Math.max(0, ((entryPoints - floorPrice) / (ceilPrice - floorPrice)) * 100))}%`,
-                            background: entryPoints >= ceilPrice - 0.001 ? 'var(--color-ceiling)' : entryPoints <= floorPrice + 0.001 ? 'var(--color-floor)' : (orderSide === 'MUA' ? 'var(--color-positive)' : 'var(--color-negative)'),
+                            background: entryPoints >= ceilPrice - 0.001 ? 'var(--color-ceiling)' : entryPoints <= floorPrice + 0.001 ? 'var(--color-floor)' : 'var(--color-positive)',
                           }} />
                         </div>
                         <span style={{ color: 'var(--color-ceiling)' }}>{ceilPrice.toFixed(2)}</span>
@@ -1377,16 +1283,16 @@ export const TradingTerminal: React.FC<Props> = ({
 
                 {/* 6. Giá trị lệnh */}
                 {entryPoints != null && effectiveQty != null && (
-                  <div className={`flex items-center justify-between px-4 py-2.5 rounded-xl border ${orderSide === 'MUA' ? 'border-positive/20 bg-positive/5' : 'border-negative/20 bg-negative/5'}`}>
+                  <div className="flex items-center justify-between px-4 py-2.5 rounded-xl border border-positive/20 bg-positive/5">
                     <span className="text-[10px] text-text-dim">Giá trị lệnh</span>
-                    <span className={`text-[15px] font-mono font-black ${orderSide === 'MUA' ? 'text-positive' : 'text-negative'}`}>
+                    <span className="text-[15px] font-mono font-black text-positive">
                       {formatNumberVI(Math.round(entryPoints * 1000 * effectiveQty))} ₫
                     </span>
                   </div>
                 )}
 
-                {/* 7. Quản lý rủi ro (collapsible) — chỉ hiện khi MUA */}
-                {orderSide === 'MUA' && <div className="rounded-xl border border-border-subtle overflow-hidden">
+                {/* 7. Quản lý rủi ro (collapsible) */}
+                <div className="rounded-xl border border-border-subtle overflow-hidden">
                   <button
                     onClick={() => setShowRiskPanel(!showRiskPanel)}
                     className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-white/3 transition-colors"
@@ -1419,7 +1325,7 @@ export const TradingTerminal: React.FC<Props> = ({
                             ))}
                           </div>
                         </div>
-                        {stopType === 'FIXED' && <input value={stopPrice} onChange={(e) => setStopPrice(e.target.value)} placeholder={`SL giá — VD: ${entryPoints != null ? (entryPoints * (orderSide === 'BAN' ? 1.05 : 0.95)).toFixed(2) : '0.00'}`} className="w-full bg-background border border-negative/30 rounded-lg px-3 h-9 text-[11px] font-mono text-negative outline-none focus:border-negative" />}
+                        {stopType === 'FIXED' && <input value={stopPrice} onChange={(e) => setStopPrice(e.target.value)} placeholder={`SL giá — VD: ${entryPoints != null ? (entryPoints * 0.95).toFixed(2) : '0.00'}`} className="w-full bg-background border border-negative/30 rounded-lg px-3 h-9 text-[11px] font-mono text-negative outline-none focus:border-negative" />}
                         {stopType === 'PERCENT' && <input value={stopPercent} onChange={(e) => setStopPercent(e.target.value)} placeholder="VD: 5 (nghĩa là 5%)" className="w-full bg-background border border-negative/30 rounded-lg px-3 h-9 text-[11px] font-mono text-negative outline-none focus:border-negative" />}
                         {stopType === 'MAX_LOSS' && <input value={stopMaxLossVnd} onChange={(e) => setStopMaxLossVnd(e.target.value)} placeholder="Lỗ tối đa chấp nhận (VNĐ)" className="w-full bg-background border border-negative/30 rounded-lg px-3 h-9 text-[11px] font-mono text-negative outline-none focus:border-negative" />}
                       </div>
@@ -1437,7 +1343,7 @@ export const TradingTerminal: React.FC<Props> = ({
                             ))}
                           </div>
                         </div>
-                        {takeProfitType === 'FIXED' && <input value={takeProfitPrice} onChange={(e) => setTakeProfitPrice(e.target.value)} placeholder={`TP giá — VD: ${entryPoints != null ? (entryPoints * (orderSide === 'BAN' ? 0.92 : 1.08)).toFixed(2) : '0.00'}`} className="w-full bg-background border border-positive/30 rounded-lg px-3 h-9 text-[11px] font-mono text-positive outline-none focus:border-positive" />}
+                        {takeProfitType === 'FIXED' && <input value={takeProfitPrice} onChange={(e) => setTakeProfitPrice(e.target.value)} placeholder={`TP giá — VD: ${entryPoints != null ? (entryPoints * 1.08).toFixed(2) : '0.00'}`} className="w-full bg-background border border-positive/30 rounded-lg px-3 h-9 text-[11px] font-mono text-positive outline-none focus:border-positive" />}
                         {takeProfitType === 'PERCENT' && <input value={takeProfitPercent} onChange={(e) => setTakeProfitPercent(e.target.value)} placeholder="VD: 10 (nghĩa là 10%)" className="w-full bg-background border border-positive/30 rounded-lg px-3 h-9 text-[11px] font-mono text-positive outline-none focus:border-positive" />}
                         {takeProfitType === 'R_RATIO' && <input value={takeProfitRR} onChange={(e) => setTakeProfitRR(e.target.value)} placeholder="VD: 2.0 (R:R = 1:2)" className="w-full bg-background border border-positive/30 rounded-lg px-3 h-9 text-[11px] font-mono text-positive outline-none focus:border-positive" />}
                       </div>
@@ -1595,7 +1501,7 @@ export const TradingTerminal: React.FC<Props> = ({
                       )}
                     </div>
                   )}
-                </div>}
+                </div>
 
                 {/* Cảnh báo từ API (tick size, price band) */}
                 {apiWarnings.length > 0 && (
@@ -1627,20 +1533,13 @@ export const TradingTerminal: React.FC<Props> = ({
                 {!portfolioId && (
                   <div className="mb-2 text-[9px] text-text-dim text-center">Chưa chọn danh mục đầu tư</div>
                 )}
-                {orderSide === 'BAN' && symbolHoldings.length === 0 && portfolioId && (
-                  <div className="mb-2 px-3 py-1.5 rounded-lg text-[9px] text-negative bg-negative/8 border border-negative/15 flex items-center gap-1.5">
-                    <span>⚠</span><span>Không có vị thế MUA nào đang mở cho <strong>{orderSymbol || symbol}</strong></span>
-                  </div>
-                )}
                 <button
                   onClick={() => setShowConfirmOrder(true)}
-                  disabled={submitting || !portfolioId || !canSubmitOrder(tradingSession, isOddLotOrder, effectiveOrderType) || !effectiveQty || (!isMarketEntry && !entryPoints) || (orderSide === 'BAN' && symbolHoldings.length === 0)}
-                  className={`w-full h-12 rounded-xl font-black text-[14px] tracking-widest transition-all active:scale-[0.98] disabled:opacity-35 disabled:cursor-not-allowed ${
-                    orderSide === 'MUA' ? 'bg-positive text-white hover:brightness-110' : 'bg-negative text-white hover:brightness-110'
-                  }`}
-                  style={{ boxShadow: orderSide === 'MUA' ? '0 4px 16px color-mix(in srgb, var(--color-positive) 30%, transparent)' : '0 4px 16px color-mix(in srgb, var(--color-negative) 30%, transparent)' }}
+                  disabled={submitting || !portfolioId || !canSubmitOrder(tradingSession, isOddLotOrder, effectiveOrderType) || !effectiveQty || (!isMarketEntry && !entryPoints)}
+                  className="w-full h-12 rounded-xl font-black text-[14px] tracking-widest transition-all active:scale-[0.98] disabled:opacity-35 disabled:cursor-not-allowed bg-positive text-white hover:brightness-110"
+                  style={{ boxShadow: '0 4px 16px color-mix(in srgb, var(--color-positive) 30%, transparent)' }}
                 >
-                  {submitting ? 'ĐANG GỬI...' : `${orderSide === 'MUA' ? 'MUA' : 'BÁN'} ${orderSymbol || symbol}${!isMarketEntry && entryPoints ? ` — ${entryPoints.toFixed(2)}` : ''}${effectiveQty ? ` × ${(effectiveQty / 100).toFixed(0)}L` : ''}`}
+                  {submitting ? 'ĐANG GỬI...' : `GHI NHẬN MUA ${orderSymbol || symbol}${!isMarketEntry && entryPoints ? ` — ${entryPoints.toFixed(2)}` : ''}${effectiveQty ? ` × ${(effectiveQty / 100).toFixed(0)}L` : ''}`}
                 </button>
               </div>
             </div>
@@ -1652,8 +1551,8 @@ export const TradingTerminal: React.FC<Props> = ({
       {showConfirmOrder && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.7)' }}>
           <div className="rounded-xl border border-border-standard p-5 w-72" style={{ background: 'var(--color-panel-secondary)' }}>
-            <div className={`text-[12px] font-black mb-3 ${orderSide === 'MUA' ? 'text-positive' : 'text-negative'}`}>
-              Xác nhận {orderSide} {orderSymbol || symbol}
+            <div className="text-[12px] font-black mb-3 text-positive">
+              Xác nhận ghi nhận MUA {orderSymbol || symbol}
             </div>
             <div className="space-y-1.5 mb-4 bg-background/50 rounded-lg p-3 text-[10px] border border-border-subtle">
               <div className="flex justify-between"><span className="text-text-dim">Loại lệnh</span><span className="font-bold">{effectiveOrderType}{isOddLotOrder ? ' · Lệnh Rỗ' : ''}</span></div>
@@ -1662,7 +1561,7 @@ export const TradingTerminal: React.FC<Props> = ({
               {entryPoints != null && effectiveQty != null && (
                 <div className="flex justify-between border-t border-border-subtle pt-1.5 mt-1">
                   <span className="text-text-dim font-semibold">Giá trị</span>
-                  <span className={`font-mono font-bold ${orderSide === 'MUA' ? 'text-positive' : 'text-negative'}`}>{formatNumberVI(Math.round(entryPoints * 1000 * effectiveQty))} ₫</span>
+                  <span className="font-mono font-bold text-positive">{formatNumberVI(Math.round(entryPoints * 1000 * effectiveQty))} ₫</span>
                 </div>
               )}
               {stopType === 'FIXED' && stopPrice && <div className="flex justify-between border-t border-border-subtle pt-1.5"><span className="text-text-dim">Cắt lỗ</span><span className="font-mono text-negative">{stopPrice}</span></div>}
@@ -1673,8 +1572,8 @@ export const TradingTerminal: React.FC<Props> = ({
               <button
                 onClick={() => { setShowConfirmOrder(false); handleSubmitOrder(); }}
                 disabled={submitting}
-                className={`flex-1 h-10 rounded-lg text-[11px] font-black disabled:opacity-40 transition-all ${orderSide === 'MUA' ? 'bg-positive text-white' : 'bg-negative text-white'}`}
-              >{submitting ? 'ĐANG GỬI...' : `XÁC NHẬN ${orderSide}`}</button>
+                className="flex-1 h-10 rounded-lg text-[11px] font-black disabled:opacity-40 transition-all bg-positive text-white"
+              >{submitting ? 'ĐANG GỬI...' : 'XÁC NHẬN'}</button>
             </div>
           </div>
         </div>
