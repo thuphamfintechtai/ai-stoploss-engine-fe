@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { portfolioApi, realPortfolioApi } from '../services/api';
+import { portfolioApi, realPortfolioApi, getSectorConcentration } from '../services/api';
 import type { Position, RealPosition } from '../services/api';
 import wsService from '../services/websocket';
 import { EmptyState } from './ui/EmptyState';
 import { PortfolioHeroCard } from './portfolio/PortfolioHeroCard';
 import { PortfolioHealthCard } from './portfolio/PortfolioHealthCard';
-import { SectorAllocationCard } from './portfolio/SectorAllocationCard';
+import { SectorAllocationCard, type SectorAllocation } from './portfolio/SectorAllocationCard';
 import { AiBriefingCard } from './portfolio/AiBriefingCard';
-import { AiMonitorSection } from './portfolio/AiMonitorSection';
+import { AiMonitorSection, type MonitorState, type AiAlert } from './portfolio/AiMonitorSection';
 import { RealPositionsTable } from './portfolio/RealPositionsTable';
 import { ClosePositionModal } from './portfolio/ClosePositionModal';
 import { TransactionHistory } from './portfolio/TransactionHistory';
@@ -82,6 +82,27 @@ const SectionHeader: React.FC<{
 const formatVND = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 0 });
 const formatPct = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`;
 
+// Sector mapping (mirrors backend VN_SECTOR_MAP)
+const VN_SECTOR_MAP: Record<string, string> = {
+  VCB: 'BANKING', BID: 'BANKING', CTG: 'BANKING', TCB: 'BANKING', MBB: 'BANKING',
+  ACB: 'BANKING', VPB: 'BANKING', STB: 'BANKING', HDB: 'BANKING', TPB: 'BANKING',
+  LPB: 'BANKING', OCB: 'BANKING', MSB: 'BANKING', VIB: 'BANKING', EIB: 'BANKING',
+  SHB: 'BANKING', NAB: 'BANKING', BVB: 'BANKING',
+  VHM: 'REAL_ESTATE', VIC: 'REAL_ESTATE', NVL: 'REAL_ESTATE', KDH: 'REAL_ESTATE',
+  DIG: 'REAL_ESTATE', PDR: 'REAL_ESTATE', NLG: 'REAL_ESTATE', DXG: 'REAL_ESTATE',
+  VRE: 'REAL_ESTATE', KBC: 'REAL_ESTATE', IDC: 'REAL_ESTATE', SZC: 'REAL_ESTATE',
+  FPT: 'TECHNOLOGY', CMG: 'TECHNOLOGY', ELC: 'TECHNOLOGY', VGI: 'TECHNOLOGY', ITD: 'TECHNOLOGY',
+  MWG: 'RETAIL', PNJ: 'RETAIL', DGW: 'RETAIL', FRT: 'RETAIL', VGC: 'RETAIL',
+  HPG: 'STEEL', HSG: 'STEEL', NKG: 'STEEL', TLH: 'STEEL', VGS: 'STEEL', SMC: 'STEEL',
+  SSI: 'SECURITIES', VCI: 'SECURITIES', HCM: 'SECURITIES', SHS: 'SECURITIES',
+  VDS: 'SECURITIES', CTS: 'SECURITIES', BSI: 'SECURITIES', MBS: 'SECURITIES',
+  GAS: 'ENERGY', POW: 'ENERGY', PLX: 'ENERGY', PVD: 'ENERGY', PVS: 'ENERGY',
+  BSR: 'ENERGY', OIL: 'ENERGY', PGS: 'ENERGY',
+  VNM: 'CONSUMER', SAB: 'CONSUMER', MSN: 'CONSUMER', QNS: 'CONSUMER',
+  KDC: 'CONSUMER', MCH: 'CONSUMER', ANV: 'CONSUMER', VHC: 'CONSUMER',
+};
+const getSectorForSymbol = (symbol: string): string => VN_SECTOR_MAP[symbol?.toUpperCase()] ?? 'OTHER';
+
 export const PortfolioView: React.FC<Props> = ({
   portfolioId,
   totalBalance,
@@ -115,11 +136,17 @@ export const PortfolioView: React.FC<Props> = ({
     closed_count: number;
   } | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
+  const [sectorData, setSectorData] = useState<SectorAllocation[]>([]);
+  const [sectorLoading, setSectorLoading] = useState(false);
+  const [monitorState, setMonitorState] = useState<MonitorState | undefined>(undefined);
+  const [aiAlerts, setAiAlerts] = useState<AiAlert[]>([]);
+  const [monitorLoading, setMonitorLoading] = useState(false);
 
   const fetchRealData = useCallback(async () => {
     if (!portfolioId) return;
     setRealPositionsLoading(true);
     setSummaryLoading(true);
+    setSectorLoading(true);
     try {
       const [posRes, portRes, summaryRes] = await Promise.all([
         realPortfolioApi.getOpenPositions(portfolioId),
@@ -155,13 +182,83 @@ export const PortfolioView: React.FC<Props> = ({
           closed_count: Number(s.closed_count ?? 0),
         });
       }
+      // Fetch sector concentration data
+      try {
+        const sectorRes = await getSectorConcentration(portfolioId);
+        if (sectorRes?.sectors && Array.isArray(sectorRes.sectors)) {
+          // Get positions to count per sector
+          const positions = posRes.data?.data ?? [];
+          const mapped: SectorAllocation[] = sectorRes.sectors.map((s: any) => {
+            const sectorKey = s.sector;
+            // Count positions that belong to this sector
+            const posCount = positions.filter((p: any) => {
+              const sym = p.symbol?.toUpperCase();
+              // Simple sector lookup - matches the backend VN_SECTOR_MAP logic
+              const posSector = getSectorForSymbol(sym);
+              return posSector === sectorKey;
+            }).length;
+            return {
+              name: s.sectorLabel || s.sector || 'Khác',
+              value_vnd: Number(s.totalValueVnd ?? 0),
+              pct: Number(s.percent ?? 0),
+              position_count: posCount,
+            };
+          });
+          setSectorData(mapped);
+        }
+      } catch {
+        // Sector data is optional, don't fail the whole fetch
+      }
+      // Fetch AI monitor state and alerts
+      try {
+        const [monitorRes, alertsRes] = await Promise.all([
+          realPortfolioApi.getMonitorState(portfolioId),
+          realPortfolioApi.getAlerts(portfolioId),
+        ]);
+        if (monitorRes.data?.success) {
+          setMonitorState(monitorRes.data.data);
+        }
+        if (alertsRes.data?.success && Array.isArray(alertsRes.data.data)) {
+          setAiAlerts(alertsRes.data.data);
+        }
+      } catch {
+        // Monitor data is optional
+      }
     } catch (err) {
       if (import.meta.env.DEV) console.warn('PortfolioView fetchRealData failed:', err);
     } finally {
       setRealPositionsLoading(false);
       setSummaryLoading(false);
+      setSectorLoading(false);
     }
   }, [portfolioId, totalBalance]);
+
+  // AI Monitor toggle handler
+  const handleMonitorToggle = useCallback(async (enabled: boolean) => {
+    if (!portfolioId) return;
+    setMonitorLoading(true);
+    try {
+      const res = await realPortfolioApi.toggleMonitor(portfolioId, enabled);
+      if (res.data?.success) {
+        setMonitorState(res.data.data);
+      }
+    } catch (err) {
+      if (import.meta.env.DEV) console.warn('Toggle monitor failed:', err);
+    } finally {
+      setMonitorLoading(false);
+    }
+  }, [portfolioId]);
+
+  // Dismiss alert handler
+  const handleDismissAlert = useCallback(async (alertId: string) => {
+    if (!portfolioId) return;
+    try {
+      await realPortfolioApi.dismissAlert(portfolioId, alertId);
+      setAiAlerts(prev => prev.filter(a => a.id !== alertId));
+    } catch (err) {
+      if (import.meta.env.DEV) console.warn('Dismiss alert failed:', err);
+    }
+  }, [portfolioId]);
 
   useEffect(() => {
     if (portfolioId) fetchRealData();
@@ -342,11 +439,18 @@ export const PortfolioView: React.FC<Props> = ({
                 console.log('[P5] open RiskAdvancedModal');
               }}
             />
-            <SectorAllocationCard portfolioId={portfolioId} sectors={undefined} />
+            <SectorAllocationCard portfolioId={portfolioId} sectors={sectorData} loading={sectorLoading} />
           </div>
 
           {/* ═══ AI MONITOR ═══ */}
-          <AiMonitorSection portfolioId={portfolioId} state={undefined} alerts={[]} />
+          <AiMonitorSection
+              portfolioId={portfolioId}
+              state={monitorState}
+              alerts={aiAlerts}
+              loading={monitorLoading}
+              onToggle={handleMonitorToggle}
+              onDismissAlert={handleDismissAlert}
+            />
 
           {/* ═══ POSITIONS & HISTORY TABS ═══ */}
           <div className="bg-[var(--color-panel)] border border-[var(--color-border-subtle)] rounded-xl overflow-hidden">

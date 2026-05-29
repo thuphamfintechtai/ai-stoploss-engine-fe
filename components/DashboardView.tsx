@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ResponsiveContainer, AreaChart, Area, ReferenceLine } from 'recharts';
 import { marketApi, realPortfolioApi, aiApi, portfolioApi, orderApi } from '../services/api';
 import { STOCK_PRICE_DISPLAY_SCALE, PRICE_LOCALE, formatNumberVI } from '../constants';
@@ -337,7 +337,9 @@ export const DashboardView: React.FC<Props> = ({
   const [loading, setLoading] = useState(true);
   const [marketRegime, setMarketRegime] = useState<any>(null);
   const [performance, setPerformance] = useState<PerformanceStats | null>(null);
-  const [livePositions, setLivePositions] = useState<Position[]>(openPositions);
+  // Separate state for positions and prices to avoid losing prices on refresh
+  const [positions, setPositions] = useState<Position[]>(openPositions);
+  const [symbolPrices, setSymbolPrices] = useState<Record<string, number>>({});
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
@@ -410,20 +412,21 @@ export const DashboardView: React.FC<Props> = ({
     try {
       const res = await realPortfolioApi.getOpenPositions(portfolioId);
       if (res.data?.success && Array.isArray(res.data.data)) {
-        setLivePositions(res.data.data);
+        setPositions(res.data.data);
         setLastRefresh(new Date());
       }
     } catch {}
   }, [portfolioId]);
 
-  // Stable key to detect position list changes (avoid infinite loop from array reference changes)
+  // Stable key to detect position list changes
   const positionKey = openPositions.map(p => p.id).sort().join(',');
 
+  // Sync positions from props when position list changes
   useEffect(() => {
-    setLivePositions(openPositions);
+    setPositions(openPositions);
   }, [positionKey]);
 
-  // Fetch current prices once when position list changes
+  // Fetch current prices once when position list changes (separate from positions)
   useEffect(() => {
     if (openPositions.length === 0) return;
     let cancelled = false;
@@ -440,29 +443,32 @@ export const DashboardView: React.FC<Props> = ({
         })
       );
       if (!cancelled && Object.keys(priceMap).length > 0) {
-        setLivePositions(prev => prev.map(p =>
-          priceMap[p.symbol] ? { ...p, current_price: priceMap[p.symbol] } as any : p
-        ));
+        setSymbolPrices(prev => ({ ...prev, ...priceMap }));
       }
     };
     fetchPrices();
     return () => { cancelled = true; };
   }, [positionKey]);
 
+  // WebSocket price updates - only update symbolPrices
   useEffect(() => {
     const handler = (data: any) => {
       if (!data?.symbol) return;
       const priceVnd = data.price != null ? parseFloat(data.price) * STOCK_PRICE_DISPLAY_SCALE : null;
       if (priceVnd == null) return;
-      setLivePositions((prev) =>
-        prev.map((p) =>
-          p.symbol === data.symbol ? { ...p, current_price: priceVnd } as any : p
-        )
-      );
+      setSymbolPrices(prev => ({ ...prev, [data.symbol]: priceVnd }));
     };
     wsService.onPriceUpdate(handler);
     return () => { wsService.off('price_update', handler); };
   }, []);
+
+  // Combine positions with prices (computed, not state)
+  const livePositions = useMemo(() => {
+    return positions.map(p => ({
+      ...p,
+      current_price: symbolPrices[p.symbol] ?? (p as any).current_price ?? 0
+    })) as Position[];
+  }, [positions, symbolPrices]);
 
   useEffect(() => {
     loadIndices();

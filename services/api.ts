@@ -836,6 +836,25 @@ export const realPortfolioApi = {
 
   getSummary: (portfolioId: string) =>
     apiClient.get(`/portfolios/${portfolioId}/real-summary`),
+
+  // AI Monitor
+  getMonitorState: (portfolioId: string) =>
+    apiClient.get(`/portfolios/${portfolioId}/monitor/state`),
+
+  toggleMonitor: (portfolioId: string, enabled: boolean, frequencyMin?: number) =>
+    apiClient.post(`/portfolios/${portfolioId}/monitor/toggle`, {
+      enabled,
+      frequency_min: frequencyMin,
+    }),
+
+  getAlerts: (portfolioId: string, since = '7d') =>
+    apiClient.get(`/portfolios/${portfolioId}/alerts`, { params: { since } }),
+
+  ackAlert: (portfolioId: string, alertId: string) =>
+    apiClient.post(`/portfolios/${portfolioId}/alerts/${alertId}/ack`),
+
+  dismissAlert: (portfolioId: string, alertId: string) =>
+    apiClient.post(`/portfolios/${portfolioId}/alerts/${alertId}/dismiss`),
 };
 
 // ─── New AI Interfaces ────────────────────────────────────────────────────────
