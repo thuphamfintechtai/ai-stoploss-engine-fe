@@ -175,7 +175,7 @@ export const TradingTerminal: React.FC<Props> = ({
     } finally {
       setAiSuggesting(false);
     }
-  }, [orderSymbol, symbol, orderExchange, exchange, marketPrice, orderSide, entryPoints]);
+  }, [orderSymbol, symbol, orderExchange, exchange, marketPrice, entryPoints]);
 
   const applyAiSuggestion = useCallback((type: 'aggressive' | 'moderate' | 'conservative') => {
     if (!aiSuggestions?.suggestions) return;
