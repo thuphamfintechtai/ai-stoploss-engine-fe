@@ -26,7 +26,8 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
 }) => {
   const [symbol, setSymbol] = useState('');
   const [exchange, setExchange] = useState<'HOSE' | 'HNX' | 'UPCOM'>('HOSE');
-  const [side, setSide] = useState<'BUY' | 'SELL'>('BUY');
+  // Portfolio tracking app: chỉ ghi nhận MUA, BÁN = đóng vị thế qua ClosePositionModal
+  const side = 'BUY' as const;
   const [quantity, setQuantity] = useState('');
   const [filledPrice, setFilledPrice] = useState('');
   const [stopLoss, setStopLoss] = useState('');
@@ -46,12 +47,11 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
   const totalValue = Math.round(qty * price);
 
   // D-02 MAP-04: đọc fee rates từ portfolio prop, fallback default constants
-  const { buyFeePct, sellFeePct } = resolveFeeRates(portfolio);
+  const { buyFeePct } = resolveFeeRates(portfolio);
   // MAP-05: integer VND math — Math.round trước khi hiển thị / cộng dồn
-  const fee = Math.round(totalValue * (side === 'BUY' ? buyFeePct : sellFeePct));
+  const fee = Math.round(totalValue * buyFeePct);
 
-  const remainingCash =
-    side === 'BUY' ? availableCash - totalValue - fee : null;
+  const remainingCash = availableCash - totalValue - fee;
 
   // Inline validation errors (null = không error)
   const qtyError = useMemo<string | null>(() => {
@@ -89,26 +89,22 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
 
     setLoading(true);
     try {
-      // D-05 MAP-01: SELL luôn gửi FILLED (PENDING flow chỉ áp dụng cho BUY limit order)
-      const effectiveOrderStatus: 'FILLED' | 'PENDING' =
-        side === 'BUY' ? orderStatus : 'FILLED';
-
       const slPrice = parseFloat(stopLoss) || undefined;
       await realPortfolioApi.createOrder(portfolioId, {
         symbol: symbol.toUpperCase().trim(),
         exchange,
-        side,
+        side: 'BUY',
         quantity: qty,
         filled_price: price,
         filled_date: filledDate,
         notes: notes.trim() || undefined,
-        order_status: effectiveOrderStatus,
+        order_status: orderStatus,
         stop_loss: slPrice,
       });
       setSuccess(
-        effectiveOrderStatus === 'PENDING'
+        orderStatus === 'PENDING'
           ? 'Đã ghi nhận lệnh chờ khớp (tiền đã được lock)'
-          : 'Ghi nhận lệnh thành công!'
+          : 'Ghi nhận lệnh MUA thành công!'
       );
       setSymbol('');
       setQuantity('');
@@ -145,7 +141,7 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
           <svg className="w-4 h-4 text-[var(--color-accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
-          <span className="text-[13px] font-semibold text-[var(--color-text-main)]">Ghi nhận lệnh thật</span>
+          <span className="text-[13px] font-semibold text-[var(--color-text-main)]">Ghi nhận lệnh MUA</span>
         </div>
         <svg className="w-4 h-4 text-[var(--color-text-dim)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
@@ -161,40 +157,15 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
         onClick={() => setCollapsed(true)}
         className="w-full px-4 py-3 flex items-center justify-between border-b border-[var(--color-divider)] hover:bg-[var(--color-panel-hover)] transition-colors cursor-pointer"
       >
-        <span className="text-[13px] font-semibold text-[var(--color-text-main)]">Ghi nhận lệnh thật</span>
+        <span className="text-[13px] font-semibold text-[var(--color-text-main)]">Ghi nhận lệnh MUA</span>
         <svg className="w-4 h-4 text-[var(--color-text-dim)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
         </svg>
       </button>
 
       <form onSubmit={handleSubmit} className="p-4 space-y-3">
-        {/* Row 1: Side toggle + Mã CK + Sàn */}
-        <div className="grid grid-cols-[auto_1fr_100px] gap-2 items-end">
-          {/* MUA/BÁN compact toggle */}
-          <div>
-            <label className={labelCls}>Lệnh</label>
-            <div className="inline-flex rounded-md overflow-hidden border border-[var(--color-border-subtle)] h-[34px]">
-              <button
-                type="button"
-                onClick={() => setSide('BUY')}
-                className={`px-3 text-[11px] font-bold transition-all ${
-                  side === 'BUY'
-                    ? 'bg-[var(--color-positive)] text-white'
-                    : 'bg-[var(--color-background)] text-[var(--color-text-dim)] hover:text-[var(--color-positive)]'
-                }`}
-              >MUA</button>
-              <button
-                type="button"
-                onClick={() => setSide('SELL')}
-                className={`px-3 text-[11px] font-bold transition-all border-l border-[var(--color-border-subtle)] ${
-                  side === 'SELL'
-                    ? 'bg-[var(--color-negative)] text-white'
-                    : 'bg-[var(--color-background)] text-[var(--color-text-dim)] hover:text-[var(--color-negative)]'
-                }`}
-              >BÁN</button>
-            </div>
-          </div>
-
+        {/* Row 1: Mã CK + Sàn */}
+        <div className="grid grid-cols-[1fr_100px] gap-2 items-end">
           {/* Mã CK */}
           <div>
             <label className={labelCls}>Mã CK</label>
@@ -293,19 +264,16 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
             <span className="text-[var(--color-text-dim)]">
               Phí: <span className="text-[var(--color-warning)] font-mono">{formatVND(fee)}</span>
             </span>
-            {remainingCash !== null && (
-              <span className="text-[var(--color-text-dim)]">
-                Còn lại: <span className={`font-mono font-semibold ${remainingCash >= 0 ? 'text-[var(--color-positive)]' : 'text-[var(--color-negative)]'}`}>
-                  {formatVND(remainingCash)}
-                </span>
+            <span className="text-[var(--color-text-dim)]">
+              Còn lại: <span className={`font-mono font-semibold ${remainingCash >= 0 ? 'text-[var(--color-positive)]' : 'text-[var(--color-negative)]'}`}>
+                {formatVND(remainingCash)}
               </span>
-            )}
+            </span>
           </div>
         )}
 
-        {/* D-05 MAP-01: Radio trạng thái lệnh — chỉ hiển thị khi MUA */}
-        {side === 'BUY' && (
-          <div>
+        {/* D-05 MAP-01: Radio trạng thái lệnh */}
+        <div>
             <label className={labelCls}>Trạng thái lệnh</label>
             <div className="inline-flex rounded-md overflow-hidden border border-[var(--color-border-subtle)] h-[34px]">
               <button
@@ -332,8 +300,7 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
                 Lệnh limit đã đặt trên broker, chưa khớp — tiền sẽ được lock.
               </p>
             )}
-          </div>
-        )}
+        </div>
 
         {/* Row 3: Ghi chú + Submit */}
         <div className="grid grid-cols-[1fr_auto] gap-2 items-end">
@@ -350,13 +317,9 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
           <button
             type="submit"
             disabled={loading || hasFieldError}
-            className={`h-[34px] px-5 rounded-md text-[12px] font-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-              side === 'BUY'
-                ? 'bg-[var(--color-positive)] hover:brightness-110'
-                : 'bg-[var(--color-negative)] hover:brightness-110'
-            }`}
+            className="h-[34px] px-5 rounded-md text-[12px] font-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-[var(--color-positive)] hover:brightness-110"
           >
-            {loading ? '...' : 'Ghi nhận'}
+            {loading ? '...' : 'Ghi nhận MUA'}
           </button>
         </div>
 
