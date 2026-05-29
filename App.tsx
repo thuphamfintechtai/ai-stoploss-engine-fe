@@ -3083,6 +3083,7 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
             sidebarWidth={isSidebarOpen ? 200 : 52}
             openPositions={openPositions}
             onOpenPosition={loadPositions}
+            onNavigate={setCurrentView}
           />
         </div>
       )}

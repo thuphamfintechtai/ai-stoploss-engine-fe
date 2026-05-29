@@ -50,6 +50,7 @@ interface Props {
   initialSide?: 'LONG' | 'SHORT';
   sidebarWidth: number;
   onOpenPosition?: () => void;
+  onNavigate?: (view: string) => void;
   openPositions?: Position[]; // Các vị thế đang mở (để kiểm tra holdings khi BÁN)
 }
 
@@ -64,6 +65,7 @@ export const TradingTerminal: React.FC<Props> = ({
   initialSide,
   sidebarWidth,
   onOpenPosition,
+  onNavigate,
   openPositions = [],
 }) => {
   const [symbol, setSymbol] = useState(initialSymbol);
@@ -601,6 +603,7 @@ export const TradingTerminal: React.FC<Props> = ({
         } as any);
         setOrderMsg({ type: 'ok', text: `Đã bán ${effectiveQty} CP ${orderSymbol} thành công!` });
         onOpenPosition?.();
+        setTimeout(() => onNavigate?.('dashboard'), 1500);
       } catch (e: any) {
         setOrderMsg({ type: 'err', text: e?.response?.data?.message || 'Đặt lệnh bán thất bại.' });
       } finally { setSubmitting(false); }
@@ -687,6 +690,7 @@ export const TradingTerminal: React.FC<Props> = ({
       setTakeProfitRR('');
       setAiSuggestions(null);
       setRiskEval(null);
+      setTimeout(() => onNavigate?.('dashboard'), 1500);
     } catch (e: any) {
       setOrderMsg({ type: 'err', text: e?.response?.data?.message || 'Đặt lệnh thất bại.' });
     } finally {
