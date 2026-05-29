@@ -121,21 +121,6 @@ apiClient.interceptors.response.use(
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('api:validation-error', { detail: { errors } }));
       }
-    } else if (status === 429) {
-      // Rate limit (AIT-05, D-05) — parse retry_after_seconds + Retry-After header
-      // dispatch event cho RateLimitBanner (global) + hook useRateLimitCountdown
-      const headerRetry = Number(error.response?.headers?.['retry-after']);
-      const bodyRetry = Number(responseData?.retry_after_seconds);
-      const retryAfterSeconds = Number.isFinite(bodyRetry) && bodyRetry > 0
-        ? bodyRetry
-        : (Number.isFinite(headerRetry) && headerRetry > 0 ? headerRetry : 60);
-      const rlMessage = responseData?.message || `Đã dùng hết lượt AI. Thử lại sau ${retryAfterSeconds} giây.`;
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('api:rate-limit', {
-          detail: { retryAfterSeconds, message: rlMessage },
-        }));
-      }
-      // KHÔNG showToast — banner global đủ visible, tránh duplicate UX
     } else if (status === 500) {
       // Server error — hiện thị toast error + dispatch event
       const serverMessage = responseData?.message || 'Lỗi hệ thống. Vui lòng thử lại sau.';
@@ -274,6 +259,9 @@ export const authApi = {
 
   changePassword: (data: { current_password: string; new_password: string }) =>
     apiClient.put('/auth/change-password', data),
+
+  updateSettings: (patch: Record<string, any>) =>
+    apiClient.put('/auth/settings', patch),
 };
 
 // Portfolio API
@@ -464,6 +452,9 @@ export const aiApi = {
   /** Đánh dấu đã áp dụng đề xuất từ một lần review */
   markReviewApplied: (reviewId: string) =>
     apiClient.patch(`/ai/position-review-history/${reviewId}/applied`),
+
+  markReviewDismissed: (reviewId: string) =>
+    apiClient.patch(`/ai/position-review-history/${reviewId}/dismissed`),
 
   /** Lấy danh sách AI recommendations của user */
   listRecommendations: (params?: { limit?: number }) =>
@@ -832,6 +823,9 @@ export const realPortfolioApi = {
 
   getOpenPositions: (portfolioId: string) =>
     apiClient.get(`/portfolios/${portfolioId}/real-positions`),
+
+  listPositions: (portfolioId: string, params?: { status?: string; page?: number; limit?: number }) =>
+    apiClient.get(`/portfolios/${portfolioId}/real-positions`, { params }),
 
   closePosition: (portfolioId: string, positionId: string, data: CloseRealPositionRequest) =>
     apiClient.post(`/portfolios/${portfolioId}/real-positions/${positionId}/close`, data),

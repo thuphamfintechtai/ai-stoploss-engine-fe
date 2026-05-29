@@ -1,14 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, ReferenceLine, Tooltip as RechartsTooltip, AreaChart, Area } from 'recharts';
-import { marketApi, positionApi, aiApi, portfolioApi } from '../services/api';
-import { STOCK_PRICE_DISPLAY_SCALE, PRICE_LOCALE, PRICE_FRACTION_OPTIONS, formatNumberVI } from '../constants';
+import { ResponsiveContainer, AreaChart, Area, ReferenceLine } from 'recharts';
+import { marketApi, realPortfolioApi, aiApi, portfolioApi } from '../services/api';
+import { STOCK_PRICE_DISPLAY_SCALE, PRICE_LOCALE, formatNumberVI } from '../constants';
 import type { Position } from '../services/api';
 import wsService from '../services/websocket';
-import { StatCard } from './ui/StatCard';
-import { Tooltip, FinancialTooltip } from './ui/Tooltip';
 import { EmptyState } from './ui/EmptyState';
-import { InfoCard } from './ui/InfoCard';
-import { MarketIndexBar } from './ui/MarketIndexBar';
 
 interface IndexData {
   indexCode: string;
@@ -19,15 +15,6 @@ interface IndexData {
   advancing: number;
   declining: number;
   unchanged: number;
-  volume: number;
-  totalValue: number;
-}
-
-interface NewsArticle {
-  title: string;
-  url: string;
-  date: string;
-  description?: string;
 }
 
 interface PerformanceStats {
@@ -36,12 +23,6 @@ interface PerformanceStats {
   losing_trades: number;
   win_rate: number;
   total_pnl_vnd: number;
-  avg_win_vnd: number;
-  avg_loss_vnd: number;
-  profit_factor: number;
-  max_drawdown_vnd: number;
-  max_drawdown_pct: number;
-  sharpe_ratio?: number;
 }
 
 interface AiInsight {
@@ -49,6 +30,13 @@ interface AiInsight {
   action: string;
   recommendation: string;
   confidence: number;
+}
+
+interface NewsArticle {
+  title: string;
+  url: string;
+  date: string;
+  description?: string;
 }
 
 interface Props {
@@ -66,8 +54,6 @@ function normalizeIndexData(raw: any, indexCode: string): IndexData {
   const prev = d?.prevIndexValue ?? d?.previousClose ?? d?.open ?? value;
   const change = d?.indexChange ?? d?.change ?? value - prev;
   const changePercent = d?.indexPercentChange ?? d?.changePercent ?? (prev ? (change / prev) * 100 : 0);
-  const volume = d?.totalVolume ?? d?.sumVolume ?? d?.volume ?? 0;
-  const totalValue = d?.totalValue ?? d?.sumValue ?? 0;
   const chartRaw = d?.index ?? d?.sessionData ?? d?.intradayData ?? [];
   const chartData = Array.isArray(chartRaw)
     ? chartRaw.map((p: any) => ({ time: p?.indexTime ?? p?.time ?? '', value: p?.indexValue ?? p?.value ?? 0 }))
@@ -78,8 +64,6 @@ function normalizeIndexData(raw: any, indexCode: string): IndexData {
     value,
     change,
     changePercent,
-    volume,
-    totalValue,
     chartData,
     advancing: d?.advances ?? d?.advancing ?? 0,
     unchanged: d?.noChange ?? d?.unchanged ?? 0,
@@ -89,36 +73,148 @@ function normalizeIndexData(raw: any, indexCode: string): IndexData {
 
 const INDEX_CODES = ['VNINDEX', 'VN30'];
 
-// ── Mini Index Card with AreaChart ──────────────────────────────────────────
-const IndexCard: React.FC<{ data: IndexData }> = ({ data }) => {
+// ═══════════════════════════════════════════════════════════════════════════
+// Icons
+// ═══════════════════════════════════════════════════════════════════════════
+const Icons = {
+  chart: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+    </svg>
+  ),
+  wallet: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3" />
+    </svg>
+  ),
+  trendUp: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
+    </svg>
+  ),
+  trendDown: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6L9 12.75l4.286-4.286a11.948 11.948 0 014.306 6.43l.776 2.898m0 0l3.182-5.511m-3.182 5.51l-5.511-3.181" />
+    </svg>
+  ),
+  shield: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+    </svg>
+  ),
+  sparkle: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+    </svg>
+  ),
+  refresh: (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+    </svg>
+  ),
+  plus: (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+    </svg>
+  ),
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Stat Card Component
+// ═══════════════════════════════════════════════════════════════════════════
+const StatCard: React.FC<{
+  label: string;
+  value: React.ReactNode;
+  subValue?: React.ReactNode;
+  icon: React.ReactNode;
+  trend?: 'up' | 'down' | 'neutral';
+  accentColor?: string;
+}> = ({ label, value, subValue, icon, trend, accentColor = 'var(--color-accent)' }) => {
+  const trendColor = trend === 'up'
+    ? 'text-[var(--color-positive)]'
+    : trend === 'down'
+      ? 'text-[var(--color-negative)]'
+      : 'text-[var(--color-text-main)]';
+
+  return (
+    <div className="bg-[var(--color-panel)] border border-[var(--color-border-subtle)] rounded-xl p-4 hover:border-[var(--color-border-standard)] transition-all">
+      <div className="flex items-start justify-between mb-3">
+        <div
+          className="w-10 h-10 rounded-lg flex items-center justify-center"
+          style={{ background: `color-mix(in srgb, ${accentColor} 15%, transparent)` }}
+        >
+          <span style={{ color: accentColor }}>{icon}</span>
+        </div>
+        {trend && trend !== 'neutral' && (
+          <span className={`text-[10px] font-semibold px-2 py-1 rounded-full ${
+            trend === 'up' ? 'bg-[var(--color-positive)]/10 text-[var(--color-positive)]' : 'bg-[var(--color-negative)]/10 text-[var(--color-negative)]'
+          }`}>
+            {trend === 'up' ? '▲' : '▼'}
+          </span>
+        )}
+      </div>
+      <div className="space-y-1">
+        <p className="text-[11px] font-medium text-[var(--color-text-dim)] uppercase tracking-wider">
+          {label}
+        </p>
+        <p className={`text-[22px] font-bold tabular-nums leading-tight ${trendColor}`}>
+          {value}
+        </p>
+        {subValue && (
+          <p className="text-[11px] text-[var(--color-text-muted)]">{subValue}</p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Market Index Card
+// ═══════════════════════════════════════════════════════════════════════════
+const MarketIndexCard: React.FC<{ data: IndexData }> = ({ data }) => {
   const isUp = data.change >= 0;
   const refVal = data.value - data.change;
   const total = data.advancing + data.declining + data.unchanged;
+  const color = isUp ? '#22C55E' : '#EF4444';
 
   return (
-    <div className="panel-section p-4 flex flex-col gap-3 hover:border-border-standard/30 transition-colors">
-      <div className="flex items-start justify-between">
+    <div className="bg-[var(--color-panel)] border border-[var(--color-border-subtle)] rounded-xl p-4 hover:border-[var(--color-border-standard)] transition-all">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">{data.indexCode}</span>
-          <div className={`text-[22px] font-bold tabular-nums leading-none mt-1 ${isUp ? 'text-positive' : 'text-negative'}`}>
-            {data.value > 0 ? data.value.toLocaleString(PRICE_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '\u2014'}
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[11px] font-bold tracking-wider text-[var(--color-text-dim)]">
+              {data.indexCode}
+            </span>
+            {total > 0 && (
+              <span className="text-[9px] text-[var(--color-text-dim)] tabular-nums">
+                <span className="text-[var(--color-positive)]">{data.advancing}</span>
+                /
+                <span className="text-[var(--color-negative)]">{data.declining}</span>
+              </span>
+            )}
           </div>
-          <div className={`text-[12px] tabular-nums mt-1 flex items-center gap-1 ${isUp ? 'text-positive' : 'text-negative'}`}>
-            {isUp ? '\u25B2' : '\u25BC'} {Math.abs(data.change).toFixed(2)} ({data.changePercent >= 0 ? '+' : ''}{data.changePercent.toFixed(2)}%)
+          <div className={`text-[24px] font-bold tabular-nums leading-tight ${isUp ? 'text-[var(--color-positive)]' : 'text-[var(--color-negative)]'}`}>
+            {data.value > 0 ? data.value.toLocaleString(PRICE_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+          </div>
+          <div className={`text-[12px] tabular-nums mt-1 flex items-center gap-1 ${isUp ? 'text-[var(--color-positive)]' : 'text-[var(--color-negative)]'}`}>
+            {isUp ? '▲' : '▼'} {Math.abs(data.change).toFixed(2)}
+            <span className="text-[var(--color-text-dim)]">|</span>
+            {data.changePercent >= 0 ? '+' : ''}{data.changePercent.toFixed(2)}%
           </div>
         </div>
+
         {data.chartData.length > 1 && (
-          <div style={{ width: 110, height: 52, flexShrink: 0 }}>
-            <ResponsiveContainer width={110} height={52}>
+          <div style={{ width: 100, height: 48, flexShrink: 0 }}>
+            <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data.chartData}>
                 <defs>
                   <linearGradient id={`grad-${data.indexCode}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={isUp ? '#22C55E' : '#EF4444'} stopOpacity={0.3} />
-                    <stop offset="100%" stopColor={isUp ? '#22C55E' : '#EF4444'} stopOpacity={0} />
+                    <stop offset="0%" stopColor={color} stopOpacity={0.3} />
+                    <stop offset="100%" stopColor={color} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <ReferenceLine y={refVal} stroke="rgba(255,255,255,0.1)" strokeDasharray="2 2" />
-                <Area type="monotone" dataKey="value" stroke={isUp ? '#22C55E' : '#EF4444'} strokeWidth={1.5} fill={`url(#grad-${data.indexCode})`} dot={false} />
+                <Area type="monotone" dataKey="value" stroke={color} strokeWidth={1.5} fill={`url(#grad-${data.indexCode})`} dot={false} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -126,47 +222,156 @@ const IndexCard: React.FC<{ data: IndexData }> = ({ data }) => {
       </div>
 
       {total > 0 && (
-        <div>
-          <div className="flex rounded-full overflow-hidden h-1.5">
-            <div className="bg-positive" style={{ width: `${(data.advancing / total) * 100}%` }} />
-            <div className="bg-text-dim" style={{ width: `${(data.unchanged / total) * 100}%` }} />
-            <div className="bg-negative" style={{ width: `${(data.declining / total) * 100}%` }} />
-          </div>
-          <div className="flex justify-between mt-1 text-[9px] tabular-nums">
-            <span className="text-positive">{data.advancing} tăng</span>
-            <span className="text-text-dim">{data.unchanged} đứng</span>
-            <span className="text-negative">{data.declining} giảm</span>
-          </div>
+        <div className="mt-3 flex h-1.5 rounded-full overflow-hidden bg-[var(--color-background)]">
+          <div className="bg-[var(--color-positive)]" style={{ width: `${(data.advancing / total) * 100}%` }} />
+          <div className="bg-[var(--color-text-dim)]/30" style={{ width: `${(data.unchanged / total) * 100}%` }} />
+          <div className="bg-[var(--color-negative)]" style={{ width: `${(data.declining / total) * 100}%` }} />
         </div>
       )}
+    </div>
+  );
+};
 
-      <div className="flex gap-4 text-[10px] border-t border-border-subtle pt-2">
-        <div><span className="text-text-dim">KL:</span> <span className="text-text-muted tabular-nums">{formatNumberVI(data.volume, { maximumFractionDigits: 0 })}</span></div>
-        {data.totalValue > 0 && <div><span className="text-text-dim">GT:</span> <span className="text-text-muted tabular-nums">{(data.totalValue / 1e9).toFixed(0)} tỷ</span></div>}
+// ═══════════════════════════════════════════════════════════════════════════
+// Risk Gauge Component
+// ═══════════════════════════════════════════════════════════════════════════
+const RiskGauge: React.FC<{ percentage: number; used: number; max: number }> = ({ percentage, used, max }) => {
+  const color = percentage < 50 ? 'var(--color-positive)' : percentage < 80 ? 'var(--color-warning)' : 'var(--color-negative)';
+  const label = percentage < 50 ? 'An toàn' : percentage < 80 ? 'Cảnh báo' : 'Nguy hiểm';
+
+  return (
+    <div className="bg-[var(--color-panel)] border border-[var(--color-border-subtle)] rounded-xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-[var(--color-warning)]/10 flex items-center justify-center">
+            <span className="text-[var(--color-warning)]">{Icons.shield}</span>
+          </div>
+          <div>
+            <p className="text-[11px] font-medium text-[var(--color-text-dim)] uppercase tracking-wider">
+              Rủi ro danh mục
+            </p>
+            <p className="text-[10px] font-semibold" style={{ color }}>{label}</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-[20px] font-bold tabular-nums" style={{ color }}>
+            {percentage.toFixed(0)}%
+          </p>
+        </div>
+      </div>
+
+      <div className="h-2 rounded-full bg-[var(--color-background)] overflow-hidden mb-2">
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${Math.min(100, percentage)}%`, background: color }}
+        />
+      </div>
+
+      <div className="flex justify-between text-[10px] text-[var(--color-text-dim)]">
+        <span>Đã dùng: {formatNumberVI(used)}đ</span>
+        <span>Tối đa: {formatNumberVI(max)}đ</span>
       </div>
     </div>
   );
 };
 
-// ── Sparkle Icon ────────────────────────────────────────────────────────────
-const SparkleIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-  </svg>
-);
+// ═══════════════════════════════════════════════════════════════════════════
+// AI Signal Card
+// ═══════════════════════════════════════════════════════════════════════════
+const AiSignalCard: React.FC<{ insight: AiInsight; onClick: () => void }> = ({ insight, onClick }) => {
+  const act = (insight.action || 'HOLD').toUpperCase();
+  const isBuy = act === 'BUY' || act === 'MUA';
+  const isSell = act === 'SELL' || act === 'BAN' || act === 'BÁN';
 
-const ShieldIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-  </svg>
-);
+  const actionStyle = isBuy
+    ? 'bg-[var(--color-positive)]/10 text-[var(--color-positive)] border-[var(--color-positive)]/20'
+    : isSell
+      ? 'bg-[var(--color-negative)]/10 text-[var(--color-negative)] border-[var(--color-negative)]/20'
+      : 'bg-[var(--color-warning)]/10 text-[var(--color-warning)] border-[var(--color-warning)]/20';
 
-const PlusIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-  </svg>
-);
+  const confColor = insight.confidence >= 70 ? 'var(--color-positive)' : insight.confidence >= 50 ? 'var(--color-warning)' : 'var(--color-negative)';
 
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-left p-3 rounded-lg bg-[var(--color-background)] hover:bg-[var(--color-panel-hover)] transition-colors flex items-center gap-3"
+    >
+      <span className={`text-[10px] font-bold px-2 py-1 rounded border shrink-0 ${actionStyle}`}>
+        {isBuy ? 'MUA' : isSell ? 'BÁN' : 'GIỮ'}
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="text-[13px] font-bold text-[var(--color-text-main)]">{insight.symbol}</p>
+        <p className="text-[11px] text-[var(--color-text-muted)] truncate">{insight.recommendation}</p>
+      </div>
+      {insight.confidence > 0 && (
+        <div className="shrink-0 text-right">
+          <p className="text-[14px] font-bold tabular-nums" style={{ color: confColor }}>
+            {insight.confidence}%
+          </p>
+          <p className="text-[9px] text-[var(--color-text-dim)]">tin cậy</p>
+        </div>
+      )}
+    </button>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Position Row
+// ═══════════════════════════════════════════════════════════════════════════
+const PositionRow: React.FC<{ position: Position; onClick: () => void }> = ({ position, onClick }) => {
+  const entry = Number(position.entry_price ?? 0) / 1000;
+  const current = Number((position as any).current_price ?? 0) / 1000;
+  const isShort = (position.side ?? 'LONG').toUpperCase() === 'SHORT';
+  const rawPct = entry > 0 && current > 0 ? ((current - entry) / entry) * 100 : 0;
+  const pnlPct = isShort ? -rawPct : rawPct;
+  const sl = Number(position.trailing_current_stop ?? position.stop_loss ?? 0) / 1000;
+
+  return (
+    <tr
+      onClick={onClick}
+      className="cursor-pointer hover:bg-[var(--color-panel-hover)] transition-colors"
+    >
+      <td className="py-2.5 px-3">
+        <div className="flex items-center gap-2">
+          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+            isShort ? 'bg-[var(--color-negative)]/10 text-[var(--color-negative)]' : 'bg-[var(--color-positive)]/10 text-[var(--color-positive)]'
+          }`}>
+            {isShort ? 'S' : 'L'}
+          </span>
+          <span className="text-[13px] font-bold text-[var(--color-text-main)]">{position.symbol}</span>
+        </div>
+      </td>
+      <td className="py-2.5 px-3 text-right">
+        <span className="text-[12px] tabular-nums text-[var(--color-text-muted)]">
+          {entry > 0 ? entry.toFixed(2) : '—'}
+        </span>
+      </td>
+      <td className="py-2.5 px-3 text-right">
+        <span className={`text-[12px] tabular-nums font-medium ${
+          current > entry ? 'text-[var(--color-positive)]' : current < entry ? 'text-[var(--color-negative)]' : 'text-[var(--color-text-muted)]'
+        }`}>
+          {current > 0 ? current.toFixed(2) : '—'}
+        </span>
+      </td>
+      <td className="py-2.5 px-3 text-right">
+        <span className={`text-[12px] tabular-nums font-semibold ${
+          pnlPct >= 0 ? 'text-[var(--color-positive)]' : 'text-[var(--color-negative)]'
+        }`}>
+          {pnlPct !== 0 ? `${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%` : '—'}
+        </span>
+      </td>
+      <td className="py-2.5 px-3 text-right">
+        <span className="text-[12px] tabular-nums text-[var(--color-text-dim)]">
+          {sl > 0 ? sl.toFixed(2) : '—'}
+        </span>
+      </td>
+    </tr>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DashboardView
+// ═══════════════════════════════════════════════════════════════════════════
 export const DashboardView: React.FC<Props> = ({
   portfolioId,
   totalBalance,
@@ -177,16 +382,14 @@ export const DashboardView: React.FC<Props> = ({
 }) => {
   const [indexData, setIndexData] = useState<Record<string, IndexData>>({});
   const [loading, setLoading] = useState(true);
+  const [marketRegime, setMarketRegime] = useState<any>(null);
+  const [performance, setPerformance] = useState<PerformanceStats | null>(null);
+  const [livePositions, setLivePositions] = useState<Position[]>(openPositions);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [aiInsights, setAiInsights] = useState<AiInsight[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
   const [news, setNews] = useState<NewsArticle[]>([]);
   const [newsLoading, setNewsLoading] = useState(false);
-  const [marketRegime, setMarketRegime] = useState<any>(null);
-  const [regimeLoading, setRegimeLoading] = useState(false);
-  const [performance, setPerformance] = useState<PerformanceStats | null>(null);
-  const [perfLoading, setPerfLoading] = useState(false);
-  const [livePositions, setLivePositions] = useState<Position[]>(openPositions);
-  const [lastPnlRefresh, setLastPnlRefresh] = useState<Date>(new Date());
-  const [aiInsights, setAiInsights] = useState<AiInsight[]>([]);
-  const [aiInsightsLoading, setAiInsightsLoading] = useState(false);
 
   const loadIndices = useCallback(async () => {
     setLoading(true);
@@ -206,69 +409,61 @@ export const DashboardView: React.FC<Props> = ({
     }
   }, []);
 
-  const loadNews = useCallback(async () => {
-    setNewsLoading(true);
-    try {
-      const res = await marketApi.getNews({ limit: 8, format: 'json' });
-      const articles = Array.isArray((res.data as any)?.articles) ? (res.data as any).articles : [];
-      setNews(articles.slice(0, 8));
-    } finally {
-      setNewsLoading(false);
-    }
-  }, []);
-
   const loadMarketRegime = useCallback(async () => {
-    setRegimeLoading(true);
     try {
       const res = await aiApi.getMarketRegime(false);
       if (res.data?.success) setMarketRegime(res.data.data);
-    } catch (err) { if (import.meta.env.DEV) console.warn('DashboardView load failed:', err); } finally {
-      setRegimeLoading(false);
-    }
+    } catch {}
   }, []);
 
   const loadPerformance = useCallback(async () => {
     if (!portfolioId) return;
-    setPerfLoading(true);
     try {
       const res = await portfolioApi.getPerformance(portfolioId);
       if (res.data?.success && res.data.data) {
         setPerformance(res.data.data);
       }
-    } catch (err) { if (import.meta.env.DEV) console.warn('DashboardView load failed:', err); } finally {
-      setPerfLoading(false);
-    }
+    } catch {}
   }, [portfolioId]);
 
   const loadAiInsights = useCallback(async () => {
-    setAiInsightsLoading(true);
+    setAiLoading(true);
     try {
-      const res = await aiApi.getSignals({ limit: 3 });
+      const res = await aiApi.getSignals({ limit: 4 });
       if (res.data?.success && Array.isArray(res.data.data)) {
-        setAiInsights(res.data.data.slice(0, 3));
+        setAiInsights(res.data.data.slice(0, 4));
       }
-    } catch (err) { if (import.meta.env.DEV) console.warn('DashboardView load failed:', err); } finally {
-      setAiInsightsLoading(false);
+    } finally {
+      setAiLoading(false);
     }
   }, []);
 
-  // Refresh live positions P&L every 30s
+  const loadNews = useCallback(async () => {
+    setNewsLoading(true);
+    try {
+      const res = await marketApi.getNews({ limit: 6, format: 'json' });
+      const articles = Array.isArray((res.data as any)?.articles) ? (res.data as any).articles : [];
+      setNews(articles.slice(0, 6));
+    } finally {
+      setNewsLoading(false);
+    }
+  }, []);
+
   const refreshLivePnL = useCallback(async () => {
     if (!portfolioId) return;
     try {
-      const res = await positionApi.list(portfolioId, { status: 'OPEN' });
+      const res = await realPortfolioApi.getOpenPositions(portfolioId);
       if (res.data?.success && Array.isArray(res.data.data)) {
         setLivePositions(res.data.data);
-        setLastPnlRefresh(new Date());
+        setLastRefresh(new Date());
       }
-    } catch (err) { if (import.meta.env.DEV) console.warn('DashboardView load failed:', err); }
+    } catch {}
   }, [portfolioId]);
 
   useEffect(() => {
     setLivePositions(openPositions);
   }, [openPositions]);
 
-  // Cập nhật current_price cho live positions khi nhận WS price_update
   useEffect(() => {
     const handler = (data: any) => {
       if (!data?.symbol) return;
@@ -286,25 +481,23 @@ export const DashboardView: React.FC<Props> = ({
 
   useEffect(() => {
     loadIndices();
-    loadNews();
     loadMarketRegime();
     loadPerformance();
     loadAiInsights();
+    loadNews();
     refreshLivePnL();
+
     const indexInterval = setInterval(loadIndices, 60_000);
-    const regimeInterval = setInterval(loadMarketRegime, 15 * 60_000);
     const pnlInterval = setInterval(refreshLivePnL, 30_000);
+
     return () => {
       clearInterval(indexInterval);
-      clearInterval(regimeInterval);
       clearInterval(pnlInterval);
     };
-  }, [loadIndices, loadNews, loadMarketRegime, loadPerformance, loadAiInsights, refreshLivePnL]);
+  }, [loadIndices, loadMarketRegime, loadPerformance, loadAiInsights, loadNews, refreshLivePnL]);
 
+  // Computed values
   const riskPct = maxRisk > 0 ? (riskUsed / maxRisk) * 100 : 0;
-  const riskColor = riskPct < 50 ? 'text-positive' : riskPct < 80 ? 'text-warning' : 'text-negative';
-  const riskBarColor = riskPct < 50 ? 'bg-positive' : riskPct < 80 ? 'bg-warning' : 'bg-negative';
-
   const totalPnl = livePositions.reduce((s, p) => {
     if ((p as any).current_price && p.entry_price && p.quantity) {
       const isShort = (p.side ?? 'LONG').toUpperCase() === 'SHORT';
@@ -315,381 +508,333 @@ export const DashboardView: React.FC<Props> = ({
     }
     return s;
   }, 0);
-
   const totalPnlPct = totalBalance > 0 ? (totalPnl / totalBalance) * 100 : 0;
   const availableCash = totalBalance - livePositions.reduce((s, p) => s + Number(p.entry_price ?? 0) * Number(p.quantity ?? 0), 0);
-  const returnPct = totalBalance > 0 ? ((totalBalance + totalPnl - totalBalance) / totalBalance) * 100 : 0;
+
+  const regimeLabel = marketRegime?.regime === 'BULL' ? 'Tăng trưởng'
+    : marketRegime?.regime === 'BEAR' ? 'Suy giảm'
+    : marketRegime?.regime === 'VOLATILE' ? 'Biến động'
+    : 'Đi ngang';
+
+  const regimeColor = marketRegime?.regime === 'BULL' ? 'var(--color-positive)'
+    : marketRegime?.regime === 'BEAR' ? 'var(--color-negative)'
+    : marketRegime?.regime === 'VOLATILE' ? 'var(--color-warning)'
+    : 'var(--color-text-muted)';
 
   return (
-    <div className="space-y-4 animate-fade-in">
-
-      {/* ── MARKET INDEX BAR (MDI-06) — top-of-view, poll 30s ── */}
-      <MarketIndexBar className="px-1" />
-
-      {/* ── SECTION 1: Hero Portfolio Overview (D-16) ── */}
-      <div className="bg-gradient-to-r from-[var(--color-accent-subtle)] to-[var(--color-panel)] rounded-lg p-5 border border-border-subtle">
-        <div className="flex flex-col lg:flex-row lg:items-center gap-5">
-          {/* Left: Total assets + P&L today */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2">
-              <Tooltip content="Tổng giá trị các tài sản trong danh mục của bạn" position="bottom">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted cursor-help">
-                  Tổng tài sản
-                </span>
-              </Tooltip>
-              <button
-                onClick={refreshLivePnL}
-                className="p-1 rounded border border-border-standard text-text-muted hover:text-text-main hover:bg-white/5 transition-colors"
-                title="Làm mới P&L"
-              >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                </svg>
-              </button>
-            </div>
-            <p className="text-[28px] lg:text-[32px] font-bold tabular-nums text-text-main leading-none">
-              {formatNumberVI(totalBalance)} <span className="text-[14px] font-normal text-text-dim">VND</span>
-            </p>
-            <div className={`flex items-center gap-2 mt-2 text-[13px] ${totalPnl >= 0 ? 'text-positive' : 'text-negative'}`}>
-              <FinancialTooltip term="P&L" />
-              <span className="tabular-nums font-semibold">
-                {totalPnl !== 0 ? (totalPnl >= 0 ? '+' : '') + formatNumberVI(totalPnl, { maximumFractionDigits: 0 }) : '\u2014'}
-              </span>
-              {totalPnl !== 0 && (
-                <span className="tabular-nums text-[11px]">
-                  ({totalPnlPct >= 0 ? '+' : ''}{totalPnlPct.toFixed(2)}%)
-                </span>
-              )}
-              <span className="text-[10px] text-text-dim ml-1">hôm nay</span>
-            </div>
-            <div className="text-[10px] text-text-dim mt-1">
-              Cập nhật: {lastPnlRefresh.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-            </div>
-          </div>
-
-          {/* Right: 3 StatCards */}
-          <div className="flex flex-col sm:flex-row lg:flex-row gap-3">
-            <StatCard
-              label="Vốn khả dụng"
-              value={formatNumberVI(Math.max(0, availableCash), { maximumFractionDigits: 0 })}
-              suffix=" VND"
-              tooltip="Số vốn còn lại chưa sử dụng cho vị thế nào"
-              size="sm"
-            />
-            <StatCard
-              label="% Lợi nhuận"
-              value={returnPct.toFixed(2)}
-              suffix="%"
-              change={totalPnl}
-              tooltip="Tỷ lệ lợi nhuận trên tổng vốn đầu tư"
-              size="sm"
-            />
-            <StatCard
-              label="Rủi ro"
-              value={`${riskPct.toFixed(1)}%`}
-              tooltip="Mức rủi ro đang sử dụng so với giới hạn tối đa"
-              size="sm"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* ── SECTION 2: Market Overview + Quick Actions (D-18, D-20) ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        {/* Left: Market indices (~60%) */}
-        <div className="lg:col-span-3 space-y-3">
-          <h2 className="text-[12px] font-semibold uppercase tracking-wider text-text-muted">Thị trường</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {loading
-              ? Array(2).fill(0).map((_, i) => (
-                  <div key={i} className="panel-section p-4 animate-pulse h-36" />
-                ))
-              : INDEX_CODES.map((code) => (
-                  indexData[code] ? (
-                    <IndexCard key={code} data={indexData[code]} />
-                  ) : (
-                    <div key={code} className="panel-section p-4 flex items-center justify-center text-text-muted text-[12px]">{code}</div>
-                  )
-                ))
-            }
-          </div>
-
-          {/* AI Market Regime Banner */}
-          {(marketRegime || regimeLoading) && (
-            <div className={`panel-section p-3 border-l-4 ${
-              marketRegime?.regime === 'BULL' ? 'border-l-positive' :
-              marketRegime?.regime === 'BEAR' ? 'border-l-negative' :
-              marketRegime?.regime === 'VOLATILE' ? 'border-l-warning' : 'border-l-border-standard'
-            }`}>
-              <div className="flex items-center gap-3">
-                <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                  marketRegime?.regime === 'BULL' ? 'bg-positive animate-pulse' :
-                  marketRegime?.regime === 'BEAR' ? 'bg-negative animate-pulse' :
-                  marketRegime?.regime === 'VOLATILE' ? 'bg-warning animate-pulse' : 'bg-text-muted'
-                }`} />
-                {regimeLoading ? (
-                  <div className="h-4 w-32 bg-border-subtle rounded animate-pulse" />
-                ) : marketRegime ? (
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Chế độ TT AI:</span>
-                    <span className={`text-[13px] font-bold tabular-nums ${
-                      marketRegime.regime === 'BULL' ? 'text-positive' :
-                      marketRegime.regime === 'BEAR' ? 'text-negative' :
-                      marketRegime.regime === 'VOLATILE' ? 'text-warning' : 'text-text-main'
-                    }`}>
-                      {marketRegime.regime === 'BULL' ? 'TĂNG TRƯỞNG' :
-                       marketRegime.regime === 'BEAR' ? 'SUY GIẢM' :
-                       marketRegime.regime === 'VOLATILE' ? 'BIẾN ĐỘNG' : 'ĐI NGANG'}
-                    </span>
-                    <span className="text-[11px] text-accent tabular-nums">{marketRegime.confidence}%</span>
-                    {marketRegime.description && (
-                      <span className="text-[10px] text-text-muted hidden lg:inline">{marketRegime.description.slice(0, 80)}{marketRegime.description.length > 80 ? '...' : ''}</span>
-                    )}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          )}
+    <div className="space-y-5 animate-fade-in max-w-[1600px] mx-auto">
+      {/* ═══ HEADER ═══ */}
+      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-[var(--color-border-subtle)]">
+        <div>
+          <h1 className="text-[22px] font-bold text-[var(--color-text-main)]">
+            Tổng quan
+          </h1>
+          <p className="text-[12px] text-[var(--color-text-dim)] mt-1 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[var(--color-positive)] animate-pulse" />
+            Cập nhật lúc {lastRefresh.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+            <button
+              onClick={refreshLivePnL}
+              className="p-1 rounded hover:bg-[var(--color-panel-hover)] text-[var(--color-text-dim)] hover:text-[var(--color-text-main)] transition-colors"
+              title="Làm mới"
+            >
+              {Icons.refresh}
+            </button>
+          </p>
         </div>
 
-        {/* Right: Quick Actions (~40%) */}
-        <div className="lg:col-span-2">
-          <h2 className="text-[12px] font-semibold uppercase tracking-wider text-text-muted mb-3">Hành động nhanh</h2>
-          <div className="flex flex-col gap-3">
-            <button
-              onClick={() => onNavigate('terminal')}
-              className="w-full panel-section p-4 flex items-center gap-3 text-left border transition-all hover:scale-[1.01] active:scale-[0.99] text-blue-400 border-blue-500/20 hover:bg-blue-500/5"
-            >
-              <div className="shrink-0 p-2 rounded-lg bg-blue-500/10">
-                <PlusIcon className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-[13px] font-semibold">Nhập lệnh mới</p>
-                <p className="text-[10px] text-text-dim mt-0.5">Đặt lệnh với AI hỗ trợ SL/TP</p>
-              </div>
-            </button>
-
-            <button
-              onClick={() => onNavigate('portfolio')}
-              className="w-full panel-section p-4 flex items-center gap-3 text-left border transition-all hover:scale-[1.01] active:scale-[0.99] text-amber-400 border-amber-500/20 hover:bg-amber-500/5"
-            >
-              <div className="shrink-0 p-2 rounded-lg bg-amber-500/10">
-                <ShieldIcon className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-[13px] font-semibold">Xem rủi ro</p>
-                <p className="text-[10px] text-text-dim mt-0.5">Kiểm tra mức rủi ro danh mục</p>
-              </div>
-            </button>
-
-            <button
-              onClick={() => onNavigate('terminal')}
-              className="w-full panel-section p-4 flex items-center gap-3 text-left border transition-all hover:scale-[1.01] active:scale-[0.99] text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/5"
-            >
-              <div className="shrink-0 p-2 rounded-lg bg-emerald-500/10">
-                <SparkleIcon className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-[13px] font-semibold">AI gợi ý</p>
-                <p className="text-[10px] text-text-dim mt-0.5">AI phân tích và gợi ý SL/TP</p>
-              </div>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ── SECTION 3: AI Insights (D-19) ── */}
-      <div className="panel-section">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle">
-          <div className="flex items-center gap-2">
-            <SparkleIcon className="w-4 h-4 text-accent" />
-            <span className="text-[12px] font-semibold uppercase tracking-wider text-text-muted">
-              <FinancialTooltip term="AI" /> Gợi ý hôm nay
-            </span>
-          </div>
-          <button onClick={() => onNavigate('terminal')} className="text-[10px] text-accent hover:underline">
-            Xem tất cả
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onNavigate('portfolio')}
+            className="px-4 py-2 rounded-lg text-[12px] font-medium border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] hover:bg-[var(--color-panel-hover)] transition-colors"
+          >
+            Quản lý vốn
+          </button>
+          <button
+            onClick={() => onNavigate('terminal')}
+            className="px-4 py-2 rounded-lg text-[12px] font-semibold bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] transition-colors flex items-center gap-1.5"
+          >
+            {Icons.plus}
+            Đặt lệnh
           </button>
         </div>
-        <div className="p-4">
-          {aiInsightsLoading ? (
-            <div className="flex gap-3">
-              {Array(3).fill(0).map((_, i) => (
-                <div key={i} className="flex-1 h-20 bg-border-subtle rounded animate-pulse" />
-              ))}
+      </header>
+
+      {/* ═══ STATS GRID ═══ */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          label="Tổng tài sản"
+          value={`${formatNumberVI(totalBalance)}đ`}
+          icon={Icons.wallet}
+          accentColor="var(--color-accent)"
+        />
+        <StatCard
+          label="Lãi/Lỗ hôm nay"
+          value={totalPnl !== 0 ? `${totalPnl >= 0 ? '+' : ''}${formatNumberVI(totalPnl)}đ` : '0đ'}
+          subValue={totalPnl !== 0 ? `${totalPnl >= 0 ? '+' : ''}${totalPnlPct.toFixed(2)}%` : 'Chưa có biến động'}
+          icon={totalPnl >= 0 ? Icons.trendUp : Icons.trendDown}
+          trend={totalPnl > 0 ? 'up' : totalPnl < 0 ? 'down' : 'neutral'}
+          accentColor={totalPnl >= 0 ? 'var(--color-positive)' : 'var(--color-negative)'}
+        />
+        <StatCard
+          label="Vốn khả dụng"
+          value={`${formatNumberVI(Math.max(0, availableCash))}đ`}
+          subValue={`${totalBalance > 0 ? ((availableCash / totalBalance) * 100).toFixed(0) : '0'}% danh mục`}
+          icon={Icons.chart}
+          accentColor="var(--color-secondary)"
+        />
+        <StatCard
+          label="Vị thế đang mở"
+          value={livePositions.length}
+          subValue={performance?.win_rate ? `Win rate: ${performance.win_rate.toFixed(0)}%` : 'Chưa có giao dịch'}
+          icon={Icons.chart}
+          accentColor="var(--color-warning)"
+        />
+      </div>
+
+      {/* ═══ MAIN GRID ═══ */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* Left Column: Positions + Risk */}
+        <div className="lg:col-span-5 space-y-5">
+          {/* Positions Table */}
+          <div className="bg-[var(--color-panel)] border border-[var(--color-border-subtle)] rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
+              <h2 className="text-[13px] font-semibold text-[var(--color-text-main)]">
+                Vị thế đang mở
+                {livePositions.length > 0 && (
+                  <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
+                    {livePositions.length}
+                  </span>
+                )}
+              </h2>
+              {livePositions.length > 0 && (
+                <button
+                  onClick={() => onNavigate('portfolio')}
+                  className="text-[11px] font-medium text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
+                >
+                  Xem tất cả
+                </button>
+              )}
             </div>
-          ) : aiInsights.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {aiInsights.map((insight, i) => (
-                <div key={i} className="panel-section p-3 border border-border-subtle hover:border-border-standard/30 transition-colors">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded ${
-                      (insight.action || '').toUpperCase() === 'BUY' || (insight.action || '').toUpperCase() === 'MUA'
-                        ? 'text-positive bg-positive/10'
-                        : (insight.action || '').toUpperCase() === 'SELL' || (insight.action || '').toUpperCase() === 'BAN'
-                          ? 'text-negative bg-negative/10'
-                          : 'text-warning bg-warning/10'
-                    }`}>
-                      {insight.action || 'HOLD'}
-                    </span>
-                    <span className="text-[13px] font-bold text-text-main tabular-nums">{insight.symbol}</span>
-                  </div>
-                  <p className="text-[11px] text-text-muted leading-relaxed line-clamp-2">{insight.recommendation}</p>
-                  {insight.confidence > 0 && (
-                    <div className="mt-2 flex items-center gap-2">
-                      <div className="flex-1 h-1 rounded-full bg-border-subtle overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${insight.confidence >= 70 ? 'bg-positive' : insight.confidence >= 50 ? 'bg-warning' : 'bg-negative'}`}
-                          style={{ width: `${Math.min(100, insight.confidence)}%` }}
-                        />
-                      </div>
-                      <span className="text-[9px] tabular-nums text-text-dim">{insight.confidence}%</span>
-                    </div>
-                  )}
+
+            {livePositions.length === 0 ? (
+              <div className="p-8">
+                <EmptyState
+                  title="Chưa có vị thế"
+                  description="Mở vị thế đầu tiên để bắt đầu theo dõi."
+                  actionLabel="Đặt lệnh"
+                  onAction={() => onNavigate('terminal')}
+                />
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-[var(--color-background)]">
+                      <th className="py-2 px-3 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">Mã</th>
+                      <th className="py-2 px-3 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">Vào</th>
+                      <th className="py-2 px-3 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">Hiện</th>
+                      <th className="py-2 px-3 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">P&L</th>
+                      <th className="py-2 px-3 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">SL</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--color-border-subtle)]">
+                    {livePositions.slice(0, 6).map((pos) => (
+                      <PositionRow key={pos.id} position={pos} onClick={() => onNavigate('portfolio')} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Risk Gauge */}
+          <RiskGauge percentage={riskPct} used={riskUsed} max={maxRisk} />
+        </div>
+
+        {/* Middle Column: AI Center */}
+        <div className="lg:col-span-4">
+          <div className="bg-[var(--color-panel)] border border-[var(--color-border-subtle)] rounded-xl overflow-hidden h-full">
+            <div className="px-4 py-3 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--color-accent)] to-[var(--color-secondary)] flex items-center justify-center">
+                  <span className="text-white">{Icons.sparkle}</span>
                 </div>
+                <h2 className="text-[13px] font-semibold text-[var(--color-text-main)]">AI Center</h2>
+              </div>
+              <button
+                onClick={() => onNavigate('signals')}
+                className="text-[11px] font-medium text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
+              >
+                Xem tất cả
+              </button>
+            </div>
+
+            {/* Market Regime */}
+            <div className="px-4 py-3 border-b border-[var(--color-border-subtle)]">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-3 h-3 rounded-full animate-pulse"
+                  style={{ background: regimeColor }}
+                />
+                <div>
+                  <p className="text-[10px] font-medium text-[var(--color-text-dim)] uppercase tracking-wider">
+                    Chế độ thị trường
+                  </p>
+                  <p className="text-[14px] font-bold" style={{ color: regimeColor }}>
+                    {regimeLabel}
+                  </p>
+                </div>
+                {marketRegime?.confidence && (
+                  <span className="ml-auto text-[11px] font-semibold px-2 py-1 rounded bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
+                    {marketRegime.confidence}%
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* AI Signals */}
+            <div className="p-4 space-y-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-dim)] mb-3">
+                Gợi ý hôm nay
+              </p>
+              {aiLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-14 rounded-lg bg-[var(--color-background)] animate-pulse" />
+                  ))}
+                </div>
+              ) : aiInsights.length > 0 ? (
+                <div className="space-y-2">
+                  {aiInsights.map((insight, i) => (
+                    <AiSignalCard key={i} insight={insight} onClick={() => onNavigate('signals')} />
+                  ))}
+                </div>
+              ) : (
+                <div className="py-6 text-center">
+                  <p className="text-[11px] text-[var(--color-text-muted)]">
+                    AI đang phân tích thị trường
+                  </p>
+                  <button
+                    onClick={() => onNavigate('watchlist')}
+                    className="mt-2 text-[11px] text-[var(--color-accent)] hover:underline"
+                  >
+                    Thêm mã theo dõi →
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Market */}
+        <div className="lg:col-span-3 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-[13px] font-semibold text-[var(--color-text-main)]">Thị trường</h2>
+            <button
+              onClick={() => onNavigate('market')}
+              className="text-[11px] font-medium text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
+            >
+              Bảng giá
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="space-y-4">
+              {[1, 2].map((i) => (
+                <div key={i} className="h-28 rounded-xl bg-[var(--color-panel)] border border-[var(--color-border-subtle)] animate-pulse" />
               ))}
             </div>
           ) : (
-            <InfoCard title="AI đang phân tích thị trường..." variant="tip" defaultOpen>
-              <p>
-                Hệ thống AI của chúng tôi đang phân tích dữ liệu thị trường để đưa ra gợi ý tốt nhất cho bạn.
-                Hãy tạo vị thế đầu tiên hoặc thêm mã chứng khoán vào danh sách theo dõi để nhận gợi ý AI.
-              </p>
+            <div className="space-y-4">
+              {INDEX_CODES.map((code) =>
+                indexData[code] ? (
+                  <MarketIndexCard key={code} data={indexData[code]} />
+                ) : (
+                  <div key={code} className="h-28 rounded-xl bg-[var(--color-panel)] border border-[var(--color-border-subtle)] flex items-center justify-center">
+                    <p className="text-[11px] text-[var(--color-text-dim)]">{code} — không có dữ liệu</p>
+                  </div>
+                )
+              )}
+            </div>
+          )}
+
+          {/* Quick Actions */}
+          <div className="bg-[var(--color-panel)] border border-[var(--color-border-subtle)] rounded-xl p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-dim)] mb-3">
+              Hành động nhanh
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => onNavigate('terminal')}
+                className="flex flex-col items-center gap-2 p-3 rounded-lg bg-[var(--color-accent)]/10 hover:bg-[var(--color-accent)]/20 text-[var(--color-accent)] transition-colors"
+              >
+                {Icons.plus}
+                <span className="text-[10px] font-semibold">Đặt lệnh</span>
+              </button>
+              <button
+                onClick={() => onNavigate('portfolio')}
+                className="flex flex-col items-center gap-2 p-3 rounded-lg bg-[var(--color-warning)]/10 hover:bg-[var(--color-warning)]/20 text-[var(--color-warning)] transition-colors"
+              >
+                {Icons.shield}
+                <span className="text-[10px] font-semibold">Rủi ro</span>
+              </button>
               <button
                 onClick={() => onNavigate('watchlist')}
-                className="mt-2 text-[11px] text-accent hover:underline"
+                className="flex flex-col items-center gap-2 p-3 rounded-lg bg-[var(--color-positive)]/10 hover:bg-[var(--color-positive)]/20 text-[var(--color-positive)] transition-colors"
               >
-                Thêm mã theo dõi
+                {Icons.sparkle}
+                <span className="text-[10px] font-semibold">Theo dõi</span>
               </button>
-            </InfoCard>
-          )}
-        </div>
-      </div>
-
-      {/* ── SECTION 4: Open Positions Summary ── */}
-      <div className="panel-section flex flex-col">
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-subtle">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Vị thế đang mở</span>
-          <button onClick={() => onNavigate('portfolio')} className="text-[10px] text-accent hover:underline">
-            Xem tất cả
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto dense-scroll">
-          {livePositions.length === 0 ? (
-            <EmptyState
-              title="Chưa có vị thế nào"
-              description="Bạn chưa mở vị thế nào. Hãy bắt đầu đặt lệnh đầu tiên để theo dõi danh mục."
-              actionLabel="Nhập lệnh đầu tiên"
-              onAction={() => onNavigate('terminal')}
-            />
-          ) : (
-            <table className="table-terminal w-full">
-              <thead>
-                <tr>
-                  <th className="text-left">Ma</th>
-                  <th>Side</th>
-                  <th>Vào</th>
-                  <th>Hiện</th>
-                  <th>P&amp;L</th>
-                  <th>SL</th>
-                </tr>
-              </thead>
-              <tbody>
-                {livePositions.slice(0, 8).map((pos) => {
-                  const entry = Number(pos.entry_price ?? 0) / 1000;
-                  const current = Number((pos as any).current_price ?? 0) / 1000;
-                  const isShort = (pos.side ?? 'LONG').toUpperCase() === 'SHORT';
-                  const rawPct = entry > 0 && current > 0 ? ((current - entry) / entry) * 100 : 0;
-                  const pnlPct = isShort ? -rawPct : rawPct;
-                  const pnlVnd = isShort
-                    ? (entry - current) * Number(pos.quantity ?? 0) * 1000
-                    : (current - entry) * Number(pos.quantity ?? 0) * 1000;
-                  const slPrice = Number(pos.trailing_current_stop ?? pos.stop_loss ?? 0) / 1000;
-                  return (
-                    <tr
-                      key={pos.id}
-                      className={`cursor-pointer ${pnlVnd >= 0 ? 'row-profit' : 'row-loss'}`}
-                      onClick={() => onNavigate('terminal')}
-                    >
-                      <td className="text-left font-bold text-text-main">{pos.symbol}</td>
-                      <td className={`text-[10px] tabular-nums ${isShort ? 'text-negative' : 'text-positive'}`}>
-                        {isShort ? 'SHORT' : 'LONG'}
-                      </td>
-                      <td className="text-text-muted tabular-nums">{entry > 0 ? entry.toFixed(2) : '\u2014'}</td>
-                      <td className={`tabular-nums ${current > 0 ? (current > entry ? 'text-positive' : current < entry ? 'text-negative' : 'text-warning') : 'text-text-muted'}`}>
-                        {current > 0 ? current.toFixed(2) : '\u2014'}
-                      </td>
-                      <td className={`tabular-nums font-semibold ${pnlPct >= 0 ? 'text-positive' : 'text-negative'}`}>
-                        {pnlPct !== 0 ? (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(1) + '%' : '\u2014'}
-                      </td>
-                      <td className="text-text-dim tabular-nums">{slPrice > 0 ? slPrice.toFixed(2) : '\u2014'}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-        {livePositions.length > 0 && (
-          <div className="px-4 py-2 border-t border-border-subtle">
-            <div className="flex justify-between text-[10px] text-text-muted mb-1">
-              <span><FinancialTooltip term="Rủi ro" /> đang dùng</span>
-              <span className={riskColor}>{riskPct.toFixed(1)}%</span>
-            </div>
-            <div className="h-1 rounded-full bg-border-subtle overflow-hidden">
-              <div className={`h-full rounded-full transition-all ${riskBarColor}`} style={{ width: `${Math.min(100, riskPct)}%` }} />
             </div>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* ── SECTION 5: Tin tức thị trường ── */}
-      <div className="panel-section">
-        <div className="px-4 py-2.5 border-b border-[var(--color-divider)] flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Tin tức thị trường</span>
+      {/* ═══ NEWS SECTION ═══ */}
+      <div className="bg-[var(--color-panel)] border border-[var(--color-border-subtle)] rounded-xl overflow-hidden">
+        <div className="px-4 py-3 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
+          <h2 className="text-[13px] font-semibold text-[var(--color-text-main)]">
+            Tin tức thị trường
+          </h2>
           <button
-            onClick={() => onNavigate('market-news')}
-            className="text-[10px] text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
+            onClick={() => onNavigate('market')}
+            className="text-[11px] font-medium text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
           >
-            Xem tất cả →
+            Xem tất cả
           </button>
         </div>
 
         {newsLoading ? (
-          <div className="p-4 space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="animate-pulse flex gap-3">
-                <div className="w-16 h-3 bg-[var(--color-panel-hover)] rounded" />
-                <div className="flex-1 h-3 bg-[var(--color-panel-hover)] rounded" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-[var(--color-border-subtle)]">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="bg-[var(--color-panel)] p-4">
+                <div className="h-3 w-3/4 bg-[var(--color-background)] rounded animate-pulse" />
               </div>
             ))}
           </div>
         ) : news.length === 0 ? (
-          <div className="p-6 text-center text-[var(--color-text-dim)] text-[11px]">
+          <div className="p-8 text-center text-[var(--color-text-dim)] text-[11px]">
             Không có tin tức mới
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-[var(--color-divider)]">
-            {news.slice(0, 6).map((article, i) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-[var(--color-border-subtle)]">
+            {news.map((article, i) => (
               <a
                 key={i}
                 href={article.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 px-4 py-2.5 bg-[var(--color-panel)] hover:bg-[var(--color-panel-hover)] transition-colors group"
+                className="flex items-start gap-3 p-4 bg-[var(--color-panel)] hover:bg-[var(--color-panel-hover)] transition-colors group"
               >
-                <span className="text-[11px] text-[var(--color-text-muted)] group-hover:text-[var(--color-accent)] transition-colors line-clamp-1 flex-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] shrink-0 mt-1.5" />
+                <span className="text-[11px] text-[var(--color-text-muted)] group-hover:text-[var(--color-text-main)] transition-colors line-clamp-2 leading-relaxed">
                   {article.title}
                 </span>
-                <svg className="w-3 h-3 text-[var(--color-text-dim)] group-hover:text-[var(--color-accent)] transition-colors shrink-0 opacity-0 group-hover:opacity-100" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
-                </svg>
               </a>
             ))}
           </div>
         )}
       </div>
-
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { notificationsApi } from '../services/api';
+import { notificationsApi, aiApi } from '../services/api';
 import type { Notification } from '../services/api';
+import wsService from '../services/websocket';
 import { FinancialTooltip } from './ui/Tooltip';
 import { EmptyState } from './ui/EmptyState';
 
@@ -26,7 +27,7 @@ function fmtTime(iso: string): string {
 // Notification type categories
 type FilterTab = 'all' | 'ai' | 'price' | 'risk' | 'system';
 
-const AI_TYPES = new Set(['AI_SIGNAL', 'AI_REVIEW', 'AI_TREND', 'AI_SUGGESTION']);
+const AI_TYPES = new Set(['AI_SIGNAL', 'AI_REVIEW', 'AI_TREND', 'AI_SUGGESTION', 'AI_ALERT']);
 const PRICE_TYPES = new Set(['PRICE_ALERT', 'STOP_LOSS', 'TAKE_PROFIT', 'TRAILING_UPDATE']);
 const RISK_TYPES = new Set(['RISK_ALERT', 'MARGIN_CALL', 'DRAWDOWN_ALERT', 'POSITION_SIZE']);
 
@@ -97,6 +98,82 @@ function ActionButtons({ notif, onNavigate, onDismiss }: {
 }) {
   const type = notif.type;
   const meta = notif.metadata ?? {};
+
+  if (type === 'AI_ALERT' && meta.alert_type === 'POSITION_REVIEW') {
+    const recId = meta.recommendation_id as string | undefined;
+    const action = meta.action as string | undefined;
+    const newSL = meta.new_stop_loss as number | null | undefined;
+    const newTP = meta.new_take_profit as number | null | undefined;
+    const urgency = (meta.urgency as string | undefined) ?? 'LOW';
+    const positionContext = meta.position_context as string | undefined; // phase 07: 'PAPER' | 'REAL' | undefined
+    const urgencyColor =
+      urgency === 'HIGH' ? 'border-negative/40 text-negative bg-negative/10' :
+      urgency === 'MEDIUM' ? 'border-warning/40 text-warning bg-warning/10' :
+      'border-info/30 text-info bg-info/5';
+
+    const handleApply = async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!recId) return;
+      try {
+        await aiApi.markReviewApplied(recId);
+        onDismiss();
+      } catch { /* swallow */ }
+    };
+
+    const handleDismissWithTracking = async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (recId) {
+        try { await aiApi.markReviewDismissed(recId); } catch { /* best-effort */ }
+      }
+      onDismiss();
+    };
+
+    return (
+      <div className="flex flex-col gap-1.5 mt-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className={`text-[9px] px-1.5 py-0.5 rounded border ${urgencyColor}`}>
+            {urgency === 'HIGH' ? 'Khẩn' : urgency === 'MEDIUM' ? 'Cảnh báo' : 'Thông tin'}
+          </span>
+          {positionContext === 'REAL' && (
+            <span className="text-[9px] px-1.5 py-0.5 rounded border border-negative/50 bg-negative/15 text-negative font-bold uppercase">
+              Real
+            </span>
+          )}
+          {(newSL != null || newTP != null) && (
+            <span className="text-[9px] text-text-dim">
+              {newSL != null && <>SL mới: <b className="text-negative">{newSL.toLocaleString('vi-VN')}đ</b></>}
+              {newSL != null && newTP != null && ' · '}
+              {newTP != null && <>TP mới: <b className="text-positive">{newTP.toLocaleString('vi-VN')}đ</b></>}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <button
+            onClick={handleApply}
+            disabled={!recId}
+            title={recId ? '' : 'Recommendation ID thiếu, không thể apply'}
+            className="text-[10px] px-2 py-1 rounded border border-positive/40 text-positive hover:bg-positive/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Áp dụng{action ? ` (${action})` : ''}
+          </button>
+          {meta.symbol && (
+            <button
+              onClick={(e: React.MouseEvent) => { e.stopPropagation(); onNavigate?.('portfolio'); }}
+              className="text-[10px] px-2 py-1 rounded border border-accent/30 text-accent hover:bg-accent/10 transition-colors"
+            >
+              Xem {meta.symbol as string} →
+            </button>
+          )}
+          <button
+            onClick={handleDismissWithTracking}
+            className="text-[10px] px-2 py-1 rounded border border-border-standard text-text-dim hover:text-text-muted hover:bg-white/5 transition-colors"
+          >
+            Bỏ qua
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (AI_TYPES.has(type)) {
     return (
@@ -267,6 +344,16 @@ export const NotificationsView: React.FC<Props> = ({ onUnreadCountChange, onNavi
     setPage(0);
     loadNotifications(0, true);
   }, [unreadOnly]);
+
+  useEffect(() => {
+    const handler = (payload: any) => {
+      if (payload?.type === 'ai_position_review') {
+        loadNotifications(0, true);
+      }
+    };
+    wsService.onPortfolioUpdate(handler);
+    return () => wsService.offPortfolioUpdate(handler);
+  }, [loadNotifications]);
 
   const handleMarkRead = async (id: string) => {
     try {

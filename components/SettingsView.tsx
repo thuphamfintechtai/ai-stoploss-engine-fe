@@ -370,11 +370,37 @@ const NotificationsTab: React.FC = () => {
   const [clearing, setClearing] = useState(false);
   const [msg, setMsg] = useState('');
 
+  // Phase 07: REAL review opt-in (server-side setting)
+  const [realReviewOptIn, setRealReviewOptIn] = useState<boolean | null>(null); // null=loading
+  const [savingOptIn, setSavingOptIn] = useState(false);
+  const [optInError, setOptInError] = useState<string | null>(null);
+
   useEffect(() => {
     notificationsApi.getAll({ limit: 10 }).then((res: any) => {
       if (res.data?.success) setRecent(res.data.data ?? []);
     }).catch(() => {}).finally(() => setLoading(false));
+
+    authApi.me().then((res: any) => {
+      const enabled = res?.data?.data?.settings?.enable_proactive_real_review === true;
+      setRealReviewOptIn(enabled);
+    }).catch(() => setRealReviewOptIn(false));
   }, []);
+
+  const toggleRealReview = async () => {
+    if (realReviewOptIn === null || savingOptIn) return;
+    const next = !realReviewOptIn;
+    setSavingOptIn(true);
+    setOptInError(null);
+    setRealReviewOptIn(next); // optimistic
+    try {
+      await authApi.updateSettings({ enable_proactive_real_review: next });
+    } catch {
+      setRealReviewOptIn(!next); // rollback
+      setOptInError('Lỗi lưu cài đặt — thử lại');
+    } finally {
+      setSavingOptIn(false);
+    }
+  };
 
   const togglePref = (key: string) => {
     setPrefs(prev => {
@@ -409,6 +435,24 @@ const NotificationsTab: React.FC = () => {
 
   return (
     <div className="space-y-5">
+      {/* Phase 07: REAL review opt-in */}
+      <div className="panel-section p-4 border border-warning/30 bg-warning/5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1">
+            <h3 className="text-sm font-bold text-text-main">Bật AI review cho lệnh REAL</h3>
+            <p className="text-[11px] text-text-muted mt-1">
+              Worker AI sẽ gửi notification cho cả lệnh thật, không chỉ lệnh paper. Mặc định tắt vì can thiệp vào danh mục thật.
+            </p>
+            {optInError && <p className="text-[10px] text-negative mt-1">{optInError}</p>}
+          </div>
+          <Toggle
+            checked={realReviewOptIn === true}
+            onChange={toggleRealReview}
+            disabled={realReviewOptIn === null || savingOptIn}
+          />
+        </div>
+      </div>
+
       {/* Preferences */}
       <div className="panel-section p-4">
         <h3 className="text-sm font-bold text-text-main mb-3">Tùy chọn loại thông báo</h3>

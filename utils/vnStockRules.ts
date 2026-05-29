@@ -343,15 +343,12 @@ export function getAvailableOrderTypes(
   return ['LO'];
 }
 
-/** Kiểm tra có thể submit lệnh hay không (thị trường đang mở đúng phiên). */
+/** Kiểm tra có thể submit lệnh hay không — luôn cho phép vì app là trade-logging (ghi nhận lệnh đã khớp). */
 export function canSubmitOrder(
-  session: TradingSession,
-  isOddLotOrder: boolean,
+  _session: TradingSession,
+  _isOddLotOrder: boolean,
   _orderType: OrderTypeCode,
 ): boolean {
-  const { name } = session;
-  if (name === 'CLOSED' || name === 'PRE_OPEN' || name === 'LUNCH') return false;
-  if (isOddLotOrder && name !== 'PUT_THROUGH') return false;
   return true;
 }
 

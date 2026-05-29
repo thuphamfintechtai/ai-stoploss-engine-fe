@@ -129,9 +129,9 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
 
         <div className="flex-1 overflow-y-auto dense-scroll">
           <div className="mb-3">
-            <InfoCard title="AI Goi Y la gi?" variant="tip" defaultOpen={false}>
-              <p>He thong AI phan tich du lieu ky thuat (<FinancialTooltip term="ATR" />, Bollinger Band, volume) de goi y muc <FinancialTooltip term="Stop Loss" /> va <FinancialTooltip term="Take Profit" /> toi uu.</p>
-              <p className="mt-1 text-text-muted text-[11px]">Day la goi y tham khao, khong phai loi khuyen dau tu. Hay ket hop voi phan tich ca nhan.</p>
+            <InfoCard title="AI Gợi Ý là gì?" variant="tip" defaultOpen={false}>
+              <p>Hệ thống AI phân tích dữ liệu kỹ thuật (<FinancialTooltip term="ATR" />, Bollinger Band, volume) để gợi ý mức <FinancialTooltip term="Stop Loss" /> và <FinancialTooltip term="Take Profit" /> tối ưu.</p>
+              <p className="mt-1 text-text-muted text-[11px]">Đây là gợi ý tham khảo, không phải lời khuyên đầu tư. Hãy kết hợp với phân tích cá nhân.</p>
             </InfoCard>
           </div>
           {loading ? (

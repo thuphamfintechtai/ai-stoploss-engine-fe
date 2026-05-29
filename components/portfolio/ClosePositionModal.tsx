@@ -115,7 +115,7 @@ export const ClosePositionModal: React.FC<ClosePositionModalProps> = ({
             </div>
           </div>
 
-          {/* Gia ban */}
+          {/* Giá bán */}
           <div>
             <label className="block text-[11px] font-semibold text-gray-400 mb-1">
               Giá Bán (VND)

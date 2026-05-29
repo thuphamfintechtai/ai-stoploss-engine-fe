@@ -4,7 +4,7 @@ import { AiDisclaimer } from './ui/AiDisclaimer';
 import { ConfidenceBar } from './ui/ConfidenceBar';
 import { ClampedBadge } from './ui/ClampedBadge';
 import { CandlestickChart } from './charts/CandlestickChart';
-import { marketApi, positionApi, orderApi, watchlistApi, aiApi, getPositionSizing } from '../services/api';
+import { marketApi, positionApi, orderApi, realPortfolioApi, watchlistApi, aiApi, getPositionSizing } from '../services/api';
 import type { Position, PositionSizingResult } from '../services/api';
 import { STOCK_PRICE_DISPLAY_SCALE, PRICE_FRACTION_OPTIONS, PRICE_LOCALE, formatNumberVI, formatPricePoints } from '../constants';
 import {
@@ -631,52 +631,38 @@ export const TradingTerminal: React.FC<Props> = ({
       }
     }
 
-    // Xây dựng body cho order API
-    const orderBody: import('../services/api').CreateOrderRequest = {
-      symbol:      orderSymbol.trim(),
-      exchange:    (orderExchange || 'HOSE') as any,
-      side:        'BUY',
-      order_type:  effectiveOrderType as any,
-      quantity:    effectiveQty,
-      simulation_mode: 'INSTANT',
+    // Xây dựng body cho real-order API
+    const filledPriceVnd = entryPoints != null ? Math.round(entryPoints * 1000) : 0;
+    if (filledPriceVnd <= 0) {
+      setOrderMsg({ type: 'err', text: 'Giá vào lệnh không hợp lệ.' }); return;
+    }
+
+    const realOrderBody: import('../services/api').CreateRealOrderRequest = {
+      symbol:       orderSymbol.trim(),
+      exchange:     (orderExchange || 'HOSE') as any,
+      side:         'BUY',
+      quantity:     effectiveQty,
+      filled_price: filledPriceVnd,
+      filled_date:  new Date().toISOString(),
     };
 
-    // Giá limit chỉ cho LO (điểm × 1000 = VND)
-    if (effectiveOrderType === 'LO' && entryPoints != null) {
-      orderBody.limit_price = Math.round(entryPoints * 1000);
-    }
-
-    // Stop Loss
-    if (stopType === 'FIXED') {
-      const sp = parseFloat(stopPrice);
-      if (!isNaN(sp) && sp > 0) { orderBody.stop_price = Math.round(sp * 1000); orderBody.stop_type = 'FIXED'; }
-    } else if (stopType === 'PERCENT') {
-      const pct = parseFloat(stopPercent);
-      if (!isNaN(pct) && pct > 0) { orderBody.stop_type = 'PERCENT'; orderBody.stop_params = { percent: pct }; }
-    } else if (stopType === 'MAX_LOSS') {
-      const ml = parseFloat(stopMaxLossVnd);
-      if (!isNaN(ml) && ml > 0) { orderBody.stop_type = 'MAX_LOSS'; orderBody.stop_params = { max_loss_vnd: ml }; }
-    }
-
-    // Take Profit
-    if (takeProfitType === 'FIXED') {
-      const tp = parseFloat(takeProfitPrice);
-      if (!isNaN(tp) && tp > 0) { orderBody.take_profit_price = Math.round(tp * 1000); orderBody.take_profit_type = 'FIXED'; }
-    } else if (takeProfitType === 'PERCENT') {
-      const pct = parseFloat(takeProfitPercent);
-      if (!isNaN(pct) && pct > 0) { orderBody.take_profit_type = 'PERCENT'; orderBody.stop_params = { ...orderBody.stop_params, tp_percent: pct }; }
-    } else if (takeProfitType === 'R_RATIO') {
-      const rr = parseFloat(takeProfitRR);
-      if (!isNaN(rr) && rr > 0) { orderBody.take_profit_type = 'R_RATIO'; orderBody.stop_params = { ...orderBody.stop_params, risk_reward_ratio: rr }; }
-    }
+    // Stop Loss / Take Profit ghi vào notes (SL/TP sẽ set sau trên position)
+    const noteParts: string[] = [];
+    if (stopType === 'FIXED' && stopPrice) noteParts.push(`SL: ${stopPrice}`);
+    else if (stopType === 'PERCENT' && stopPercent) noteParts.push(`SL: ${stopPercent}%`);
+    else if (stopType === 'MAX_LOSS' && stopMaxLossVnd) noteParts.push(`SL max loss: ${stopMaxLossVnd} VND`);
+    if (takeProfitType === 'FIXED' && takeProfitPrice) noteParts.push(`TP: ${takeProfitPrice}`);
+    else if (takeProfitType === 'PERCENT' && takeProfitPercent) noteParts.push(`TP: ${takeProfitPercent}%`);
+    else if (takeProfitType === 'R_RATIO' && takeProfitRR) noteParts.push(`TP R:R ${takeProfitRR}`);
+    if (noteParts.length > 0) realOrderBody.notes = noteParts.join(' | ');
 
     setSubmitting(true);
     setOrderMsg(null);
     setApiWarnings([]);
     try {
-      const res = await orderApi.create(portfolioId, orderBody);
+      const res = await realPortfolioApi.createOrder(portfolioId, realOrderBody);
       const { order, position } = res.data.data;
-      const warns = res.data.warnings ?? [];
+      const warns = (res.data as any).warnings ?? [];
       setApiWarnings(warns);
 
       const statusText = position
@@ -1562,15 +1548,21 @@ export const TradingTerminal: React.FC<Props> = ({
                                   {aiSuggestions.ai_source === 'gemini' ? 'Gemini AI' : 'Rule-based'}
                                 </span>
                               )}
-                              {aiSuggestions.technical_score != null && (
-                                <span className={`text-[7px] font-bold px-1.5 py-0.5 rounded ${
-                                  aiSuggestions.technical_score >= 70 ? 'bg-positive/15 text-positive'
-                                  : aiSuggestions.technical_score >= 50 ? 'bg-warning/15 text-warning'
-                                  : 'bg-negative/15 text-negative'
-                                }`}>
-                                  {aiSuggestions.technical_label === 'HOP_LY' ? 'Hợp Lý' : aiSuggestions.technical_label === 'TRUNG_BINH' ? 'Trung Bình' : 'Yếu'} {aiSuggestions.technical_score}/100
-                                </span>
-                              )}
+                              {aiSuggestions.technical_score != null && (() => {
+                                const ts = aiSuggestions.technical_score;
+                                const score = typeof ts === 'object' ? ts.score : ts;
+                                const label = typeof ts === 'object' ? ts.label : aiSuggestions.technical_label;
+                                if (score == null) return null;
+                                return (
+                                  <span className={`text-[7px] font-bold px-1.5 py-0.5 rounded ${
+                                    score >= 70 ? 'bg-positive/15 text-positive'
+                                    : score >= 50 ? 'bg-warning/15 text-warning'
+                                    : 'bg-negative/15 text-negative'
+                                  }`}>
+                                    {label === 'HOP_LY' ? 'Hợp Lý' : label === 'TRUNG_BINH' ? 'Trung Bình' : 'Yếu'} {score}/100
+                                  </span>
+                                );
+                              })()}
                             </div>
                             <button onClick={() => { setAiSuggestions(null); setAiSuggestError(''); }} className="text-[9px] text-text-dim">✕</button>
                           </div>
@@ -1618,18 +1610,18 @@ export const TradingTerminal: React.FC<Props> = ({
                           {showAdvanced && Array.isArray(aiSuggestions.take_profit_levels) && aiSuggestions.take_profit_levels.length > 0 && (
                             <div className="rounded-lg bg-info/5 border border-info/20 overflow-hidden">
                               <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-info/20">
-                                <span className="text-[8px] font-bold text-accent uppercase tracking-wider">Muc chot loi xac suat</span>
-                                <span className="bg-warning/10 text-warning text-[7px] font-semibold px-2 py-0.5 rounded">Thuc nghiem</span>
+                                <span className="text-[8px] font-bold text-accent uppercase tracking-wider">Mức chốt lời xác suất</span>
+                                <span className="bg-warning/10 text-warning text-[7px] font-semibold px-2 py-0.5 rounded">Thực nghiệm</span>
                               </div>
                               {aiSuggestions.data_quality?.days_used && (
-                                <p className="text-[7px] text-text-dim px-2.5 pt-1.5">Du lieu: {aiSuggestions.data_quality.days_used} ngay giao dich</p>
+                                <p className="text-[7px] text-text-dim px-2.5 pt-1.5">Dữ liệu: {aiSuggestions.data_quality.days_used} ngày giao dịch</p>
                               )}
                               <table className="w-full text-[8px] mt-1">
                                 <thead>
                                   <tr className="text-text-dim">
-                                    <th className="px-2.5 py-0.5 text-left font-semibold">Muc gia</th>
-                                    <th className="px-2.5 py-0.5 text-center font-semibold">Xac suat</th>
-                                    <th className="px-2.5 py-0.5 text-right font-semibold">Thoi gian</th>
+                                    <th className="px-2.5 py-0.5 text-left font-semibold">Mức giá</th>
+                                    <th className="px-2.5 py-0.5 text-center font-semibold">Xác suất</th>
+                                    <th className="px-2.5 py-0.5 text-right font-semibold">Thời gian</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -1639,7 +1631,7 @@ export const TradingTerminal: React.FC<Props> = ({
                                       <td className="px-2.5 py-1 text-center">
                                         <span className={`font-bold ${tp.probability >= 70 ? 'text-positive' : tp.probability >= 50 ? 'text-warning' : 'text-negative'}`}>{tp.probability}%</span>
                                       </td>
-                                      <td className="px-2.5 py-1 text-right text-text-muted">{tp.timeframe_days} ngay</td>
+                                      <td className="px-2.5 py-1 text-right text-text-muted">{tp.timeframe_days} ngày</td>
                                     </tr>
                                   ))}
                                 </tbody>
@@ -1681,7 +1673,7 @@ export const TradingTerminal: React.FC<Props> = ({
                           {positionSizingLoading && (
                             <div className="flex items-center gap-1.5 text-[8px] text-text-dim">
                               <div className="w-2.5 h-2.5 border border-accent border-t-transparent rounded-full animate-spin" />
-                              Dang tinh kich thuoc vi the...
+                              Đang tính kích thước vị thế...
                             </div>
                           )}
                           {positionSizing && !positionSizingLoading && (() => {

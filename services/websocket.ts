@@ -185,6 +185,19 @@ class WebSocketService {
   }
 
   /**
+   * Listen to portfolio_update events (covers ai_position_review, dynamic_sl_updated, etc.)
+   */
+  onPortfolioUpdate(callback: (data: any) => void) {
+    if (!this.socket) return;
+    this.socket.on('portfolio_update', callback);
+  }
+
+  offPortfolioUpdate(callback: (data: any) => void) {
+    if (!this.socket) return;
+    this.socket.off('portfolio_update', callback);
+  }
+
+  /**
    * Generic on listener
    */
   on(event: string, callback: (...args: any[]) => void) {

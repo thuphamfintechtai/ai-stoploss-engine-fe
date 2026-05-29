@@ -16,10 +16,9 @@ import { AiSignalsView } from './components/AiSignalsView';
 import { NotificationsView } from './components/NotificationsView';
 import { SettingsView } from './components/SettingsView';
 import { MobileBottomNav } from './components/ui/MobileBottomNav';
-import { RateLimitBanner } from './components/ui/RateLimitBanner';
 import { OnboardingWizard } from './components/OnboardingWizard';
 import { analyzeTrader } from './services/geminiService';
-import { portfolioApi, positionApi, marketApi, authApi } from './services/api';
+import { portfolioApi, positionApi, realPortfolioApi, marketApi, authApi } from './services/api';
 import type { Position as PositionType, CreatePositionRequest } from './services/api';
 import wsService from './services/websocket';
 import { STOCK_PRICE_DISPLAY_SCALE, PRICE_FRACTION_OPTIONS, PRICE_LOCALE, EXCHANGES, formatNumberVI, formatPricePoints, MARKET_INDEX_CODES_BANG_GIA, INDUSTRY_CODES, SINGLE_CHOICE_GROUPS } from './constants';
@@ -314,56 +313,6 @@ const CandlestickChartLW = ({ data, loading }: { data: any[], loading: boolean }
     </div>
   );
 };
-
-// --- Mobile Navigation Component ---
-const MobileNav = ({ currentView, onChangeView }: { currentView: string, onChangeView: (v: string) => void }) => {
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
-      </svg>
-    )},
-    { id: 'portfolio', label: 'Danh mục', icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z" />
-      </svg>
-    )},
-    { id: 'terminal', label: 'Trading', icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-      </svg>
-    )},
-    { id: 'watchlist', label: 'Watchlist', icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
-      </svg>
-    )},
-    { id: 'risk', label: 'Rủi ro', icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-      </svg>
-    )},
-  ];
-
-  const isActive = (id: string) => currentView === id || (id === 'dashboard' && currentView === 'home');
-
-  return (
-    <div className="fixed bottom-4 left-4 right-4 bg-panel border border-border-standard z-[60] lg:hidden rounded-xl shadow-elevated">
-      <div className="flex justify-around items-center h-14 px-1">
-        {navItems.map(item => (
-          <button
-            key={item.id}
-            onClick={() => onChangeView(item.id)}
-            className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full rounded-lg transition-colors duration-150 ${isActive(item.id) ? 'text-accent' : 'text-text-dim hover:text-text-muted'}`}
-          >
-            {item.icon}
-            <span className="text-[9px] font-semibold tracking-wide">{item.label}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
 
 // --- Trading Modal Component (TradingView-like) ---
 const TradingModal = ({ isOpen, onClose, symbol, exchange, data, loading, onTimeframeChange }: {
@@ -1666,7 +1615,6 @@ function App() {
 
   return (
     <AppErrorBoundary onReset={handleLogout}>
-      <RateLimitBanner />
       <MainApp onLogout={handleLogout} />
     </AppErrorBoundary>
   );
@@ -2713,7 +2661,7 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
     if (!portfolio?.id) return;
     setLoadingPositions(true);
     try {
-      const res = await positionApi.list(portfolio.id);
+      const res = await realPortfolioApi.getOpenPositions(portfolio.id);
       if (res.data?.success && Array.isArray(res.data?.data)) {
         setPositions(res.data.data);
       }
@@ -2982,7 +2930,7 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
           <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
           </svg>
-          Mất kết nối server. Dang thu ket noi lai... Du lieu co the khong duoc cap nhat.
+          Mất kết nối server. Đang thử kết nối lại... Dữ liệu có thể không được cập nhật.
           <button
             onClick={() => setWsDisconnected(false)}
             className="ml-2 text-white/70 hover:text-white"
@@ -3124,7 +3072,7 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
 
       {/* ── NEW FULL-SCREEN VIEWS (no padding) ── */}
       {(currentView === 'terminal') && (
-        <div className={`fixed top-0 bottom-0 right-0 left-0 transition-all duration-200 ${isSidebarOpen ? 'lg:left-[220px]' : 'lg:left-16'}`}>
+        <div className={`fixed top-0 bottom-0 right-0 left-0 transition-all duration-200 ${isSidebarOpen ? 'lg:left-[200px]' : 'lg:left-[52px]'}`}>
           <TradingTerminal
             portfolioId={portfolio?.id ?? null}
             initialSymbol={selectedSymbol}
@@ -3132,7 +3080,7 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
             initialStopLoss={terminalInitSL}
             initialTakeProfit={terminalInitTP}
             initialSide={terminalInitSide}
-            sidebarWidth={isSidebarOpen ? 220 : 64}
+            sidebarWidth={isSidebarOpen ? 200 : 52}
             openPositions={openPositions}
             onOpenPosition={loadPositions}
           />
@@ -3142,8 +3090,7 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
       {/* ── STANDARD VIEWS (with padding) ── */}
       {currentView !== 'terminal' && (
       <main
-        className={`flex-1 p-4 md:p-5 overflow-y-auto h-screen scroll-smooth relative pb-24 lg:pb-6 transition-all duration-200 ${isSidebarOpen ? 'lg:ml-[220px]' : 'lg:ml-16'
-          }`}
+        className={`flex-1 p-4 md:p-5 overflow-y-auto h-screen scroll-smooth relative pb-24 lg:pb-6 transition-all duration-200 ${isSidebarOpen ? 'lg:ml-[200px]' : 'lg:ml-[52px]'}`}
       >
 
         {/* Dashboard (home / dashboard) */}
@@ -3552,14 +3499,14 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
                                       const fmt = (v: number | null | undefined, scale = 1) => v != null && Number.isFinite(v) ? (v * scale).toLocaleString('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : '—';
                                       const fmtVol = (v: number | null | undefined) => v != null && Number.isFinite(v) ? Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 0 }) : '—';
                                       const chgCls = (ch: number | null | undefined) => ch == null || ch === 0 ? 'text-text-main' : ch > 0 ? 'text-positive' : 'text-negative';
-                                      return filtered.slice(0, 200).map((r: any) => {
+                                      return filtered.slice(0, 200).map((r: any, i: number) => {
                                         const matchPrice = r.matchPrice;
                                         const change = r.change;
                                         const pct = r.percentChange;
                                         const isCeiling = r.tran != null && matchPrice != null && matchPrice >= r.tran;
                                         const isFloor = r.san != null && matchPrice != null && matchPrice <= r.san;
                                         return (
-                                          <tr key={`${r.symbol}-${r.exchange ?? 'NA'}`} onClick={() => handleStockClick(r.symbol, r.exchange || 'HOSE')} className={`hover:bg-panel-hover cursor-pointer ${selectedSymbol === r.symbol ? 'bg-accent/10' : ''}`}>
+                                          <tr key={`${r.symbol}-${r.exchange ?? 'NA'}-${i}`} onClick={() => handleStockClick(r.symbol, r.exchange || 'HOSE')} className={`hover:bg-panel-hover cursor-pointer ${selectedSymbol === r.symbol ? 'bg-accent/10' : ''}`}>
                                             <td className="px-3 py-2 font-semibold text-accent whitespace-nowrap">{r.symbol}</td>
                                             <td className="px-3 py-2 text-right font-mono text-text-main">{fmt(r.tc)}</td>
                                             <td className="px-3 py-2 text-right font-mono text-purple-400">{fmt(r.tran)}</td>
@@ -3737,7 +3684,7 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
                                     const fmt = (v: number | null | undefined, scale = 1) => v != null && Number.isFinite(v) ? (v * scale).toLocaleString('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : '—';
                                     const fmtVol = (v: number | null | undefined) => v != null && Number.isFinite(v) ? Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 0 }) : '—';
                                     const chgCls = (ch: number | null | undefined) => ch == null || ch === 0 ? 'text-text-main' : ch > 0 ? 'text-positive' : 'text-negative';
-                                    return filtered.slice(0, 200).map((r: any) => {
+                                    return filtered.slice(0, 200).map((r: any, i: number) => {
                                       const ref = r.tc;
                                       const matchPrice = r.matchPrice;
                                       const change = r.change;
@@ -3745,7 +3692,7 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
                                       const isCeiling = r.tran != null && matchPrice != null && matchPrice >= r.tran;
                                       const isFloor = r.san != null && matchPrice != null && matchPrice <= r.san;
                                       return (
-                                        <tr key={`${r.symbol}-${r.exchange ?? 'NA'}`} onClick={() => handleStockClick(r.symbol, r.exchange || 'HOSE')} className={`hover:bg-panel-hover cursor-pointer transition-colors ${selectedSymbol === r.symbol ? 'bg-accent/10' : ''}`}>
+                                        <tr key={`${r.symbol}-${r.exchange ?? 'NA'}-${i}`} onClick={() => handleStockClick(r.symbol, r.exchange || 'HOSE')} className={`hover:bg-panel-hover cursor-pointer transition-colors ${selectedSymbol === r.symbol ? 'bg-accent/10' : ''}`}>
                                           <td className="px-3 py-2 font-semibold text-accent whitespace-nowrap">{r.symbol}</td>
                                           <td className="px-3 py-2 text-right font-mono text-text-main">{fmt(ref)}</td>
                                           <td className="px-3 py-2 text-right font-mono text-purple-400">{fmt(r.tran)}</td>
