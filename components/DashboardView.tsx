@@ -416,11 +416,18 @@ export const DashboardView: React.FC<Props> = ({
     } catch {}
   }, [portfolioId]);
 
+  // Stable key to detect position list changes (avoid infinite loop from array reference changes)
+  const positionKey = openPositions.map(p => p.id).sort().join(',');
+
   useEffect(() => {
     setLivePositions(openPositions);
-    // Fetch current prices for positions on initial load
+  }, [positionKey]);
+
+  // Fetch current prices once when position list changes
+  useEffect(() => {
+    if (openPositions.length === 0) return;
+    let cancelled = false;
     const fetchPrices = async () => {
-      if (openPositions.length === 0) return;
       const symbols = [...new Set(openPositions.map(p => p.symbol))];
       const priceMap: Record<string, number> = {};
       await Promise.all(
@@ -432,14 +439,15 @@ export const DashboardView: React.FC<Props> = ({
           } catch { /* ignore */ }
         })
       );
-      if (Object.keys(priceMap).length > 0) {
+      if (!cancelled && Object.keys(priceMap).length > 0) {
         setLivePositions(prev => prev.map(p =>
           priceMap[p.symbol] ? { ...p, current_price: priceMap[p.symbol] } as any : p
         ));
       }
     };
     fetchPrices();
-  }, [openPositions]);
+    return () => { cancelled = true; };
+  }, [positionKey]);
 
   useEffect(() => {
     const handler = (data: any) => {
