@@ -3,7 +3,7 @@ import { portfolioApi, realPortfolioApi } from '../services/api';
 import type { Position, RealPosition } from '../services/api';
 import wsService from '../services/websocket';
 import { EmptyState } from './ui/EmptyState';
-import { PortfolioHeroCard, type InvestmentGoal } from './portfolio/PortfolioHeroCard';
+import { PortfolioHeroCard } from './portfolio/PortfolioHeroCard';
 import { PortfolioHealthCard } from './portfolio/PortfolioHealthCard';
 import { SectorAllocationCard } from './portfolio/SectorAllocationCard';
 import { AiBriefingCard } from './portfolio/AiBriefingCard';
@@ -104,7 +104,6 @@ export const PortfolioView: React.FC<Props> = ({
     pending_settlement_cash: 0,
   });
   const [portfolioConfig, setPortfolioConfig] = useState<PortfolioFeeConfig | null>(null);
-  const [investmentGoal, setInvestmentGoal] = useState<InvestmentGoal | null>(null);
   const [initialCapital, setInitialCapital] = useState<number | null>(null);
   const [realSummary, setRealSummary] = useState<{
     total_value: number;
@@ -142,7 +141,6 @@ export const PortfolioView: React.FC<Props> = ({
           sell_fee_percent: p.sell_fee_percent,
           sell_tax_percent: p.sell_tax_percent,
         });
-        if (p.investment_goal) setInvestmentGoal(p.investment_goal);
         if (p.initial_capital != null) setInitialCapital(Number(p.initial_capital));
       }
       if (summaryRes.data?.success && summaryRes.data?.data) {
@@ -329,10 +327,6 @@ export const PortfolioView: React.FC<Props> = ({
             positionCount={realSummary?.position_count ?? 0}
             closedCount={realSummary?.closed_count ?? 0}
             loading={summaryLoading}
-            goal={investmentGoal}
-            onSetGoal={() => {
-              console.log('[P2] open GoalSetupModal');
-            }}
           />
 
           {/* ═══ HEALTH + SECTOR GRID ═══ */}

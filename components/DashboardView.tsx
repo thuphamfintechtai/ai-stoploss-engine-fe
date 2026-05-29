@@ -418,6 +418,27 @@ export const DashboardView: React.FC<Props> = ({
 
   useEffect(() => {
     setLivePositions(openPositions);
+    // Fetch current prices for positions on initial load
+    const fetchPrices = async () => {
+      if (openPositions.length === 0) return;
+      const symbols = [...new Set(openPositions.map(p => p.symbol))];
+      const priceMap: Record<string, number> = {};
+      await Promise.all(
+        symbols.map(async (sym) => {
+          try {
+            const res = await marketApi.getPrice(sym);
+            const price = res.data?.data?.price ?? res.data?.data?.lastPrice ?? res.data?.data?.close;
+            if (price != null) priceMap[sym] = Number(price) * STOCK_PRICE_DISPLAY_SCALE;
+          } catch { /* ignore */ }
+        })
+      );
+      if (Object.keys(priceMap).length > 0) {
+        setLivePositions(prev => prev.map(p =>
+          priceMap[p.symbol] ? { ...p, current_price: priceMap[p.symbol] } as any : p
+        ));
+      }
+    };
+    fetchPrices();
   }, [openPositions]);
 
   useEffect(() => {
@@ -609,7 +630,7 @@ export const DashboardView: React.FC<Props> = ({
 
         {/* Middle Column: AI Center */}
         <div className="lg:col-span-4">
-          <div className="bg-[var(--color-panel)] border border-[var(--color-border-subtle)] rounded-xl overflow-hidden h-full">
+          <div className="bg-[var(--color-panel)] border border-[var(--color-border-subtle)] rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--color-accent)] to-[var(--color-secondary)] flex items-center justify-center">
@@ -686,12 +707,13 @@ export const DashboardView: React.FC<Props> = ({
                       </div>
                       <div className="text-right">
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                          order.status === 'FILLED' ? 'bg-[var(--color-positive)]/10 text-[var(--color-positive)]' :
+                          order.status === 'FILLED' || order.status === 'RECORDED' ? 'bg-[var(--color-positive)]/10 text-[var(--color-positive)]' :
                           order.status === 'PENDING' ? 'bg-[var(--color-warning)]/10 text-[var(--color-warning)]' :
                           order.status === 'CANCELLED' ? 'bg-[var(--color-text-dim)]/10 text-[var(--color-text-dim)]' :
                           'bg-[var(--color-negative)]/10 text-[var(--color-negative)]'
                         }`}>
                           {order.status === 'FILLED' ? 'Khớp' :
+                           order.status === 'RECORDED' ? 'Đã ghi' :
                            order.status === 'PENDING' ? 'Chờ' :
                            order.status === 'CANCELLED' ? 'Huỷ' :
                            order.status === 'PARTIALLY_FILLED' ? 'Khớp 1 phần' : order.status}
@@ -757,35 +779,6 @@ export const DashboardView: React.FC<Props> = ({
             </div>
           )}
 
-          {/* Quick Actions */}
-          <div className="bg-[var(--color-panel)] border border-[var(--color-border-subtle)] rounded-xl p-4">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-dim)] mb-3">
-              Hành động nhanh
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={() => onNavigate('terminal')}
-                className="flex flex-col items-center gap-2 p-3 rounded-lg bg-[var(--color-accent)]/10 hover:bg-[var(--color-accent)]/20 text-[var(--color-accent)] transition-colors"
-              >
-                {Icons.plus}
-                <span className="text-[10px] font-semibold">Đặt lệnh</span>
-              </button>
-              <button
-                onClick={() => onNavigate('portfolio')}
-                className="flex flex-col items-center gap-2 p-3 rounded-lg bg-[var(--color-warning)]/10 hover:bg-[var(--color-warning)]/20 text-[var(--color-warning)] transition-colors"
-              >
-                {Icons.shield}
-                <span className="text-[10px] font-semibold">Rủi ro</span>
-              </button>
-              <button
-                onClick={() => onNavigate('watchlist')}
-                className="flex flex-col items-center gap-2 p-3 rounded-lg bg-[var(--color-positive)]/10 hover:bg-[var(--color-positive)]/20 text-[var(--color-positive)] transition-colors"
-              >
-                {Icons.sparkle}
-                <span className="text-[10px] font-semibold">Theo dõi</span>
-              </button>
-            </div>
-          </div>
         </div>
       </div>
 

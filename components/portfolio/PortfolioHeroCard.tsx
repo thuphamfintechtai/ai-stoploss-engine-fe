@@ -1,12 +1,5 @@
 import React from 'react';
 
-export interface InvestmentGoal {
-  target_return_pct: number;
-  max_drawdown_pct: number;
-  horizon_months: number;
-  set_at?: string;
-}
-
 interface PortfolioHeroCardProps {
   totalBalance: number;
   availableCash: number;
@@ -18,8 +11,6 @@ interface PortfolioHeroCardProps {
   positionCount: number;
   closedCount: number;
   loading?: boolean;
-  goal?: InvestmentGoal | null;
-  onSetGoal?: () => void;
 }
 
 const formatVND = (value: number) =>
@@ -36,8 +27,6 @@ export const PortfolioHeroCard: React.FC<PortfolioHeroCardProps> = ({
   positionCount,
   closedCount,
   loading = false,
-  goal,
-  onSetGoal,
 }) => {
   const deployedCash = Math.max(0, totalBalance - availableCash - pendingSettlement);
   const isPnlPositive = totalPnl >= 0;
@@ -64,9 +53,6 @@ export const PortfolioHeroCard: React.FC<PortfolioHeroCardProps> = ({
       </div>
     );
   }
-
-  const goalProgress = goal ? Math.min(100, Math.max(0, (percentReturn / goal.target_return_pct) * 100)) : 0;
-  const isDrawdownBreached = goal && percentReturn < -Math.abs(goal.max_drawdown_pct);
 
   return (
     <div className="bg-[var(--color-panel)] border border-[var(--color-border-subtle)] rounded-xl overflow-hidden">
@@ -225,76 +211,6 @@ export const PortfolioHeroCard: React.FC<PortfolioHeroCardProps> = ({
         </div>
       </div>
 
-      {/* Goal Progress Bar */}
-      <div className="px-5 lg:px-6 py-4 bg-[var(--color-background)] border-t border-[var(--color-border-subtle)]">
-        {goal ? (
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-[var(--color-accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v1.5M3 21v-6m0 0l2.77-.693a9 9 0 016.208.682l.108.054a9 9 0 006.086.71l3.114-.732a48.524 48.524 0 01-.005-10.499l-3.11.732a9 9 0 01-6.085-.711l-.108-.054a9 9 0 00-6.208-.682L3 4.5M3 15V4.5" />
-                </svg>
-                <span className="text-[12px] font-medium text-[var(--color-text-main)]">
-                  Mục tiêu: +{goal.target_return_pct}% trong {goal.horizon_months} tháng
-                </span>
-              </div>
-              <span className={`text-[11px] font-semibold ${
-                isDrawdownBreached
-                  ? 'text-[var(--color-negative)]'
-                  : goalProgress >= 100
-                    ? 'text-[var(--color-positive)]'
-                    : 'text-[var(--color-text-muted)]'
-              }`}>
-                {isDrawdownBreached
-                  ? 'Vượt mức lỗ cho phép!'
-                  : goalProgress >= 100
-                    ? 'Đạt mục tiêu!'
-                    : `${goalProgress.toFixed(0)}% hoàn thành`
-                }
-              </span>
-            </div>
-            <div className="h-2 rounded-full overflow-hidden bg-[var(--color-panel)]">
-              <div
-                className={`h-full transition-all duration-700 ${
-                  isDrawdownBreached
-                    ? 'bg-[var(--color-negative)]'
-                    : goalProgress >= 100
-                      ? 'bg-[var(--color-positive)]'
-                      : 'bg-[var(--color-accent)]'
-                }`}
-                style={{ width: `${Math.min(100, goalProgress)}%` }}
-              />
-            </div>
-            {goal.max_drawdown_pct > 0 && (
-              <div className="mt-2 text-[10px] text-[var(--color-text-dim)]">
-                Mức lỗ tối đa cho phép: -{goal.max_drawdown_pct}%
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-[var(--color-text-dim)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v1.5M3 21v-6m0 0l2.77-.693a9 9 0 016.208.682l.108.054a9 9 0 006.086.71l3.114-.732a48.524 48.524 0 01-.005-10.499l-3.11.732a9 9 0 01-6.085-.711l-.108-.054a9 9 0 00-6.208-.682L3 4.5M3 15V4.5" />
-              </svg>
-              <span className="text-[12px] text-[var(--color-text-dim)]">
-                Bạn chưa đặt mục tiêu đầu tư
-              </span>
-            </div>
-            {onSetGoal && (
-              <button
-                onClick={onSetGoal}
-                className="text-[11px] font-semibold text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors flex items-center gap-1"
-              >
-                Đặt mục tiêu
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                </svg>
-              </button>
-            )}
-          </div>
-        )}
-      </div>
     </div>
   );
 };
