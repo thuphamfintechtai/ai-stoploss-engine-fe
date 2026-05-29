@@ -462,7 +462,7 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
     <div className="flex gap-3 h-[calc(100vh-120px)] animate-fade-in relative">
 
       {/* ── LEFT: Watchlist ─────────────────────────────────────────── */}
-      <div className="w-72 shrink-0 panel-section flex flex-col">
+      <div className="w-80 shrink-0 panel-section flex flex-col">
         <div className="px-3 py-2.5 border-b border-border-subtle shrink-0">
           <div className="flex items-center justify-between mb-2">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Danh Sách Theo Dõi</p>
@@ -553,11 +553,11 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
             <table className="w-full">
               <thead className="sticky top-0" style={{ background: 'var(--color-panel)' }}>
                 <tr>
-                  <th className="text-left px-3 py-2 text-[9px] font-semibold text-text-dim uppercase tracking-wide border-b border-border-subtle">Mã</th>
-                  <th className="text-right px-2 py-2 text-[9px] font-semibold text-text-dim uppercase tracking-wide border-b border-border-subtle">Giá</th>
-                  <th className="text-right px-2 py-2 text-[9px] font-semibold text-text-dim uppercase tracking-wide border-b border-border-subtle">%</th>
-                  <th className="px-1 py-2 border-b border-border-subtle w-6" />
-                  <th className="px-1 py-2 border-b border-border-subtle w-6" />
+                  <th className="text-left px-3 py-2.5 text-[10px] font-semibold text-text-dim uppercase tracking-wide border-b border-border-subtle">Mã</th>
+                  <th className="text-right px-2 py-2.5 text-[10px] font-semibold text-text-dim uppercase tracking-wide border-b border-border-subtle">Giá</th>
+                  <th className="text-right px-2 py-2.5 text-[10px] font-semibold text-text-dim uppercase tracking-wide border-b border-border-subtle">%</th>
+                  <th className="px-1 py-2.5 border-b border-border-subtle w-7" />
+                  <th className="px-1 py-2.5 border-b border-border-subtle w-7" />
                 </tr>
               </thead>
               <tbody>
@@ -574,34 +574,34 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
                       onClick={() => setSelectedSymbol(item)}
                       className={`cursor-pointer transition-colors ${isSelected ? 'bg-accent/10' : 'hover:bg-white/5'}`}
                     >
-                      <td className="px-3 py-2">
-                        <div className={`text-[12px] font-bold ${isSelected ? 'text-accent' : 'text-text-main'}`}>{item.symbol}</div>
-                        <div className="text-[9px] text-text-dim">{item.exchange}</div>
+                      <td className="px-3 py-3">
+                        <div className={`text-[14px] font-bold ${isSelected ? 'text-accent' : 'text-text-main'}`}>{item.symbol}</div>
+                        <div className="text-[10px] text-text-dim">{item.exchange}</div>
                       </td>
-                      <td className={`px-2 py-2 text-right text-[12px] font-mono ${chgPct > 0 ? 'text-positive' : chgPct < 0 ? 'text-negative' : 'text-warning'}`}>
+                      <td className={`px-2 py-3 text-right text-[14px] font-mono font-semibold ${chgPct > 0 ? 'text-positive' : chgPct < 0 ? 'text-negative' : 'text-warning'}`}>
                         {q?.price ? toPoint(q.price).toFixed(2) : '—'}
                       </td>
-                      <td className={`px-2 py-2 text-right text-[11px] font-mono ${chgPct > 0 ? 'text-positive' : chgPct < 0 ? 'text-negative' : 'text-text-muted'}`}>
+                      <td className={`px-2 py-3 text-right text-[12px] font-mono ${chgPct > 0 ? 'text-positive' : chgPct < 0 ? 'text-negative' : 'text-text-muted'}`}>
                         {chgPct !== 0 ? (chgPct > 0 ? '+' : '') + chgPct.toFixed(2) + '%' : '—'}
                       </td>
 
                       {/* Alert bell button */}
-                      <td className="px-1 py-2">
+                      <td className="px-1 py-3">
                         <button
                           onClick={(e) => { e.stopPropagation(); openAlertModal(item); }}
-                          className="p-0.5 rounded transition-colors"
+                          className="p-1 rounded transition-colors hover:bg-white/10"
                           title={activeAlerts.length > 0 ? `${activeAlerts.length} cảnh báo đang hoạt động` : 'Đặt cảnh báo giá'}
                         >
                           {hasTriggered ? (
-                            <svg className="w-3.5 h-3.5 text-warning" fill="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4 text-warning" fill="currentColor" viewBox="0 0 24 24">
                               <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
                             </svg>
                           ) : activeAlerts.length > 0 ? (
-                            <svg className="w-3.5 h-3.5 text-accent" fill="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4 text-accent" fill="currentColor" viewBox="0 0 24 24">
                               <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
                             </svg>
                           ) : (
-                            <svg className="w-3.5 h-3.5 text-text-dim hover:text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                            <svg className="w-4 h-4 text-text-dim hover:text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
                             </svg>
                           )}
@@ -609,12 +609,12 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
                       </td>
 
                       {/* Remove button */}
-                      <td className="px-1 py-2">
+                      <td className="px-1 py-3">
                         <button
                           onClick={(e) => { e.stopPropagation(); removeFromWatchlist(item.symbol); }}
-                          className="p-0.5 rounded text-text-dim hover:text-negative transition-colors"
+                          className="p-1 rounded text-text-dim hover:text-negative hover:bg-white/10 transition-colors"
                         >
-                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                           </svg>
                         </button>
