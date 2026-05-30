@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { PortfolioSwitcher } from './portfolio/PortfolioSwitcher';
 
 interface Props {
   currentView: string;
@@ -218,6 +219,14 @@ export const Sidebar: React.FC<Props> = ({
       >
         {isOpen ? Icons.collapse : Icons.expand}
       </button>
+
+      {/* Portfolio Switcher (Phase 8 — MP-04) */}
+      <div
+        className="shrink-0"
+        style={{ borderBottom: '1px solid var(--color-border-subtle)' }}
+      >
+        <PortfolioSwitcher compact={!isOpen} />
+      </div>
 
       {/* Main Navigation */}
       <nav className={`flex-1 overflow-y-auto py-3 ${isOpen ? 'px-2' : 'px-1.5'} dense-scroll`}>
