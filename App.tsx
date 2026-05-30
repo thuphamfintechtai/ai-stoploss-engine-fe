@@ -12,6 +12,7 @@ import { ActivePortfolioProvider, useActivePortfolio } from './contexts/ActivePo
 import { DashboardView } from './components/DashboardView';
 import { TradingTerminal } from './components/TradingTerminal';
 import { PortfolioView } from './components/PortfolioView';
+import { PortfoliosOverviewView } from './components/PortfoliosOverviewView';
 import { WatchlistView } from './components/WatchlistView';
 import { AiSignalsView } from './components/AiSignalsView';
 import { NotificationsView } from './components/NotificationsView';
@@ -3118,6 +3119,11 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
       <main
         className={`flex-1 p-4 md:p-5 overflow-y-auto h-screen scroll-smooth relative pb-24 lg:pb-6 transition-all duration-200 ${isSidebarOpen ? 'lg:ml-[200px]' : 'lg:ml-[52px]'}`}
       >
+
+        {/* Cross-Portfolio Overview (Phase 8 — MP-05) */}
+        {currentView === 'overview' && (
+          <PortfoliosOverviewView onNavigateToDashboard={() => setCurrentView('dashboard')} />
+        )}
 
         {/* Dashboard (home / dashboard) */}
         {(currentView === 'dashboard' || currentView === 'home') && (
