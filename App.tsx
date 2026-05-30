@@ -8,6 +8,7 @@ import { Sidebar } from './components/Sidebar';
 import { HomeView } from './components/HomeView';
 import { AuthView } from './components/AuthView';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
+import { ActivePortfolioProvider, useActivePortfolio } from './contexts/ActivePortfolioContext';
 import { DashboardView } from './components/DashboardView';
 import { TradingTerminal } from './components/TradingTerminal';
 import { PortfolioView } from './components/PortfolioView';
@@ -1615,7 +1616,9 @@ function App() {
 
   return (
     <AppErrorBoundary onReset={handleLogout}>
-      <MainApp onLogout={handleLogout} />
+      <ActivePortfolioProvider>
+        <MainApp onLogout={handleLogout} />
+      </ActivePortfolioProvider>
     </AppErrorBoundary>
   );
 }
@@ -2394,7 +2397,18 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
     setShowOnboarding(false);
   };
 
-  // Core State
+  // Phase 8 (MP-04): Active portfolio từ Context — thay thế hardcoded portfolios[0]
+  const {
+    activePortfolio,
+    activePortfolioId,
+    portfolios: ctxPortfolios,
+    refreshPortfolios,
+    setActivePortfolioId,
+    isLoading: portfoliosLoading,
+  } = useActivePortfolio();
+
+  // Core State — `portfolio` mirror activePortfolio để giữ tương thích với callsites cũ.
+  // setPortfolio (cũ) chỉ còn dùng cho local override sau khi PUT/POST; sync chính qua effect bên dưới.
   const [portfolio, setPortfolio] = useState<any>(null);
   const [totalBalance, setTotalBalance] = useState(0);
   const [maxRiskPercent, setMaxRiskPercent] = useState(5);
@@ -2479,6 +2493,35 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
       wsService.disconnect();
     };
   }, []);
+
+  // Phase 8 (MP-04): Sync local portfolio + derived numerics khi activePortfolio đổi.
+  // Replace hardcoded portfolios[0] hydration — context handles persistence + selection.
+  useEffect(() => {
+    if (activePortfolio) {
+      setPortfolio(activePortfolio);
+      setTotalBalance(parseFloat(activePortfolio.total_balance as any) || 0);
+      setMaxRiskPercent(parseFloat(activePortfolio.max_risk_percent as any) || 5);
+      setExpectedReturnPercent(parseFloat(activePortfolio.expected_return_percent as any) || 0);
+    } else if (!portfoliosLoading && ctxPortfolios.length === 0) {
+      // User mới chưa có portfolio nào — show setup modal
+      setPortfolio(null);
+      setTotalBalance(0);
+      setMaxRiskPercent(5);
+      setExpectedReturnPercent(0);
+      setShowSetupModal(true);
+    }
+  }, [activePortfolio?.id, activePortfolio?.total_balance, activePortfolio?.max_risk_percent, activePortfolio?.expected_return_percent, portfoliosLoading, ctxPortfolios.length]);
+
+  // Phase 8 (MP-04): WS subscribe lại khi activePortfolioId đổi — unsubscribe old, subscribe new.
+  useEffect(() => {
+    if (!activePortfolioId) return;
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+    wsService.subscribeToPortfolio(activePortfolioId);
+    return () => {
+      wsService.unsubscribeFromPortfolio(activePortfolioId);
+    };
+  }, [activePortfolioId]);
 
   // Listen WebSocket disconnect/reconnect events để hiện banner
   useEffect(() => {
@@ -2685,23 +2728,9 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
     try {
       setLoading(true);
 
-      // Only load auth-required data if token exists
-      const token = localStorage.getItem('auth_token');
-      if (token) {
-        // Load portfolio
-        const portfolioRes = await portfolioApi.getAll();
-        if (portfolioRes.data.success && portfolioRes.data.data.length > 0) {
-          const p = portfolioRes.data.data[0];
-          setPortfolio(p);
-          setTotalBalance(parseFloat(p.total_balance));
-          setMaxRiskPercent(parseFloat(p.max_risk_percent));
-          setExpectedReturnPercent(parseFloat(p.expected_return_percent) ?? 0);
-        } else {
-          // No portfolio - show setup modal
-          setShowSetupModal(true);
-        }
-
-      }
+      // Phase 8 (MP-04): Portfolio loading + selection handled bởi ActivePortfolioContext.
+      // Context fetches on mount khi có auth_token; sync vào local state qua useEffect.
+      // KHÔNG còn portfolios[0] hardcode — user pick via PortfolioSwitcher (Sidebar top).
 
       // Load market data for VNINDEX
       await loadMarketData();
@@ -2880,9 +2909,8 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
 
     wsService.connect();
 
-    if (portfolio) {
-      wsService.subscribeToPortfolio(portfolio.id);
-    }
+    // Phase 8 (MP-04): Portfolio subscription handled bởi effect riêng theo activePortfolioId
+    // (auto unsubscribe old + subscribe new khi user switch danh mục).
 
     wsService.onRiskUpdate((data) => {
       if (portfolio) {
@@ -2958,23 +2986,21 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
                 expectedReturnPercent: expectedReturn,
               });
               if (res.data?.data) {
-                setPortfolio(res.data.data);
-                setTotalBalance(parseFloat(res.data.data.total_balance));
-                setMaxRiskPercent(parseFloat(res.data.data.max_risk_percent));
-                setExpectedReturnPercent(parseFloat(res.data.data.expected_return_percent) ?? 0);
+                // Phase 8 (MP-04): refresh context để switcher + local state sync
+                await refreshPortfolios();
               }
             } else {
+              // D-21 backward compat: lần đầu tạo portfolio → default SWING preset.
               const res = await portfolioApi.create({
-                name: 'Default Portfolio',
+                name: 'Danh mục mặc định',
                 totalBalance: balance,
+                portfolioType: 'SWING',
                 maxRiskPercent: riskPercent,
                 expectedReturnPercent: expectedReturn,
               });
-              if (res.data?.data) {
-                setPortfolio(res.data.data);
-                setTotalBalance(parseFloat(res.data.data.total_balance));
-                setMaxRiskPercent(parseFloat(res.data.data.max_risk_percent));
-                setExpectedReturnPercent(parseFloat(res.data.data.expected_return_percent) ?? 0);
+              if (res.data?.data?.id) {
+                await refreshPortfolios();
+                setActivePortfolioId(res.data.data.id);
               }
             }
             setShowSetupModal(false);
@@ -2986,10 +3012,9 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
         onDelete={portfolio ? async () => {
           try {
             await portfolioApi.delete(portfolio.id);
-            setPortfolio(null);
-            setTotalBalance(0);
-            setMaxRiskPercent(5);
-            setExpectedReturnPercent(0);
+            // Phase 8 (MP-04): refresh context — auto-select portfolio đầu tiên còn lại
+            // (hoặc clear nếu hết). Local state sync qua useEffect.
+            await refreshPortfolios();
             setShowSetupModal(false);
           } catch (e: any) {
             const msg = e?.response?.data?.message || e?.message || 'Xóa thất bại. Vui lòng thử lại.';
