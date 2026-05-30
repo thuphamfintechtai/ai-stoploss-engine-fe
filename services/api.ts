@@ -157,7 +157,9 @@ export interface RegisterRequest {
 export interface CreatePortfolioRequest {
   name: string;
   totalBalance: number;
-  maxRiskPercent: number;
+  /** Phase 8 (MP-04): portfolio strategy preset — BE auto-fills max_risk_percent + expected_return_percent từ preset nếu omit */
+  portfolioType?: 'LONG_TERM' | 'SWING' | 'DAY_TRADE';
+  maxRiskPercent?: number;
   expectedReturnPercent?: number;
 }
 
@@ -286,6 +288,10 @@ export const portfolioApi = {
 
   getPerformance: (id: string) =>
     apiClient.get(`/portfolios/${id}/performance`),
+
+  /** Phase 8 (MP-05): Cross-portfolio aggregate overview — total NAV, allocation, P&L breakdown */
+  getOverview: () =>
+    apiClient.get('/portfolios/overview'),
 };
 
 // Position API (nested under portfolio)
