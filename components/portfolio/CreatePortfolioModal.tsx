@@ -6,6 +6,8 @@ import {
   PortfolioType,
 } from '../../utils/portfolioPresets';
 import { portfolioApi } from '../../services/api';
+import { AiDisclaimer } from '../ui/AiDisclaimer';
+import { PresetIcon } from './PresetIcon';
 
 interface Props {
   onClose: () => void;
@@ -110,7 +112,12 @@ export const CreatePortfolioModal: React.FC<Props> = ({ onClose, onCreated }) =>
                     : 'var(--color-panel-secondary)',
                 }}
               >
-                <div className="text-[22px] mb-1.5 leading-none">{preset.icon}</div>
+                <div
+                  className="mb-2"
+                  style={{ color: isSel ? 'var(--color-accent)' : 'var(--color-text-muted)' }}
+                >
+                  <PresetIcon type={key} size={22} />
+                </div>
                 <div className="text-[12px] font-semibold text-text-main">{preset.label}</div>
                 <div className="text-[10px] text-text-muted mt-1 leading-snug min-h-[28px]">
                   {preset.description}
@@ -194,6 +201,9 @@ export const CreatePortfolioModal: React.FC<Props> = ({ onClose, onCreated }) =>
             </button>
           </div>
         </form>
+        <div className="mt-3">
+          <AiDisclaimer compact />
+        </div>
       </div>
     </div>
   );

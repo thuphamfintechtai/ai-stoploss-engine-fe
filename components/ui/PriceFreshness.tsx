@@ -18,6 +18,11 @@ export interface PriceFreshnessProps {
   threshold?: number;
   /** Extra Tailwind class cho span wrapper. */
   className?: string;
+  /**
+   * W2.8 — stale_reason từ marketPriceService.
+   * 'circuit_breaker_open' → badge đỏ "VPBS tạm dừng — giá từ cache" (ưu tiên hơn Delayed).
+   */
+  staleReason?: string;
 }
 
 const DEFAULT_THRESHOLD_MS = 10_000;
@@ -26,6 +31,7 @@ export const PriceFreshness: React.FC<PriceFreshnessProps> = ({
   ageMs,
   threshold = DEFAULT_THRESHOLD_MS,
   className = '',
+  staleReason,
 }) => {
   const { shouldShow, ageSeconds, titleText } = useMemo(() => {
     const age = Number.isFinite(ageMs) ? Math.max(0, Math.floor(ageMs)) : 0;
@@ -35,9 +41,24 @@ export const PriceFreshness: React.FC<PriceFreshnessProps> = ({
       ageSeconds: seconds,
       titleText: `Giá được nhận cách đây ~${seconds}s (vượt ngưỡng ${Math.round(
         threshold / 1000
-      )}s)`,
+      )}s). VPBS trễ ~60s là bình thường — không phải lỗi.`,
     };
   }, [ageMs, threshold]);
+
+  // W2.8 — VPBS circuit breaker OPEN: hiển thị badge ưu tiên thay vì "Delayed".
+  if (staleReason === 'circuit_breaker_open') {
+    return (
+      <span
+        className={`inline-flex items-center gap-0.5 text-[10px] text-[var(--color-negative)] ${className}`}
+        title="VPBS API tạm dừng (circuit breaker mở) — đang dùng giá từ cache. Không nên cắt lỗ/chốt lời thủ công trên giá này."
+        data-testid="price-freshness"
+        role="status"
+      >
+        <span aria-hidden="true">⛔</span>
+        VPBS tạm dừng — giá từ cache
+      </span>
+    );
+  }
 
   if (!shouldShow) return null;
 

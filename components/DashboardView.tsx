@@ -5,6 +5,9 @@ import { STOCK_PRICE_DISPLAY_SCALE, PRICE_LOCALE, formatNumberVI } from '../cons
 import type { Position, Order } from '../services/api';
 import wsService from '../services/websocket';
 import { EmptyState } from './ui/EmptyState';
+import { AiDisclaimer } from './ui/AiDisclaimer';
+import { Tooltip } from './ui/Tooltip';
+import { SkeletonCard } from './ui/SkeletonLoader';
 
 interface IndexData {
   indexCode: string;
@@ -122,7 +125,9 @@ const StatCard: React.FC<{
   icon: React.ReactNode;
   trend?: 'up' | 'down' | 'neutral';
   accentColor?: string;
-}> = ({ label, value, subValue, icon, trend, accentColor = 'var(--color-accent)' }) => {
+  tooltip?: React.ReactNode;
+  breakdown?: React.ReactNode;
+}> = ({ label, value, subValue, icon, trend, accentColor = 'var(--color-accent)', tooltip, breakdown }) => {
   const trendColor = trend === 'up'
     ? 'text-[var(--color-positive)]'
     : trend === 'down'
@@ -139,7 +144,7 @@ const StatCard: React.FC<{
           <span style={{ color: accentColor }}>{icon}</span>
         </div>
         {trend && trend !== 'neutral' && (
-          <span className={`text-[10px] font-semibold px-2 py-1 rounded-full ${
+          <span className={`text-micro px-2 py-1 rounded-full ${
             trend === 'up' ? 'bg-[var(--color-positive)]/10 text-[var(--color-positive)]' : 'bg-[var(--color-negative)]/10 text-[var(--color-negative)]'
           }`}>
             {trend === 'up' ? '▲' : '▼'}
@@ -147,15 +152,26 @@ const StatCard: React.FC<{
         )}
       </div>
       <div className="space-y-1">
-        <p className="text-[11px] font-medium text-[var(--color-text-dim)] uppercase tracking-wider">
+        <p className="text-micro text-[var(--color-text-dim)] flex items-center gap-1">
           {label}
+          {tooltip && (
+            <Tooltip content={tooltip} position="top">
+              <span
+                className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-micro text-[var(--color-text-dim)] border border-[var(--color-border-subtle)] cursor-help"
+                aria-label="Giải thích"
+              >
+                ?
+              </span>
+            </Tooltip>
+          )}
         </p>
-        <p className={`text-[22px] font-bold tabular-nums leading-tight ${trendColor}`}>
+        <p className={`text-title tabular-nums ${trendColor}`}>
           {value}
         </p>
         {subValue && (
-          <p className="text-[11px] text-[var(--color-text-muted)]">{subValue}</p>
+          <p className="text-caption text-[var(--color-text-muted)]">{subValue}</p>
         )}
+        {breakdown}
       </div>
     </div>
   );
@@ -175,21 +191,21 @@ const MarketIndexCard: React.FC<{ data: IndexData }> = ({ data }) => {
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[11px] font-bold tracking-wider text-[var(--color-text-dim)]">
+            <span className="text-micro text-[var(--color-text-dim)]">
               {data.indexCode}
             </span>
             {total > 0 && (
-              <span className="text-[9px] text-[var(--color-text-dim)] tabular-nums">
+              <span className="text-micro text-[var(--color-text-dim)] tabular-nums">
                 <span className="text-[var(--color-positive)]">{data.advancing}</span>
                 /
                 <span className="text-[var(--color-negative)]">{data.declining}</span>
               </span>
             )}
           </div>
-          <div className={`text-[24px] font-bold tabular-nums leading-tight ${isUp ? 'text-[var(--color-positive)]' : 'text-[var(--color-negative)]'}`}>
+          <div className={`text-title tabular-nums ${isUp ? 'text-[var(--color-positive)]' : 'text-[var(--color-negative)]'}`}>
             {data.value > 0 ? data.value.toLocaleString(PRICE_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
           </div>
-          <div className={`text-[12px] tabular-nums mt-1 flex items-center gap-1 ${isUp ? 'text-[var(--color-positive)]' : 'text-[var(--color-negative)]'}`}>
+          <div className={`text-body-sm tabular-nums mt-1 flex items-center gap-1 ${isUp ? 'text-[var(--color-positive)]' : 'text-[var(--color-negative)]'}`}>
             {isUp ? '▲' : '▼'} {Math.abs(data.change).toFixed(2)}
             <span className="text-[var(--color-text-dim)]">|</span>
             {data.changePercent >= 0 ? '+' : ''}{data.changePercent.toFixed(2)}%
@@ -240,14 +256,14 @@ const RiskGauge: React.FC<{ percentage: number; used: number; max: number }> = (
             <span className="text-[var(--color-warning)]">{Icons.shield}</span>
           </div>
           <div>
-            <p className="text-[11px] font-medium text-[var(--color-text-dim)] uppercase tracking-wider">
+            <p className="text-micro text-[var(--color-text-dim)]">
               Rủi ro danh mục
             </p>
-            <p className="text-[10px] font-semibold" style={{ color }}>{label}</p>
+            <p className="text-micro" style={{ color }}>{label}</p>
           </div>
         </div>
         <div className="text-right">
-          <p className="text-[20px] font-bold tabular-nums" style={{ color }}>
+          <p className="text-title tabular-nums" style={{ color }}>
             {percentage.toFixed(0)}%
           </p>
         </div>
@@ -260,7 +276,7 @@ const RiskGauge: React.FC<{ percentage: number; used: number; max: number }> = (
         />
       </div>
 
-      <div className="flex justify-between text-[10px] text-[var(--color-text-dim)]">
+      <div className="flex justify-between text-micro text-[var(--color-text-dim)]">
         <span>Đã dùng: {formatNumberVI(used)}đ</span>
         <span>Tối đa: {formatNumberVI(max)}đ</span>
       </div>
@@ -272,12 +288,13 @@ const RiskGauge: React.FC<{ percentage: number; used: number; max: number }> = (
 // Position Row
 // ═══════════════════════════════════════════════════════════════════════════
 const PositionRow: React.FC<{ position: Position; onClick: () => void }> = ({ position, onClick }) => {
-  const entry = Number(position.entry_price ?? 0) / 1000;
-  const current = Number((position as any).current_price ?? 0) / 1000;
+  // STOCK_PRICE_DISPLAY_SCALE = 1 — toàn app dùng VND nguyên, không chia 1000.
+  const entry = Number(position.entry_price ?? 0);
+  const current = Number((position as any).current_price ?? 0);
   const isShort = (position.side ?? 'LONG').toUpperCase() === 'SHORT';
   const rawPct = entry > 0 && current > 0 ? ((current - entry) / entry) * 100 : 0;
   const pnlPct = isShort ? -rawPct : rawPct;
-  const sl = Number(position.trailing_current_stop ?? position.stop_loss ?? 0) / 1000;
+  const sl = Number(position.trailing_current_stop ?? position.stop_loss ?? 0);
 
   return (
     <tr
@@ -286,36 +303,36 @@ const PositionRow: React.FC<{ position: Position; onClick: () => void }> = ({ po
     >
       <td className="py-2.5 px-3">
         <div className="flex items-center gap-2">
-          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+          <span className={`text-micro px-1.5 py-0.5 rounded ${
             isShort ? 'bg-[var(--color-negative)]/10 text-[var(--color-negative)]' : 'bg-[var(--color-positive)]/10 text-[var(--color-positive)]'
           }`}>
             {isShort ? 'S' : 'L'}
           </span>
-          <span className="text-[13px] font-bold text-[var(--color-text-main)]">{position.symbol}</span>
+          <span className="text-body font-bold text-[var(--color-text-main)]">{position.symbol}</span>
         </div>
       </td>
       <td className="py-2.5 px-3 text-right">
-        <span className="text-[12px] tabular-nums text-[var(--color-text-muted)]">
-          {entry > 0 ? entry.toFixed(2) : '—'}
+        <span className="text-body-sm tabular-nums text-[var(--color-text-muted)]">
+          {entry > 0 ? formatNumberVI(entry) : '—'}
         </span>
       </td>
       <td className="py-2.5 px-3 text-right">
-        <span className={`text-[12px] tabular-nums font-medium ${
+        <span className={`text-body-sm tabular-nums font-medium ${
           current > entry ? 'text-[var(--color-positive)]' : current < entry ? 'text-[var(--color-negative)]' : 'text-[var(--color-text-muted)]'
         }`}>
-          {current > 0 ? current.toFixed(2) : '—'}
+          {current > 0 ? formatNumberVI(current) : '—'}
         </span>
       </td>
       <td className="py-2.5 px-3 text-right">
-        <span className={`text-[12px] tabular-nums font-semibold ${
+        <span className={`text-body-sm tabular-nums font-semibold ${
           pnlPct >= 0 ? 'text-[var(--color-positive)]' : 'text-[var(--color-negative)]'
         }`}>
           {pnlPct !== 0 ? `${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%` : '—'}
         </span>
       </td>
       <td className="py-2.5 px-3 text-right">
-        <span className="text-[12px] tabular-nums text-[var(--color-text-dim)]">
-          {sl > 0 ? sl.toFixed(2) : '—'}
+        <span className="text-body-sm tabular-nums text-[var(--color-text-dim)]">
+          {sl > 0 ? formatNumberVI(sl) : '—'}
         </span>
       </td>
     </tr>
@@ -345,6 +362,7 @@ export const DashboardView: React.FC<Props> = ({
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [news, setNews] = useState<NewsArticle[]>([]);
   const [newsLoading, setNewsLoading] = useState(false);
+  const [cashBalance, setCashBalance] = useState<any>(null);
 
   const loadIndices = useCallback(async () => {
     setLoading(true);
@@ -406,6 +424,17 @@ export const DashboardView: React.FC<Props> = ({
       setNewsLoading(false);
     }
   }, []);
+
+  const loadSummary = useCallback(async () => {
+    if (!portfolioId) return;
+    try {
+      const res = await realPortfolioApi.getSummary(portfolioId);
+      if (res.data?.success && res.data.data?.cash_balance) {
+        setCashBalance(res.data.data.cash_balance);
+      }
+    } catch {}
+  }, [portfolioId]);
+
 
   const refreshLivePnL = useCallback(async () => {
     if (!portfolioId) return;
@@ -476,6 +505,7 @@ export const DashboardView: React.FC<Props> = ({
     loadPerformance();
     loadRecentOrders();
     loadNews();
+    loadSummary();
     refreshLivePnL();
 
     const indexInterval = setInterval(loadIndices, 60_000);
@@ -485,7 +515,7 @@ export const DashboardView: React.FC<Props> = ({
       clearInterval(indexInterval);
       clearInterval(pnlInterval);
     };
-  }, [loadIndices, loadMarketRegime, loadPerformance, loadRecentOrders, loadNews, refreshLivePnL]);
+  }, [loadIndices, loadMarketRegime, loadPerformance, loadRecentOrders, loadNews, loadSummary, refreshLivePnL]);
 
   // Computed values
   const riskPct = maxRisk > 0 ? (riskUsed / maxRisk) * 100 : 0;
@@ -500,7 +530,7 @@ export const DashboardView: React.FC<Props> = ({
     return s;
   }, 0);
   const totalPnlPct = totalBalance > 0 ? (totalPnl / totalBalance) * 100 : 0;
-  const availableCash = totalBalance - livePositions.reduce((s, p) => s + Number(p.entry_price ?? 0) * Number(p.quantity ?? 0), 0);
+  const availableCash = cashBalance?.buying_power ?? (totalBalance - livePositions.reduce((s, p) => s + Number(p.entry_price ?? 0) * Number(p.quantity ?? 0), 0));
 
   const regimeLabel = marketRegime?.regime === 'BULL' ? 'Tăng trưởng'
     : marketRegime?.regime === 'BEAR' ? 'Suy giảm'
@@ -517,16 +547,17 @@ export const DashboardView: React.FC<Props> = ({
       {/* ═══ HEADER ═══ */}
       <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-[var(--color-border-subtle)]">
         <div>
-          <h1 className="text-[22px] font-bold text-[var(--color-text-main)]">
+          <h1 className="text-title text-[var(--color-text-main)]">
             Tổng quan
           </h1>
-          <p className="text-[12px] text-[var(--color-text-dim)] mt-1 flex items-center gap-2">
+          <p className="text-body-sm text-[var(--color-text-dim)] mt-1 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-[var(--color-positive)] animate-pulse" />
             Cập nhật lúc {lastRefresh.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
             <button
               onClick={refreshLivePnL}
-              className="p-1 rounded hover:bg-[var(--color-panel-hover)] text-[var(--color-text-dim)] hover:text-[var(--color-text-main)] transition-colors"
+              className="focus-ring p-1 rounded hover:bg-[var(--color-panel-hover)] text-[var(--color-text-dim)] hover:text-[var(--color-text-main)] transition-colors"
               title="Làm mới"
+              aria-label="Làm mới dữ liệu"
             >
               {Icons.refresh}
             </button>
@@ -536,13 +567,13 @@ export const DashboardView: React.FC<Props> = ({
         <div className="flex items-center gap-2">
           <button
             onClick={() => onNavigate('portfolio')}
-            className="px-4 py-2 rounded-lg text-[12px] font-medium border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] hover:bg-[var(--color-panel-hover)] transition-colors"
+            className="focus-ring px-4 py-2 rounded-lg text-body-sm font-medium border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] hover:bg-[var(--color-panel-hover)] transition-colors"
           >
             Quản lý vốn
           </button>
           <button
             onClick={() => onNavigate('terminal')}
-            className="px-4 py-2 rounded-lg text-[12px] font-semibold bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] transition-colors flex items-center gap-1.5"
+            className="focus-ring px-4 py-2 rounded-lg text-body-sm font-semibold bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] transition-colors flex items-center gap-1.5"
           >
             {Icons.plus}
             Đặt lệnh
@@ -551,7 +582,7 @@ export const DashboardView: React.FC<Props> = ({
       </header>
 
       {/* ═══ STATS GRID ═══ */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard
           label="Tổng tài sản"
           value={`${formatNumberVI(totalBalance)}đ`}
@@ -572,6 +603,42 @@ export const DashboardView: React.FC<Props> = ({
           subValue={`${totalBalance > 0 ? ((availableCash / totalBalance) * 100).toFixed(0) : '0'}% danh mục`}
           icon={Icons.chart}
           accentColor="var(--color-secondary)"
+          tooltip={
+            <div className="space-y-1.5 text-caption leading-relaxed max-w-[260px]">
+              <div className="font-semibold text-[var(--color-text-main)]">Vốn khả dụng = sức mua thật</div>
+              <div className="text-[var(--color-text-muted)]">
+                = Tiền mặt sẵn có − Tiền đã khoá cho lệnh mua chờ khớp.
+              </div>
+              <div className="pt-1 border-t border-[var(--color-border-subtle)] text-[var(--color-text-muted)]">
+                Tiền bán cổ phiếu phải đợi <strong className="text-[var(--color-text-main)]">T+2.5 ngày làm việc</strong> mới về tài khoản (theo quy định sàn VN). Trong lúc chờ, tiền nằm ở mục "Đang chờ về T+2.5" và <em>chưa</em> dùng được để mua mới.
+              </div>
+            </div>
+          }
+          breakdown={
+            cashBalance && (
+              (Number(cashBalance.pending_settlement_cash) > 0 ||
+                Number(cashBalance.pending_buy_lock) > 0)
+            ) ? (
+              <div className="mt-1.5 pt-1.5 border-t border-[var(--color-border-subtle)] space-y-0.5 text-micro text-[var(--color-text-dim)]">
+                {Number(cashBalance.pending_settlement_cash) > 0 && (
+                  <div className="flex justify-between gap-2">
+                    <span>Đang chờ về T+2.5:</span>
+                    <span className="tabular-nums text-[var(--color-text-muted)]">
+                      {formatNumberVI(Number(cashBalance.pending_settlement_cash))}đ
+                    </span>
+                  </div>
+                )}
+                {Number(cashBalance.pending_buy_lock) > 0 && (
+                  <div className="flex justify-between gap-2">
+                    <span>Khoá cho lệnh mua chờ:</span>
+                    <span className="tabular-nums text-[var(--color-text-muted)]">
+                      {formatNumberVI(Number(cashBalance.pending_buy_lock))}đ
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : null
+          }
         />
         <StatCard
           label="Vị thế đang mở"
@@ -589,10 +656,10 @@ export const DashboardView: React.FC<Props> = ({
           {/* Positions Table */}
           <div className="bg-[var(--color-panel)] border border-[var(--color-border-subtle)] rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
-              <h2 className="text-[13px] font-semibold text-[var(--color-text-main)]">
+              <h2 className="text-subheading text-[var(--color-text-main)]">
                 Vị thế đang mở
                 {livePositions.length > 0 && (
-                  <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
+                  <span className="ml-2 px-1.5 py-0.5 rounded text-micro bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
                     {livePositions.length}
                   </span>
                 )}
@@ -600,7 +667,7 @@ export const DashboardView: React.FC<Props> = ({
               {livePositions.length > 0 && (
                 <button
                   onClick={() => onNavigate('portfolio')}
-                  className="text-[11px] font-medium text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
+                  className="focus-ring rounded text-caption text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
                 >
                   Xem tất cả
                 </button>
@@ -621,11 +688,11 @@ export const DashboardView: React.FC<Props> = ({
                 <table className="w-full">
                   <thead>
                     <tr className="bg-[var(--color-background)]">
-                      <th className="py-2 px-3 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">Mã</th>
-                      <th className="py-2 px-3 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">Vào</th>
-                      <th className="py-2 px-3 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">Hiện</th>
-                      <th className="py-2 px-3 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">P&L</th>
-                      <th className="py-2 px-3 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">SL</th>
+                      <th className="py-2 px-3 text-left text-micro text-[var(--color-text-dim)]">Mã</th>
+                      <th className="py-2 px-3 text-right text-micro text-[var(--color-text-dim)]">Vào</th>
+                      <th className="py-2 px-3 text-right text-micro text-[var(--color-text-dim)]">Hiện</th>
+                      <th className="py-2 px-3 text-right text-micro text-[var(--color-text-dim)]">P&L</th>
+                      <th className="py-2 px-3 text-right text-micro text-[var(--color-text-dim)]">SL</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--color-border-subtle)]">
@@ -650,11 +717,11 @@ export const DashboardView: React.FC<Props> = ({
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--color-accent)] to-[var(--color-secondary)] flex items-center justify-center">
                   <span className="text-white">{Icons.sparkle}</span>
                 </div>
-                <h2 className="text-[13px] font-semibold text-[var(--color-text-main)]">AI Center</h2>
+                <h2 className="text-subheading text-[var(--color-text-main)]">AI Center</h2>
               </div>
               <button
                 onClick={() => onNavigate('signals')}
-                className="text-[11px] font-medium text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
+                className="focus-ring rounded text-caption text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
               >
                 Xem tất cả
               </button>
@@ -668,15 +735,15 @@ export const DashboardView: React.FC<Props> = ({
                   style={{ background: regimeColor }}
                 />
                 <div>
-                  <p className="text-[10px] font-medium text-[var(--color-text-dim)] uppercase tracking-wider">
+                  <p className="text-micro text-[var(--color-text-dim)]">
                     Chế độ thị trường
                   </p>
-                  <p className="text-[14px] font-bold" style={{ color: regimeColor }}>
+                  <p className="text-subheading" style={{ color: regimeColor }}>
                     {regimeLabel}
                   </p>
                 </div>
                 {marketRegime?.confidence && (
-                  <span className="ml-auto text-[11px] font-semibold px-2 py-1 rounded bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
+                  <span className="ml-auto text-caption font-semibold px-2 py-1 rounded bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
                     {marketRegime.confidence}%
                   </span>
                 )}
@@ -685,25 +752,26 @@ export const DashboardView: React.FC<Props> = ({
 
             {/* Recent Activity */}
             <div className="p-4 space-y-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-dim)] mb-3">
+              <p className="text-micro text-[var(--color-text-dim)] mb-3">
                 Hoạt động gần đây
               </p>
               {ordersLoading ? (
                 <div className="space-y-2">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-12 rounded-lg bg-[var(--color-background)] animate-pulse" />
+                    <SkeletonCard key={i} className="h-14" />
                   ))}
                 </div>
               ) : recentOrders.length > 0 ? (
                 <div className="space-y-2">
                   {recentOrders.slice(0, 5).map((order) => (
-                    <div
+                    <button
                       key={order.id}
-                      className="flex items-center justify-between p-2.5 rounded-lg bg-[var(--color-background)] hover:bg-[var(--color-background-hover)] transition-colors cursor-pointer"
+                      type="button"
                       onClick={() => onNavigate('portfolio')}
+                      className="focus-ring w-full flex items-center justify-between p-2.5 rounded-lg bg-[var(--color-background)] hover:bg-[var(--color-background-hover)] transition-colors cursor-pointer text-left"
                     >
                       <div className="flex items-center gap-2.5">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold ${
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-micro ${
                           order.side === 'BUY'
                             ? 'bg-[var(--color-positive)]/10 text-[var(--color-positive)]'
                             : 'bg-[var(--color-negative)]/10 text-[var(--color-negative)]'
@@ -711,16 +779,16 @@ export const DashboardView: React.FC<Props> = ({
                           {order.side === 'BUY' ? 'MUA' : 'BÁN'}
                         </div>
                         <div>
-                          <p className="text-[12px] font-semibold text-[var(--color-text-main)]">
+                          <p className="text-body-sm font-semibold text-[var(--color-text-main)]">
                             {order.symbol}
                           </p>
-                          <p className="text-[10px] text-[var(--color-text-dim)]">
-                            {order.quantity.toLocaleString()} CP × {formatNumberVI(order.limit_price ? order.limit_price / 1000 : 0)}
+                          <p className="text-micro text-[var(--color-text-dim)]">
+                            {order.quantity.toLocaleString()} CP × {formatNumberVI(order.limit_price ?? 0)}đ
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                        <span className={`text-micro px-1.5 py-0.5 rounded ${
                           order.status === 'FILLED' || order.status === 'RECORDED' ? 'bg-[var(--color-positive)]/10 text-[var(--color-positive)]' :
                           order.status === 'PENDING' ? 'bg-[var(--color-warning)]/10 text-[var(--color-warning)]' :
                           order.status === 'CANCELLED' ? 'bg-[var(--color-text-dim)]/10 text-[var(--color-text-dim)]' :
@@ -732,11 +800,11 @@ export const DashboardView: React.FC<Props> = ({
                            order.status === 'CANCELLED' ? 'Huỷ' :
                            order.status === 'PARTIALLY_FILLED' ? 'Khớp 1 phần' : order.status}
                         </span>
-                        <p className="text-[9px] text-[var(--color-text-dim)] mt-0.5">
+                        <p className="text-micro text-[var(--color-text-dim)] mt-0.5">
                           {new Date(order.created_at).toLocaleDateString('vi-VN')}
                         </p>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               ) : (
@@ -746,17 +814,20 @@ export const DashboardView: React.FC<Props> = ({
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
-                  <p className="text-[11px] text-[var(--color-text-muted)] text-center">
+                  <p className="text-caption text-[var(--color-text-muted)] text-center">
                     Chưa có hoạt động nào
                   </p>
                   <button
                     onClick={() => onNavigate('terminal')}
-                    className="mt-2 text-[11px] font-medium text-[var(--color-accent)] hover:underline"
+                    className="focus-ring rounded mt-2 text-caption text-[var(--color-accent)] hover:underline"
                   >
                     Đặt lệnh đầu tiên →
                   </button>
                 </div>
               )}
+            </div>
+            <div className="px-4 py-2 border-t border-[var(--color-border-subtle)]">
+              <AiDisclaimer compact />
             </div>
           </div>
         </div>
@@ -764,10 +835,10 @@ export const DashboardView: React.FC<Props> = ({
         {/* Right Column: Market */}
         <div className="lg:col-span-3 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-[13px] font-semibold text-[var(--color-text-main)]">Thị trường</h2>
+            <h2 className="text-subheading text-[var(--color-text-main)]">Thị trường</h2>
             <button
               onClick={() => onNavigate('market')}
-              className="text-[11px] font-medium text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
+              className="focus-ring rounded text-caption text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
             >
               Bảng giá
             </button>
@@ -776,7 +847,7 @@ export const DashboardView: React.FC<Props> = ({
           {loading ? (
             <div className="space-y-4">
               {[1, 2].map((i) => (
-                <div key={i} className="h-28 rounded-xl bg-[var(--color-panel)] border border-[var(--color-border-subtle)] animate-pulse" />
+                <SkeletonCard key={i} className="h-28 rounded-xl" />
               ))}
             </div>
           ) : (
@@ -786,7 +857,7 @@ export const DashboardView: React.FC<Props> = ({
                   <MarketIndexCard key={code} data={indexData[code]} />
                 ) : (
                   <div key={code} className="h-28 rounded-xl bg-[var(--color-panel)] border border-[var(--color-border-subtle)] flex items-center justify-center">
-                    <p className="text-[11px] text-[var(--color-text-dim)]">{code} — không có dữ liệu</p>
+                    <p className="text-caption text-[var(--color-text-dim)]">{code} — không có dữ liệu</p>
                   </div>
                 )
               )}
@@ -799,12 +870,12 @@ export const DashboardView: React.FC<Props> = ({
       {/* ═══ NEWS SECTION ═══ */}
       <div className="bg-[var(--color-panel)] border border-[var(--color-border-subtle)] rounded-xl overflow-hidden">
         <div className="px-4 py-3 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
-          <h2 className="text-[13px] font-semibold text-[var(--color-text-main)]">
+          <h2 className="text-subheading text-[var(--color-text-main)]">
             Tin tức thị trường
           </h2>
           <button
             onClick={() => onNavigate('market')}
-            className="text-[11px] font-medium text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
+            className="focus-ring rounded text-caption text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
           >
             Xem tất cả
           </button>
@@ -813,15 +884,23 @@ export const DashboardView: React.FC<Props> = ({
         {newsLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-[var(--color-border-subtle)]">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="bg-[var(--color-panel)] p-4">
-                <div className="h-3 w-3/4 bg-[var(--color-background)] rounded animate-pulse" />
+              <div key={i} className="bg-[var(--color-panel)] p-4 min-h-[80px] space-y-2">
+                <SkeletonCard className="h-3 w-3/4" />
+                <SkeletonCard className="h-3 w-1/2" />
               </div>
             ))}
           </div>
         ) : news.length === 0 ? (
-          <div className="p-8 text-center text-[var(--color-text-dim)] text-[11px]">
-            Không có tin tức mới
-          </div>
+          <EmptyState
+            icon={
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+              </svg>
+            }
+            title="Chưa có tin tức"
+            description="Tin tức thị trường sẽ xuất hiện ở đây khi có cập nhật mới."
+            variant="compact"
+          />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-[var(--color-border-subtle)]">
             {news.map((article, i) => (
@@ -830,10 +909,10 @@ export const DashboardView: React.FC<Props> = ({
                 href={article.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-start gap-3 p-4 bg-[var(--color-panel)] hover:bg-[var(--color-panel-hover)] transition-colors group"
+                className="focus-ring flex items-start gap-3 p-4 bg-[var(--color-panel)] hover:bg-[var(--color-panel-hover)] transition-colors group"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] shrink-0 mt-1.5" />
-                <span className="text-[11px] text-[var(--color-text-muted)] group-hover:text-[var(--color-text-main)] transition-colors line-clamp-2 leading-relaxed">
+                <span className="text-caption text-[var(--color-text-muted)] group-hover:text-[var(--color-text-main)] transition-colors line-clamp-2 leading-relaxed">
                   {article.title}
                 </span>
               </a>

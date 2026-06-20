@@ -332,6 +332,8 @@ export interface SuggestSLTPRequest {
   rr_ratio?: number;
   side?: 'LONG' | 'SHORT';
   ohlcv_data?: Array<{ open: number; high: number; low: number; close: number; volume?: number }>;
+  /** Phase 8 D-13 — BE resolves portfolio_type từ portfolio_id (LONG_TERM/SWING/DAY_TRADE). */
+  portfolio_id?: string;
 }
 
 export interface AnalyzeTrendRequest {
@@ -816,6 +818,10 @@ export interface RealPosition {
   created_at: string;
   current_price?: number;
   unrealized_pnl?: number;
+  /** W2.8 — surface từ marketPriceService khi VPBS circuit breaker mở. */
+  stale?: boolean;
+  stale_reason?: string;
+  cached_at?: number;
 }
 
 export interface CloseRealPositionRequest {
@@ -861,6 +867,17 @@ export const realPortfolioApi = {
 
   dismissAlert: (portfolioId: string, alertId: string) =>
     apiClient.post(`/portfolios/${portfolioId}/alerts/${alertId}/dismiss`),
+
+  // W2.5 — PENDING order confirm flow
+  /** Liệt kê lệnh PENDING (chưa khớp) cho portfolio. */
+  listPendingOrders: (portfolioId: string) =>
+    apiClient.get(`/portfolios/${portfolioId}/real-orders`, {
+      params: { status: 'PENDING', limit: 100 },
+    }),
+
+  /** Xác nhận lệnh PENDING đã khớp với giá + ngày thực tế. */
+  confirmOrderFill: (portfolioId: string, orderId: string, data: { actual_price: number; actual_date: string }) =>
+    apiClient.post(`/portfolios/${portfolioId}/orders/${orderId}/confirm-fill`, data),
 };
 
 // ─── New AI Interfaces ────────────────────────────────────────────────────────

@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { portfolioApi } from '../services/api';
 import { useActivePortfolio } from '../contexts/ActivePortfolioContext';
-import { PORTFOLIO_PRESETS, PortfolioType, getPresetLabel } from '../utils/portfolioPresets';
+import { PortfolioType, getPresetLabel } from '../utils/portfolioPresets';
 import { CreatePortfolioModal } from './portfolio/CreatePortfolioModal';
+import { PresetIcon } from './portfolio/PresetIcon';
 
 interface PortfolioOverviewItem {
   id: string;
@@ -238,8 +239,10 @@ export const PortfoliosOverviewView: React.FC<Props> = ({ onNavigateToDashboard 
                   title="Click để chuyển sang danh mục này"
                 >
                   <td className="py-2.5 pr-3 font-semibold text-[var(--color-text-main)]">
-                    <span className="mr-1.5">{PORTFOLIO_PRESETS[p.portfolio_type]?.icon ?? '📁'}</span>
-                    {p.name}
+                    <span className="inline-flex items-center gap-1.5">
+                      <PresetIcon type={p.portfolio_type} size={14} className="text-[var(--color-text-muted)] shrink-0" />
+                      {p.name}
+                    </span>
                   </td>
                   <td className="py-2.5 pr-3">
                     <span

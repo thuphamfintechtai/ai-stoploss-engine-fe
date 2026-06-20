@@ -6,6 +6,7 @@ import { InfoCard } from './ui/InfoCard';
 import { FinancialTooltip } from './ui/Tooltip';
 import { StatCard } from './ui/StatCard';
 import { SkeletonCard } from './ui/SkeletonLoader';
+import { AiDisclaimer } from './ui/AiDisclaimer';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 interface Props {
@@ -77,6 +78,7 @@ export const RiskManagerView: React.FC<Props> = ({
   const [rebalancing, setRebalancing] = useState<any>(null);
 
   // Risk simulation state
+  const [advancedExpanded, setAdvancedExpanded] = useState<boolean>(false);
   const [riskSimTab, setRiskSimTab] = useState<'var' | 'montecarlo' | 'stress' | 'sector'>('var');
   const [varResult, setVarResult] = useState<VaRResult | null>(null);
   const [mcResult, setMcResult] = useState<MonteCarloResult | null>(null);
@@ -391,9 +393,9 @@ export const RiskManagerView: React.FC<Props> = ({
               </thead>
               <tbody>
                 {positionsWithRisk.map((pos) => {
-                  const entry = Number(pos.entry_price ?? 0) / 1000;
-                  const current = Number((pos as any).current_price ?? pos.entry_price ?? 0) / 1000;
-                  const sl = Number((pos as any).stop_loss ?? 0) / 1000;
+                  const entry = Number(pos.entry_price ?? 0);
+                  const current = Number((pos as any).current_price ?? pos.entry_price ?? 0);
+                  const sl = Number((pos as any).stop_loss ?? 0);
                   const qty = Number(pos.quantity ?? 0);
                   const rowCls = pos.riskPct >= 4 ? 'row-loss' : pos.riskPct >= 2 ? '' : '';
                   return (
@@ -426,12 +428,72 @@ export const RiskManagerView: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* ── Phan Tich Rui Ro Nang Cao ── */}
+      {/* W3.1 — Kịch bản đơn giản F0-friendly (trước khi vào tab Nâng cao) */}
+      {portfolioId && positionsWithRisk.length > 0 && (() => {
+        const positionValue = (p: any) => {
+          const entry = Number(p.entry_price ?? 0);
+          const cur = (p as any).current_price != null ? Number((p as any).current_price) : entry;
+          const eff = Number.isFinite(cur) && cur > 0 ? cur : entry;
+          return eff * Number(p.quantity ?? 0);
+        };
+        const totalPositionValueVnd = positionsWithRisk.reduce((s, p) => s + positionValue(p), 0);
+        const drop10 = Math.round(totalPositionValueVnd * 0.1);
+        const drop10Pct = totalBalance > 0 ? (drop10 / totalBalance) * 100 : 0;
+        // Vị thế giá trị lớn nhất
+        const biggest = positionsWithRisk.reduce(
+          (acc, p) => {
+            const val = positionValue(p);
+            return val > acc.val ? { val, sym: p.symbol, share: totalPositionValueVnd > 0 ? val / totalPositionValueVnd * 100 : 0 } : acc;
+          },
+          { val: 0, sym: '', share: 0 }
+        );
+        const biggestDrop10 = Math.round(biggest.val * 0.1);
+        return (
+          <div className="panel-section">
+            <div className="px-4 py-2.5 border-b border-border-subtle">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Kịch bản đơn giản</span>
+            </div>
+            <div className="p-4 space-y-3">
+              <div className="bg-[var(--color-panel-secondary)] rounded-lg p-3 border-l-2 border-[var(--color-warning)]">
+                <p className="text-[13px] text-text-main leading-relaxed">
+                  <strong>Nếu thị trường giảm 10%</strong>, danh mục bạn ước giảm{' '}
+                  <strong className="text-[var(--color-negative)]">~{formatNumberVI(drop10, { maximumFractionDigits: 0 })} VND</strong>{' '}
+                  ({drop10Pct.toFixed(1)}% tổng tài sản).
+                </p>
+              </div>
+              {biggest.val > 0 && biggest.share >= 20 && (
+                <div className="bg-[var(--color-panel-secondary)] rounded-lg p-3 border-l-2 border-[var(--color-accent)]">
+                  <p className="text-[12px] text-text-muted leading-relaxed">
+                    Vị thế lớn nhất: <strong className="text-text-main">{biggest.sym}</strong> chiếm{' '}
+                    <strong>{biggest.share.toFixed(1)}%</strong> danh mục — nếu mã này giảm 10%, mất riêng{' '}
+                    <strong className="text-[var(--color-negative)]">~{formatNumberVI(biggestDrop10, { maximumFractionDigits: 0 })} VND</strong>.
+                    Cân nhắc giảm bớt nếu tỷ lệ này quá cao.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Phan Tich Rui Ro Nang Cao (W3.1: collapsible, default ẩn cho F0) ── */}
       {portfolioId && (
         <div className="panel-section">
-          <div className="px-4 py-2.5 border-b border-border-subtle">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Phân Tích Rủi Ro Nâng Cao</span>
-          </div>
+          <button
+            type="button"
+            onClick={() => setAdvancedExpanded((v) => !v)}
+            className="w-full px-4 py-2.5 border-b border-border-subtle flex items-center justify-between gap-3 flex-wrap hover:bg-[var(--color-panel-hover)] transition-colors"
+          >
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted flex items-center gap-2">
+              <span className={`transition-transform ${advancedExpanded ? 'rotate-90' : ''}`}>▶</span>
+              Phân Tích Rủi Ro Nâng Cao (VaR, Monte Carlo, Stress Test)
+            </span>
+            <span className="text-[10px] text-[var(--color-text-dim)] font-normal" role="note">
+              <span aria-hidden className="text-[var(--color-warning)]">⚠ </span>
+              Mô phỏng dựa trên giả định lịch sử — thực tế có thể khác. Không phải lời khuyên đầu tư.
+            </span>
+          </button>
+          {advancedExpanded && <>
 
           {/* Tab bar - scrollable on mobile */}
           <div className="flex gap-0 border-b border-border-subtle px-4 overflow-x-auto whitespace-nowrap">
@@ -755,7 +817,12 @@ export const RiskManagerView: React.FC<Props> = ({
                 )}
               </div>
             )}
+            {/* AI Disclaimer for all simulation tabs */}
+            <div className="mt-4 pt-3 border-t border-border-subtle">
+              <AiDisclaimer compact />
+            </div>
           </div>
+          </>}
         </div>
       )}
     </div>

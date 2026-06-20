@@ -60,12 +60,13 @@ export const PortfolioHealthCard: React.FC<PortfolioHealthCardProps> = ({
     const deployedStatus: HealthStatus =
       deployedPct < 30 ? 'good' : deployedPct < 80 ? 'warn' : 'bad';
 
-    // 2. Drawdown
+    // 2. Lãi/lỗ hiện tại (W3.5: rename từ "Sụt giảm" — đây không phải max-drawdown
+    //    đỉnh-đáy mà là P&L hiện tại so với vốn ban đầu. Show cả + và -.)
     const base = initialCapital ?? totalBalance - realizedPnl - unrealizedPnl;
     const currentValue = base + realizedPnl + unrealizedPnl;
-    const drawdownPct = base > 0 ? Math.min(0, ((currentValue - base) / base) * 100) : 0;
+    const pnlPct = base > 0 ? ((currentValue - base) / base) * 100 : 0;
     const drawdownStatus: HealthStatus =
-      drawdownPct > -3 ? 'good' : drawdownPct > -10 ? 'warn' : 'bad';
+      pnlPct >= 0 ? 'good' : pnlPct > -10 ? 'warn' : 'bad';
 
     // 3. Diversity
     const uniqueSymbols = new Set(realPositions.map((p) => p.symbol)).size;
@@ -94,10 +95,10 @@ export const PortfolioHealthCard: React.FC<PortfolioHealthCardProps> = ({
         ),
       },
       {
-        label: 'Sụt giảm',
-        value: `${drawdownPct.toFixed(1)}%`,
+        label: 'Lãi/lỗ hiện tại',
+        value: `${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(1)}%`,
         status: drawdownStatus,
-        hint: drawdownPct > -3 ? 'Ổn định' : drawdownPct > -10 ? 'Cảnh báo' : 'Nguy hiểm',
+        hint: pnlPct >= 5 ? 'Có lãi' : pnlPct >= 0 ? 'Hòa vốn' : pnlPct > -10 ? 'Cảnh báo' : 'Lỗ nặng',
         icon: (
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6L9 12.75l4.286-4.286a11.948 11.948 0 014.306 6.43l.776 2.898m0 0l3.182-5.511m-3.182 5.51l-5.511-3.181" />

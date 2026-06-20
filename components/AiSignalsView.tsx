@@ -4,6 +4,7 @@ import { FinancialTooltip } from './ui/Tooltip';
 import { EmptyState } from './ui/EmptyState';
 import { InfoCard } from './ui/InfoCard';
 import { AiDisclaimer } from './ui/AiDisclaimer';
+import { SkeletonCard } from './ui/SkeletonLoader';
 
 interface Props {
   traders?: any[];
@@ -37,8 +38,25 @@ interface AiResult {
   recommended?: string;
   data_insufficient?: boolean;
   recommendation_id?: string | null;
+  ai_source?: string;
   generated_at: string;
 }
+
+/** Badge nguồn AI: gemini → "Gemini AI" (accent), khác → "Tự động" (muted). */
+const AiSourceBadge: React.FC<{ source?: string }> = ({ source }) => {
+  if (!source) return null;
+  const isGemini = source === 'gemini';
+  return (
+    <span
+      className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${
+        isGemini ? 'bg-accent/15 text-accent' : 'bg-warning/15 text-warning'
+      }`}
+      title={isGemini ? 'Phân tích bởi Gemini AI' : 'Phân tích tự động (fallback khi AI không khả dụng)'}
+    >
+      {isGemini ? 'Gemini AI' : 'Tự động'}
+    </span>
+  );
+};
 
 export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
   const [watchlist, setWatchlist] = useState<{ symbol: string; exchange: string }[]>([]);
@@ -83,6 +101,7 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
             recommended:       d.recommended,
             data_insufficient: d.data_insufficient,
             recommendation_id: d.recommendation_id ?? null,
+            ai_source:         d.ai_source ?? null,
             generated_at:      new Date().toISOString(),
           }
         }));
@@ -107,10 +126,10 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
     score == null ? 'text-text-dim' : score >= 70 ? 'text-positive' : score >= 50 ? 'text-warning' : 'text-negative';
 
   return (
-    <div className="flex gap-3 h-[calc(100vh-120px)] animate-fade-in">
+    <div className="flex flex-col lg:flex-row gap-3 lg:h-[calc(100vh-120px)] animate-fade-in">
 
       {/* ── LEFT: Watchlist phân tích ─────────────────────────────────── */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 min-w-0 flex flex-col min-h-0">
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <div>
             <h2 className="text-[16px] font-bold text-text-main">AI Phân Tích SL/TP</h2>
@@ -135,8 +154,10 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
             </InfoCard>
           </div>
           {loading ? (
-            <div className="flex items-center justify-center h-40">
-              <span className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 pb-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <SkeletonCard key={i} className="h-40" />
+              ))}
             </div>
           ) : watchlist.length === 0 ? (
             <EmptyState
@@ -146,7 +167,12 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
               onAction={() => onNavigate('watchlist')}
             />
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 pb-4">
+            <>
+              {/* AIT-08: disclaimer covers all AI cards in the grid */}
+              <div className="px-1 pb-2">
+                <AiDisclaimer compact />
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 pb-4">
               {watchlist.map((item) => {
                 const res = results[item.symbol];
                 const isSelected = selected === item.symbol;
@@ -161,20 +187,23 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
                   >
                     {/* Symbol header */}
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="flex items-center gap-1.5">
                         <span className="text-[14px] font-bold text-text-main">{item.symbol}</span>
-                        <span className="text-[9px] text-text-dim ml-2">{item.exchange}</span>
+                        <span className="text-[9px] text-text-dim">{item.exchange}</span>
+                        {res?.ai_source && <AiSourceBadge source={res.ai_source} />}
                       </div>
                       {res?.technical_score != null ? (
                         <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                          res.technical_score >= 70 ? 'bg-positive/15 text-positive'
-                          : res.technical_score >= 50 ? 'bg-warning/15 text-warning'
-                          : 'bg-negative/15 text-negative'
+                          res.technical_score >= 70 ? 'bg-positive/20 text-positive border border-positive/30'
+                          : res.technical_score >= 50 ? 'bg-warning/20 text-warning border border-warning/30'
+                          : 'bg-negative/20 text-negative border border-negative/30'
                         }`}>
                           {res.technical_label === 'HOP_LY' ? 'Hợp Lý'
                             : res.technical_label === 'TRUNG_BINH' ? 'Trung Bình'
                             : res.technical_label === 'YEU' ? 'Yếu'
-                            : `${res.technical_score}/100`}
+                            : res.technical_score >= 70 ? 'Tốt'
+                            : res.technical_score >= 50 ? 'TB'
+                            : 'Yếu'}
                         </span>
                       ) : (
                         <span className="text-[9px] text-text-dim border border-border-standard rounded px-2 py-0.5">Chưa phân tích</span>
@@ -225,19 +254,19 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
                       <button
                         onClick={(e) => { e.stopPropagation(); analyzeSymbol(item.symbol, item.exchange); }}
                         disabled={isAn}
-                        className="flex items-center justify-center gap-2 py-2 rounded-md bg-accent/10 text-accent font-semibold text-[11px] hover:bg-accent/20 transition-colors disabled:opacity-50 border border-accent/20"
+                        className="flex items-center justify-center gap-1.5 py-2 rounded-md bg-accent/10 text-accent font-semibold text-[11px] hover:bg-accent/20 transition-colors disabled:opacity-50 border border-accent/20"
                       >
                         {isAn ? (
                           <>
-                            <span className="w-3.5 h-3.5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-                            Đang phân tích...
+                            <span className="w-3.5 h-3.5 border-2 border-accent border-t-transparent rounded-full animate-spin shrink-0" />
+                            <span>Đang phân tích...</span>
                           </>
                         ) : (
                           <>
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
                             </svg>
-                            Phân tích AI SL/TP
+                            <span>Phân tích AI SL/TP</span>
                           </>
                         )}
                       </button>
@@ -245,13 +274,14 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
                   </div>
                 );
               })}
-            </div>
+              </div>
+            </>
           )}
         </div>
       </div>
 
       {/* ── RIGHT: Chi tiết phân tích ─────────────────────────────────── */}
-      <div className="w-[360px] shrink-0 panel-section flex flex-col">
+      <div className="w-full lg:w-[360px] lg:shrink-0 panel-section flex flex-col lg:max-h-none max-h-[70vh]">
         <div className="px-4 py-2.5 border-b border-border-subtle shrink-0">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
             {sel ? `Chi tiết – ${selected}` : 'Chi Tiết Phân Tích'}
@@ -283,7 +313,8 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
                 <p className="text-[9px] text-text-dim">
                   {sel.technical_label === 'HOP_LY' ? 'Vùng SL hợp lý — ATR phù hợp với biến động thị trường'
                     : sel.technical_label === 'TRUNG_BINH' ? 'SL ở mức trung bình — có thể bị noise'
-                    : 'SL quá gần — rủi ro bị quét cao'}
+                    : sel.technical_label === 'YEU' ? 'SL quá gần — rủi ro bị quét cao'
+                    : 'Đang đánh giá vùng SL phù hợp với biến động'}
                 </p>
               </div>
             )}

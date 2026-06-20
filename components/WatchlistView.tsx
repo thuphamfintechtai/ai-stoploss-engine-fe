@@ -4,6 +4,7 @@ import { marketApi, watchlistApi, priceAlertsApi, notificationsApi, aiApi } from
 import type { PriceAlert, CreateAlertRequest, AlertCondition, Notification } from '../services/api';
 import { formatNumberVI, STOCK_PRICE_DISPLAY_SCALE } from '../constants';
 import wsService from '../services/websocket';
+import { SkeletonCard, SkeletonText } from './ui/SkeletonLoader';
 
 interface WatchItem {
   symbol: string;
@@ -26,6 +27,20 @@ interface Props {
 
 const STORAGE_KEY = 'riskguard_watchlist';
 const toPoint = (v: number) => (v >= 1000 ? v / 1000 : v);
+
+// AI có thể trả về số, string, hoặc object — chỉ format khi là number hợp lệ, fallback dấu '—'
+const fmtLevelPoint = (v: unknown): string => {
+  if (typeof v === 'number' && Number.isFinite(v)) return (v / 1000).toFixed(2);
+  if (typeof v === 'string') {
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? (n / 1000).toFixed(2) : v;
+  }
+  return '—';
+};
+
+// Format VND chuẩn — dùng chung cho toàn bộ display tiền
+const fmtVND = (v: number | null | undefined): string =>
+  v != null && Number.isFinite(v) ? Math.round(v).toLocaleString('vi-VN') : '—';
 
 // Label conditions
 const CONDITION_LABELS: Record<AlertCondition, string> = {
@@ -312,7 +327,8 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
 
   const saveAlert = async () => {
     if (!alertTarget) return;
-    const val = parseFloat(alertForm.target_value);
+    // User VN có thể nhập "28,50" hoặc "28.50" — normalize trước khi parse
+    const val = parseFloat(alertForm.target_value.replace(',', '.'));
     if (isNaN(val) || val <= 0) { setAlertError('Nhập giá trị hợp lệ (> 0)'); return; }
 
     const isPercent = alertForm.condition === 'PERCENT_UP' || alertForm.condition === 'PERCENT_DOWN';
@@ -395,6 +411,14 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
     return () => document.removeEventListener('mousedown', handler);
   }, [showNotifPanel]);
 
+  // Body scroll lock khi modal cảnh báo mở — tránh page scroll lag dưới backdrop
+  useEffect(() => {
+    if (!showAlertModal) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [showAlertModal]);
+
   // ─── HELPERS ───────────────────────────────────────────────────────────
 
   const activeAlertsForSymbol = (symbol: string) =>
@@ -459,10 +483,10 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
   // ─── RENDER ────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex gap-3 h-[calc(100vh-120px)] animate-fade-in relative">
+    <div className="flex flex-col lg:flex-row gap-3 lg:h-[calc(100vh-120px)] animate-fade-in relative">
 
       {/* ── LEFT: Watchlist ─────────────────────────────────────────── */}
-      <div className="w-80 shrink-0 panel-section flex flex-col">
+      <div className="w-full lg:w-80 lg:shrink-0 panel-section flex flex-col lg:max-h-none max-h-[60vh]">
         <div className="px-3 py-2.5 border-b border-border-subtle shrink-0">
           <div className="flex items-center justify-between mb-2">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Danh Sách Theo Dõi</p>
@@ -486,7 +510,7 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
 
               {/* Notification dropdown */}
               {showNotifPanel && (
-                <div className="absolute right-0 top-7 w-80 panel-section shadow-xl z-50 border border-border-standard rounded-lg overflow-hidden">
+                <div className="absolute right-0 top-7 w-80 max-w-[calc(100vw-1rem)] panel-section shadow-xl z-50 border border-border-standard rounded-lg overflow-hidden">
                   <div className="flex items-center justify-between px-3 py-2 border-b border-border-subtle">
                     <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">Thông báo</span>
                     {unreadCount > 0 && (
@@ -590,7 +614,7 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
                         <button
                           onClick={(e) => { e.stopPropagation(); openAlertModal(item); }}
                           className="p-1.5 rounded transition-colors hover:bg-white/10"
-                          title={activeAlerts.length > 0 ? `${activeAlerts.length} cảnh báo đang hoạt động` : 'Đặt cảnh báo giá'}
+                          title={hasTriggered ? 'Cảnh báo đã kích hoạt — mở chi tiết để Reset theo dõi lại' : activeAlerts.length > 0 ? `${activeAlerts.length} cảnh báo đang hoạt động` : 'Đặt cảnh báo giá'}
                         >
                           {hasTriggered ? (
                             <svg className="w-4.5 h-4.5 text-warning" fill="currentColor" viewBox="0 0 24 24">
@@ -629,7 +653,7 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
       </div>
 
       {/* ── MIDDLE: Detail Panel (tabbed) ───────────────────────────── */}
-      <div className="flex-1 min-w-0 flex flex-col gap-0 overflow-hidden">
+      <div className="flex-1 min-w-0 flex flex-col gap-0 lg:overflow-hidden">
         {!selectedSymbol ? (
           <div className="panel-section flex-1 flex items-center justify-center text-text-dim">
             <div className="text-center">
@@ -651,17 +675,24 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
                   </div>
                   {detail.companyName && <p className="text-[12px] text-text-muted mt-0.5">{detail.companyName}</p>}
                 </div>
-                {quotes[selectedSymbol.symbol] && (
-                  <div className="text-right">
-                    <div className={`text-[22px] font-bold font-mono ${(quotes[selectedSymbol.symbol]?.changePercent ?? 0) >= 0 ? 'text-positive' : 'text-negative'}`}>
-                      {toPoint(quotes[selectedSymbol.symbol].price).toFixed(2)}
+                {quotes[selectedSymbol.symbol] && (() => {
+                  const q = quotes[selectedSymbol.symbol];
+                  const chgPct = q.changePercent ?? 0;
+                  const chgPoint = (q.change ?? 0) / 1000;
+                  const isUp = chgPct >= 0;
+                  const cls = isUp ? 'text-positive' : 'text-negative';
+                  return (
+                    <div className="text-right">
+                      <div className={`text-[22px] font-bold font-mono ${cls}`}>
+                        {toPoint(q.price).toFixed(2)}
+                      </div>
+                      <div className={`text-[11px] font-mono ${cls}`}>
+                        {isUp ? '▲ +' : '▼ '}{chgPoint.toFixed(2)}
+                        <span className="opacity-70 ml-1">({isUp ? '+' : ''}{chgPct.toFixed(2)}%)</span>
+                      </div>
                     </div>
-                    <div className={`text-[11px] font-mono ${(quotes[selectedSymbol.symbol]?.changePercent ?? 0) >= 0 ? 'text-positive' : 'text-negative'}`}>
-                      {(quotes[selectedSymbol.symbol].changePercent >= 0 ? '▲ +' : '▼ ')}
-                      {quotes[selectedSymbol.symbol].changePercent.toFixed(2)}%
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
                 <div className="flex gap-2 flex-wrap">
                   <button onClick={() => openAlertModal(selectedSymbol)} className="px-3 py-1.5 rounded-md bg-warning/20 text-warning font-semibold text-[11px] hover:bg-warning/30 transition-colors flex items-center gap-1.5">
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>
@@ -674,7 +705,7 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
               </div>
 
               {/* Key stats */}
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mt-3 pt-3 border-t border-border-subtle">
+              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 mt-3 pt-3 border-t border-border-subtle">
                 {[
                   { label: 'P/E',    val: detail.pe?.toFixed(2) },
                   { label: 'P/B',    val: detail.pb?.toFixed(2) },
@@ -717,12 +748,23 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
             {/* ── Tab: Chi Tiết ── */}
             {detailTab === 'detail' && (
               <div className="flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto dense-scroll pb-2">
-                {/* Active Price Alerts */}
-                {alerts.filter(a => a.symbol === selectedSymbol.symbol).length > 0 && (
-                  <div className="panel-section p-3 shrink-0">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-text-dim mb-2">Cảnh Báo Giá</p>
-                    <div className="space-y-1.5">
-                      {alerts.filter(a => a.symbol === selectedSymbol.symbol).map((alert) => (
+                {/* Active Price Alerts — collapsible, auto-open khi có alert đã kích hoạt */}
+                {alerts.filter(a => a.symbol === selectedSymbol.symbol).length > 0 && (() => {
+                  const symAlerts = alerts.filter(a => a.symbol === selectedSymbol.symbol);
+                  const triggeredCount = symAlerts.filter(a => a.is_triggered).length;
+                  return (
+                  <details className="panel-section p-3 shrink-0 group" open={triggeredCount > 0}>
+                    <summary className="flex items-center justify-between cursor-pointer list-none">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">
+                        Cảnh Báo Giá <span className="ml-1 text-text-muted normal-case">({symAlerts.length})</span>
+                        {triggeredCount > 0 && <span className="ml-2 text-warning normal-case">⚡ {triggeredCount} đã kích hoạt</span>}
+                      </p>
+                      <svg className="w-3 h-3 text-text-dim transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </summary>
+                    <div className="space-y-1.5 mt-2">
+                      {symAlerts.map((alert) => (
                         <div key={alert.id} className={`flex items-center gap-2 px-2 py-1.5 rounded text-[11px] ${alert.is_triggered ? 'bg-warning/10 border border-warning/30' : alert.is_active ? 'bg-accent/5 border border-accent/20' : 'opacity-50'}`}>
                           <span className={`shrink-0 font-bold text-[10px] ${alert.condition === 'ABOVE' || alert.condition === 'PERCENT_UP' ? 'text-positive' : 'text-negative'}`}>{alert.condition === 'ABOVE' || alert.condition === 'PERCENT_UP' ? '▲' : '▼'}</span>
                           <span className="flex-1 text-text-main">
@@ -742,8 +784,9 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
+                  </details>
+                  );
+                })()}
 
                 {/* Chart */}
                 <div className="panel-section flex flex-col shrink-0" style={{ height: 360 }}>
@@ -776,9 +819,9 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
                 a === 'BUY' ? 'MUA' : a === 'SELL' ? 'BÁN' : a === 'HOLD' ? 'GIỮ' : '—';
 
               return (
-                <div className="flex gap-3 flex-1 min-h-0 overflow-hidden pb-2">
+                <div className="flex flex-col xl:flex-row gap-3 flex-1 min-h-0 lg:overflow-hidden pb-2">
                   {/* Left: Trend Analysis + History */}
-                  <div className="flex-1 min-w-0 flex flex-col gap-3 overflow-y-auto dense-scroll">
+                  <div className="flex-1 min-w-0 flex flex-col gap-3 lg:overflow-y-auto dense-scroll">
                     {/* Run analysis button */}
                     <div className="panel-section p-3 shrink-0">
                       <div className="flex items-center justify-between mb-2">
@@ -786,17 +829,26 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
                         <button
                           onClick={() => runAiAnalysis(sym, exch)}
                           disabled={aiLoading[sym]}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-purple-500/20 text-purple-300 text-[11px] font-semibold hover:bg-purple-500/30 transition-colors disabled:opacity-60"
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded bg-purple-500/25 text-purple-200 text-[12px] font-bold hover:bg-purple-500/40 transition-colors disabled:opacity-60 border border-purple-400/30"
                         >
                           {aiLoading[sym] ? <span className="w-3 h-3 border-2 border-purple-300 border-t-transparent rounded-full animate-spin" /> : <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>}
                           {aiLoading[sym] ? 'Đang phân tích...' : 'Phân tích ngay'}
                         </button>
                       </div>
-                      {ai ? (
+                      {aiLoading[sym] && !ai ? (
+                        <div className="space-y-2 mt-1">
+                          <div className="flex gap-2">
+                            <div className="animate-pulse bg-purple-500/10 h-5 w-20 rounded" />
+                            <div className="animate-pulse bg-purple-500/10 h-5 w-16 rounded" />
+                          </div>
+                          <SkeletonText lines={2} />
+                          <SkeletonCard className="h-12" />
+                        </div>
+                      ) : ai ? (
                         <>
                           <div className="flex items-center gap-2 mb-2">
                             <span className={`text-[11px] font-bold px-2 py-0.5 rounded border ${ai.trend === 'BULLISH' ? 'text-positive bg-positive/10 border-positive/20' : ai.trend === 'BEARISH' ? 'text-negative bg-negative/10 border-negative/20' : 'text-warning bg-warning/10 border-warning/20'}`}>
-                              {ai.trend === 'BULLISH' ? '▲ Tăng' : ai.trend === 'BEARISH' ? '▼ Giảm' : '→ Đi ngang'}{ai.strength > 0 ? ` ${ai.strength}%` : ''}
+                              {ai.trend === 'BULLISH' ? '▲ Tăng' : ai.trend === 'BEARISH' ? '▼ Giảm' : '→ Đi ngang'}{typeof ai.strength === 'number' && ai.strength > 0 ? ` ${ai.strength}%` : ''}
                             </span>
                             {ai.recommendation && (
                               <span className={`text-[11px] font-bold px-2 py-0.5 rounded border ${ai.recommendation === 'BUY' ? 'text-positive bg-positive/10 border-positive/30' : ai.recommendation === 'SELL' ? 'text-negative bg-negative/10 border-negative/30' : 'text-warning bg-warning/10 border-warning/30'}`}>
@@ -822,8 +874,8 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
                             </div>
                           )}
                           <div className="flex gap-4 text-[10px] text-text-dim mt-2 pt-2 border-t border-border-subtle">
-                            {ai.support_levels?.length > 0 && <span>Hỗ trợ: <span className="text-positive">{ai.support_levels.map((v: number) => typeof v === 'number' ? (v/1000).toFixed(2) : v).join(', ')}</span></span>}
-                            {ai.resistance_levels?.length > 0 && <span>Kháng cự: <span className="text-negative">{ai.resistance_levels.map((v: number) => typeof v === 'number' ? (v/1000).toFixed(2) : v).join(', ')}</span></span>}
+                            {ai.support_levels?.length > 0 && <span>Hỗ trợ: <span className="text-positive">{ai.support_levels.map(fmtLevelPoint).join(', ')}</span></span>}
+                            {ai.resistance_levels?.length > 0 && <span>Kháng cự: <span className="text-negative">{ai.resistance_levels.map(fmtLevelPoint).join(', ')}</span></span>}
                           </div>
                         </>
                       ) : (
@@ -851,15 +903,15 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
                                       <span className="text-[9px] text-text-dim">{new Date(item.created_at).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                                       <span className={`text-[9px] font-bold ${trendCls}`}>{item.trend === 'BULLISH' ? '▲ Tăng' : item.trend === 'BEARISH' ? '▼ Giảm' : '→ Ngang'}</span>
                                       {item.recommendation && <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded border ${item.recommendation === 'BUY' ? 'text-positive border-positive/20' : item.recommendation === 'SELL' ? 'text-negative border-negative/20' : 'text-warning border-warning/20'}`}>{item.recommendation}</span>}
-                                      {idx === 0 && <span className="text-[8px] text-purple-300 ml-auto">MỚI NHẤT</span>}
+                                      {idx === 0 && <span className="text-[9px] italic text-purple-300 ml-auto">MỚI NHẤT</span>}
                                     </div>
                                     {item.summary && <p className="text-[10px] text-text-muted mt-1 line-clamp-2">{item.summary}</p>}
                                   </summary>
                                   <div className="px-3 pb-2 text-[10px] space-y-1 border-t border-border-subtle bg-white/3">
                                     {(() => { const kl = item.key_levels || {}; const sup = kl.support || []; const res = kl.resistance || [];
                                       return (<>
-                                        {sup.length > 0 && <div className="mt-1">Hỗ trợ: <span className="text-positive">{sup.map((v: number) => typeof v === 'number' ? (v/1000).toFixed(2) : v).join(', ')}</span></div>}
-                                        {res.length > 0 && <div>Kháng cự: <span className="text-negative">{res.map((v: number) => typeof v === 'number' ? (v/1000).toFixed(2) : v).join(', ')}</span></div>}
+                                        {sup.length > 0 && <div className="mt-1">Hỗ trợ: <span className="text-positive">{sup.map(fmtLevelPoint).join(', ')}</span></div>}
+                                        {res.length > 0 && <div>Kháng cự: <span className="text-negative">{res.map(fmtLevelPoint).join(', ')}</span></div>}
                                       </>);
                                     })()}
                                     {item.volume_analysis && <div className="text-text-dim">{item.volume_analysis}</div>}
@@ -874,13 +926,14 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
                   </div>
 
                   {/* Right: SL/TP Calculator với form nhập */}
-                  <div className="w-64 shrink-0 panel-section flex flex-col">
+                  <div className="w-full xl:w-64 xl:shrink-0 panel-section flex flex-col">
                     <div className="px-3 py-2.5 border-b border-border-subtle shrink-0">
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-accent">Gợi Ý SL/TP Theo Rủi Ro</p>
                     </div>
                     <div className="flex-1 overflow-y-auto dense-scroll">
                       {/* Form nhập thông số */}
                       <div className="p-3 space-y-3 border-b border-border-subtle">
+                        <p className="text-[9px] font-bold uppercase tracking-wider text-text-dim">1. Nhập tham số</p>
                         {/* Side toggle */}
                         <div>
                           <p className="text-[9px] font-semibold uppercase tracking-wider text-text-dim mb-1.5">Chiều giao dịch</p>
@@ -905,7 +958,7 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
                             className="w-full bg-panel border border-border-standard rounded px-2.5 py-1.5 text-[12px] font-mono text-text-main outline-none focus:border-accent"
                           />
                           {tradeForm.capital && !isNaN(parseFloat(tradeForm.capital.replace(/\D/g, ''))) && (
-                            <p className="text-[9px] text-text-dim mt-0.5">{parseFloat(tradeForm.capital.replace(/\D/g, '')).toLocaleString('vi-VN')} VND</p>
+                            <p className="text-[9px] text-text-dim mt-0.5">{fmtVND(parseFloat(tradeForm.capital.replace(/\D/g, '')))} ₫</p>
                           )}
                         </div>
 
@@ -934,7 +987,7 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
                           <div className="flex justify-between text-[10px] px-2 py-1.5 rounded bg-negative/5 border border-negative/20">
                             <span className="text-text-dim">Rủi ro tối đa</span>
                             <span className="font-mono font-semibold text-negative">
-                              {Math.round(parseFloat(tradeForm.capital.replace(/\D/g, '') || '0') * parseFloat(tradeForm.risk_percent || '0') / 100).toLocaleString('vi-VN')} VND
+                              {fmtVND(parseFloat(tradeForm.capital.replace(/\D/g, '') || '0') * parseFloat(tradeForm.risk_percent || '0') / 100)} ₫
                             </span>
                           </div>
                         )}
@@ -954,13 +1007,25 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
                         )}
                       </div>
 
+                      {/* Loading skeleton khi gọi AI lần đầu */}
+                      {tradeSignalLoading[sym] && !tradeSignal[sym] && (
+                        <div className="p-3 space-y-3">
+                          <SkeletonCard className="h-8" />
+                          <div className="space-y-2">
+                            <SkeletonCard className="h-16" />
+                            <SkeletonCard className="h-16" />
+                            <SkeletonCard className="h-16" />
+                          </div>
+                          <SkeletonCard className="h-20" />
+                        </div>
+                      )}
+
                       {/* Kết quả */}
                       {tradeSignal[sym] && (() => {
                         const d = tradeSignal[sym];
                         const recs: any[] = d.suggestions || [];
                         const recType = d.recommended || 'moderate';
                         const ps = d.position_sizing;
-                        const fmtVND = (v: number) => v != null ? Math.round(v).toLocaleString('vi-VN') : '—';
                         const fmtPt = (v: number) => v != null ? (v >= 1000 ? v / 1000 : v).toFixed(2) : '—';
 
                         return (

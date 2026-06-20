@@ -7,7 +7,6 @@ import { FinancialTooltip } from './ui/Tooltip';
 import { EmptyState } from './ui/EmptyState';
 import { InfoCard } from './ui/InfoCard';
 import { AiDisclaimer } from './ui/AiDisclaimer';
-import { ConfidenceBar } from './ui/ConfidenceBar';
 import { ClampedBadge } from './ui/ClampedBadge';
 
 interface DynamicSLUpdate {
@@ -31,8 +30,7 @@ interface PositionReview {
   reasoning: string;
   urgency: 'LOW' | 'MEDIUM' | 'HIGH';
   key_concern?: string;
-  /** Gemini confidence 0-100 (AIT-04 — optional, BE fill khi có) */
-  confidence_score?: number | null;
+  // W2.9: confidence_score đã bị gỡ — review prompt không hỏi Gemini, BE không trả.
   /** Metadata snap/clamp từ Plan 04-01 (snapAndClampReview) */
   _clamped?: { new_stop_loss?: boolean; new_take_profit?: boolean };
   _original?: { new_stop_loss?: number; new_take_profit?: number };
@@ -147,13 +145,8 @@ function RecommendationList({
 
             {isExpanded && (
               <div className="px-4 pb-4 border-t border-border-subtle pt-3 space-y-3">
-                {/* AIT-04: ConfidenceBar từ confidence_score Gemini — chỉ render khi BE cung cấp */}
-                {rec.confidence_score != null && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[9px] text-text-dim uppercase tracking-wider whitespace-nowrap">Độ tin cậy AI</span>
-                    <ConfidenceBar value={rec.confidence_score} />
-                  </div>
-                )}
+                {/* W2.9: ConfidenceBar gỡ — review prompt không hỏi Gemini confidence,
+                    không nên giả vờ có "độ tin cậy AI" cho output này. */}
                 <p className="text-[12px] text-text-main leading-relaxed">{rec.reasoning}</p>
                 {rec.key_concern && (
                   <p className="text-[11px] text-text-muted italic">⚠ {rec.key_concern}</p>
@@ -535,8 +528,11 @@ export const AiMonitorPanel: React.FC<Props> = ({ portfolioId, openPositions, on
                         {regimeCfg.label}
                       </span>
                       {update.ai_source && (
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${update.ai_source === 'gemini' ? 'bg-blue-500/10 text-blue-400' : 'bg-amber-500/10 text-amber-400'}`}>
-                          {update.ai_source === 'gemini' ? 'Gemini AI' : 'Rule-based'}
+                        <span
+                          className={`text-[10px] px-1.5 py-0.5 rounded ${update.ai_source === 'gemini' ? 'bg-blue-500/10 text-blue-400' : 'bg-amber-500/10 text-amber-400'}`}
+                          title={update.ai_source === 'gemini' ? 'Phân tích bởi Gemini AI' : 'Phân tích tự động (fallback rule-based)'}
+                        >
+                          {update.ai_source === 'gemini' ? 'Gemini AI' : 'Tự động'}
                         </span>
                       )}
                     </div>

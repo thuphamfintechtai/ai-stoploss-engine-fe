@@ -163,6 +163,9 @@ export const TradingTerminal: React.FC<Props> = ({
         current_price: entryPts != null ? Math.round(entryPts * 1000) : (marketPrice != null ? Math.round(marketPrice * (marketPrice >= 1000 ? 1 : 1000)) : undefined),
         rr_ratio: parseFloat(localStorage.getItem('default_rr') ?? '2'),
         side: 'LONG',
+        // W2.2: pass portfolio_id để BE resolve portfolio_type (LONG_TERM / SWING / DAY_TRADE)
+        // và adapt SL/TP strategy. Backward compat: omit khi không có portfolio active.
+        ...(portfolioId ? { portfolio_id: portfolioId } : {}),
       });
       if (res.data?.success) {
         setAiSuggestions(res.data.data);
@@ -1291,6 +1294,12 @@ export const TradingTerminal: React.FC<Props> = ({
                   </div>
                 )}
 
+                {/* W3.3 — VN T+2.5 hint inline (terminal hiện chỉ hỗ trợ MUA) */}
+                <div className="rounded-md bg-accent/5 border border-accent/20 px-3 py-2 text-[10px] text-text-muted leading-relaxed">
+                  <span className="text-accent font-semibold">ⓘ T+2.5: </span>
+                  Cổ phiếu mua hôm nay <strong>không bán được trong cùng ngày</strong> — phải đợi 2.5 ngày làm việc mới về tài khoản (quy định sàn VN).
+                </div>
+
                 {/* 7. Quản lý rủi ro (collapsible) */}
                 <div className="rounded-xl border border-border-subtle overflow-hidden">
                   <button
@@ -1363,8 +1372,11 @@ export const TradingTerminal: React.FC<Props> = ({
                             <div className="flex items-center gap-2">
                               <span className="text-[8px] text-accent font-bold uppercase tracking-wider">AI gợi ý cho {aiSuggestions.symbol}</span>
                               {aiSuggestions.ai_source && (
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded ${aiSuggestions.ai_source === 'gemini' ? 'bg-accent/10 text-accent' : 'bg-warning/10 text-warning'}`}>
-                                  {aiSuggestions.ai_source === 'gemini' ? 'Gemini AI' : 'Rule-based'}
+                                <span
+                                  className={`text-[10px] px-1.5 py-0.5 rounded ${aiSuggestions.ai_source === 'gemini' ? 'bg-accent/10 text-accent' : 'bg-warning/10 text-warning'}`}
+                                  title={aiSuggestions.ai_source === 'gemini' ? 'Phân tích bởi Gemini AI' : 'Phân tích tự động (fallback rule-based)'}
+                                >
+                                  {aiSuggestions.ai_source === 'gemini' ? 'Gemini AI' : 'Tự động'}
                                 </span>
                               )}
                               {aiSuggestions.technical_score != null && (() => {
@@ -1383,7 +1395,19 @@ export const TradingTerminal: React.FC<Props> = ({
                                 );
                               })()}
                             </div>
-                            <button onClick={() => { setAiSuggestions(null); setAiSuggestError(''); }} className="text-[9px] text-text-dim">✕</button>
+                            <div className="flex items-center gap-2">
+                              {aiSuggestions.portfolio_type && (
+                                <span
+                                  className="text-[9px] px-1.5 py-0.5 rounded bg-text-dim/10 text-text-muted"
+                                  title="Chiến lược AI áp dụng theo loại danh mục"
+                                >
+                                  {aiSuggestions.portfolio_type === 'LONG_TERM' ? 'Dài hạn'
+                                    : aiSuggestions.portfolio_type === 'DAY_TRADE' ? 'Lướt sóng'
+                                    : 'Swing'}
+                                </span>
+                              )}
+                              <button onClick={() => { setAiSuggestions(null); setAiSuggestError(''); }} className="text-[9px] text-text-dim">✕</button>
+                            </div>
                           </div>
                           {/* AIT-04: ConfidenceBar — chỉ render khi BE có confidence_score Gemini */}
                           {aiSuggestions.confidence_score != null && (

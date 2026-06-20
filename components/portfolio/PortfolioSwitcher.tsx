@@ -2,10 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useActivePortfolio } from '../../contexts/ActivePortfolioContext';
 import {
   getPresetLabel,
-  getPresetIcon,
   PortfolioType,
 } from '../../utils/portfolioPresets';
 import { CreatePortfolioModal } from './CreatePortfolioModal';
+import { PresetIcon } from './PresetIcon';
 
 interface Props {
   /** Khi true → render compact mode (icon only) cho sidebar collapsed. */
@@ -70,9 +70,7 @@ export const PortfolioSwitcher: React.FC<Props> = ({ compact = false }) => {
     );
   }
 
-  const activeIcon = activePortfolio
-    ? getPresetIcon(activePortfolio.portfolio_type)
-    : '📁';
+  const activeType = activePortfolio?.portfolio_type as PortfolioType | undefined;
   const activeLabel = activePortfolio?.name ?? 'Chọn danh mục';
   const activeTypeLabel = activePortfolio
     ? getPresetLabel(activePortfolio.portfolio_type)
@@ -91,11 +89,11 @@ export const PortfolioSwitcher: React.FC<Props> = ({ compact = false }) => {
         title={`${activeLabel} — ${activeTypeLabel}`}
       >
         {compact ? (
-          <span className="text-[16px] leading-none">{activeIcon}</span>
+          <PresetIcon type={activeType} size={18} className="text-text-main" />
         ) : (
           <>
             <div className="flex items-center gap-2 min-w-0">
-              <span className="text-[14px] leading-none shrink-0">{activeIcon}</span>
+              <PresetIcon type={activeType} size={16} className="text-text-main shrink-0" />
               <div className="text-left min-w-0">
                 <div className="text-[12px] font-semibold text-text-main truncate leading-tight">
                   {activeLabel}
@@ -139,9 +137,11 @@ export const PortfolioSwitcher: React.FC<Props> = ({ compact = false }) => {
                 className={`w-full text-left px-3 py-2 flex items-center gap-2 transition-colors hover:bg-white/5 ${isActive ? 'bg-accent/10' : ''}`}
                 style={{ borderBottom: '1px solid var(--color-border-subtle)' }}
               >
-                <span className="text-[14px] leading-none shrink-0">
-                  {getPresetIcon(p.portfolio_type as PortfolioType)}
-                </span>
+                <PresetIcon
+                  type={p.portfolio_type as PortfolioType}
+                  size={16}
+                  className="text-text-main shrink-0"
+                />
                 <div className="flex-1 min-w-0">
                   <div className="text-[12px] font-semibold text-text-main truncate leading-tight">
                     {p.name}

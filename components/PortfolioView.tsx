@@ -6,11 +6,13 @@ import { EmptyState } from './ui/EmptyState';
 import { PortfolioHeroCard } from './portfolio/PortfolioHeroCard';
 import { PortfolioHealthCard } from './portfolio/PortfolioHealthCard';
 import { SectorAllocationCard, type SectorAllocation } from './portfolio/SectorAllocationCard';
-import { AiBriefingCard } from './portfolio/AiBriefingCard';
+// W3.6: AiBriefingCard gỡ — endpoint /briefing chưa implement, briefing luôn null → card không render.
+// AI Monitor (dưới) đã cover use-case briefing + tiết kiệm Gemini cost. Bỏ import + render.
+// import { AiBriefingCard } from './portfolio/AiBriefingCard';
 import { AiMonitorSection, type MonitorState, type AiAlert } from './portfolio/AiMonitorSection';
 import { RealPositionsTable } from './portfolio/RealPositionsTable';
-import { ClosePositionModal } from './portfolio/ClosePositionModal';
 import { TransactionHistory } from './portfolio/TransactionHistory';
+import { PendingOrdersPanel } from './portfolio/PendingOrdersPanel';
 import { type PortfolioFeeConfig } from '../utils/feeConstants';
 
 interface Props {
@@ -112,7 +114,6 @@ export const PortfolioView: React.FC<Props> = ({
 }) => {
   const [realPositions, setRealPositions] = useState<RealPosition[]>([]);
   const [realPositionsLoading, setRealPositionsLoading] = useState(false);
-  const [closingPosition, setClosingPosition] = useState<RealPosition | null>(null);
   const [activeTab, setActiveTab] = useState<'positions' | 'history'>('positions');
 
   const priceReceivedAtRef = useRef<Record<string, number>>({});
@@ -264,11 +265,14 @@ export const PortfolioView: React.FC<Props> = ({
     if (portfolioId) fetchRealData();
   }, [portfolioId, fetchRealData]);
 
-  // WS price freshness tracking
+  // WS price update: refresh freshness + update current_price/unrealized_pnl per position
   useEffect(() => {
     const handler = (data: any) => {
       const symbol = data?.symbol;
       if (!symbol || typeof symbol !== 'string') return;
+      const incomingPrice = Number(data?.price);
+      const validPrice = Number.isFinite(incomingPrice) && incomingPrice > 0;
+
       priceReceivedAtRef.current = {
         ...priceReceivedAtRef.current,
         [symbol]: Date.now(),
@@ -277,6 +281,30 @@ export const PortfolioView: React.FC<Props> = ({
         if (prev[symbol] != null) return prev;
         return { ...prev, [symbol]: Date.now() };
       });
+
+      // W1.1 — Mark-to-market: update P&L per row khi WS push giá.
+      // Server seed current_price/unrealized_pnl khi initial load; WS chỉ patch khi giá đổi.
+      if (validPrice) {
+        setRealPositions((prev) => {
+          let changed = false;
+          const next = prev.map((p) => {
+            if (p.symbol !== symbol) return p;
+            const entry = Number(p.entry_price ?? 0);
+            const qty = Number(p.quantity ?? 0);
+            const buyFee = Number((p as any).buy_fee_vnd ?? 0);
+            const newPnl = Math.round((incomingPrice - entry) * qty - buyFee);
+            if (
+              (p as any).current_price === incomingPrice &&
+              (p as any).unrealized_pnl === newPnl
+            ) {
+              return p;
+            }
+            changed = true;
+            return { ...p, current_price: incomingPrice, unrealized_pnl: newPnl };
+          });
+          return changed ? next : prev;
+        });
+      }
     };
     wsService.onPriceUpdate(handler);
     return () => {
@@ -357,32 +385,17 @@ export const PortfolioView: React.FC<Props> = ({
 
       {portfolioId && (
         <>
-          {/* ═══ QUICK STATS GRID ═══ */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {/* ═══ QUICK STATS GRID — 3 cards (P&L moved to Hero) ═══ */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <QuickStatCard
               label="Tổng vốn"
               value={`${formatVND(cashBalance.total_balance || totalBalance)}đ`}
+              subValue={percentReturn !== 0 ? `${formatPct(percentReturn)} ROI` : undefined}
+              trend={pnlTrend}
               icon={
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-              }
-            />
-            <QuickStatCard
-              label="Lãi/Lỗ"
-              value={`${totalPnl >= 0 ? '+' : ''}${formatVND(totalPnl)}đ`}
-              subValue={formatPct(percentReturn)}
-              trend={pnlTrend}
-              icon={
-                pnlTrend === 'up' ? (
-                  <svg className="w-4 h-4 text-[var(--color-positive)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
-                  </svg>
-                ) : pnlTrend === 'down' ? (
-                  <svg className="w-4 h-4 text-[var(--color-negative)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6L9 12.75l4.286-4.286a11.948 11.948 0 014.306 6.43l.776 2.898m0 0l3.182-5.511m-3.182 5.51l-5.511-3.181" />
-                  </svg>
-                ) : null
               }
             />
             <QuickStatCard
@@ -409,10 +422,7 @@ export const PortfolioView: React.FC<Props> = ({
             />
           </div>
 
-          {/* ═══ AI BRIEFING ═══ */}
-          <AiBriefingCard portfolioId={portfolioId} briefing={null} />
-
-          {/* ═══ HERO CARD ═══ */}
+          {/* ═══ HERO CARD — Capital allocation + P&L detail ═══ */}
           <PortfolioHeroCard
             totalBalance={cashBalance.total_balance || totalBalance}
             availableCash={cashBalance.available_cash}
@@ -426,33 +436,7 @@ export const PortfolioView: React.FC<Props> = ({
             loading={summaryLoading}
           />
 
-          {/* ═══ HEALTH + SECTOR GRID ═══ */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <PortfolioHealthCard
-              totalBalance={cashBalance.total_balance || totalBalance}
-              availableCash={cashBalance.available_cash}
-              realPositions={realPositions}
-              realizedPnl={realSummary?.total_realized_pnl ?? 0}
-              unrealizedPnl={realSummary?.total_unrealized_pnl ?? 0}
-              initialCapital={initialCapital}
-              onOpenAdvanced={() => {
-                console.log('[P5] open RiskAdvancedModal');
-              }}
-            />
-            <SectorAllocationCard portfolioId={portfolioId} sectors={sectorData} loading={sectorLoading} />
-          </div>
-
-          {/* ═══ AI MONITOR ═══ */}
-          <AiMonitorSection
-              portfolioId={portfolioId}
-              state={monitorState}
-              alerts={aiAlerts}
-              loading={monitorLoading}
-              onToggle={handleMonitorToggle}
-              onDismissAlert={handleDismissAlert}
-            />
-
-          {/* ═══ POSITIONS & HISTORY TABS ═══ */}
+          {/* ═══ POSITIONS & HISTORY TABS — moved up for faster action access ═══ */}
           <div className="bg-[var(--color-panel)] border border-[var(--color-border-subtle)] rounded-xl overflow-hidden">
             {/* Tab Header */}
             <div className="flex items-center border-b border-[var(--color-border-subtle)]">
@@ -488,15 +472,21 @@ export const PortfolioView: React.FC<Props> = ({
             </div>
 
             {/* Tab Content */}
-            <div className="p-4">
+            <div className="p-4 space-y-4">
               {activeTab === 'positions' && (
-                <RealPositionsTable
-                  positions={realPositions}
-                  onClosePosition={setClosingPosition}
-                  loading={realPositionsLoading}
-                  priceReceivedAtBySymbol={priceReceivedAtBySymbol}
-                  ageTick={ageTick}
-                />
+                <>
+                  {/* W2.5 — Lệnh PENDING chờ khớp (hiển thị nếu có) */}
+                  <PendingOrdersPanel portfolioId={portfolioId} onConfirmed={fetchRealData} />
+                  <RealPositionsTable
+                    positions={realPositions}
+                    portfolioId={portfolioId}
+                    portfolio={portfolioConfig}
+                    onPositionClosed={fetchRealData}
+                    loading={realPositionsLoading}
+                    priceReceivedAtBySymbol={priceReceivedAtBySymbol}
+                    ageTick={ageTick}
+                  />
+                </>
               )}
               {activeTab === 'history' && (
                 <TransactionHistory portfolioId={portfolioId} portfolio={portfolioConfig} />
@@ -504,15 +494,32 @@ export const PortfolioView: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Close Position Modal */}
-          <ClosePositionModal
-            position={closingPosition}
+          {/* ═══ HEALTH + SECTOR GRID ═══ */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <PortfolioHealthCard
+              totalBalance={cashBalance.total_balance || totalBalance}
+              availableCash={cashBalance.available_cash}
+              realPositions={realPositions}
+              realizedPnl={realSummary?.total_realized_pnl ?? 0}
+              unrealizedPnl={realSummary?.total_unrealized_pnl ?? 0}
+              initialCapital={initialCapital}
+              onOpenAdvanced={() => {
+                console.log('[P5] open RiskAdvancedModal');
+              }}
+            />
+            <SectorAllocationCard portfolioId={portfolioId} sectors={sectorData} loading={sectorLoading} />
+          </div>
+
+          {/* ═══ AI MONITOR ═══ */}
+          <AiMonitorSection
             portfolioId={portfolioId}
-            portfolio={portfolioConfig}
-            isOpen={!!closingPosition}
-            onClose={() => setClosingPosition(null)}
-            onSuccess={fetchRealData}
+            state={monitorState}
+            alerts={aiAlerts}
+            loading={monitorLoading}
+            onToggle={handleMonitorToggle}
+            onDismissAlert={handleDismissAlert}
           />
+
         </>
       )}
     </div>

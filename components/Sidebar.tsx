@@ -10,6 +10,20 @@ interface Props {
   unreadNotifications?: number;
 }
 
+// Theme icons for quick toggle
+const ThemeIcons = {
+  sun: (
+    <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+    </svg>
+  ),
+  moon: (
+    <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+    </svg>
+  ),
+};
+
 // TradingView-style Icons (optimized for 18x18 display)
 const Icons = {
   dashboard: (
@@ -160,6 +174,15 @@ export const Sidebar: React.FC<Props> = ({
 }) => {
   const [settingsTooltip, setSettingsTooltip] = useState(false);
   const [logoutTooltip, setLogoutTooltip] = useState(false);
+  const [themeTooltip, setThemeTooltip] = useState(false);
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') ?? 'dark');
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+  };
 
   const userStr = typeof localStorage !== 'undefined' ? localStorage.getItem('user') : null;
   const user = userStr ? (() => { try { return JSON.parse(userStr); } catch { return null; } })() : null;
@@ -257,8 +280,30 @@ export const Sidebar: React.FC<Props> = ({
         className={`shrink-0 ${isOpen ? 'px-2 pb-2' : 'px-1.5 pb-2'}`}
         style={{ borderTop: '1px solid var(--color-border-subtle)' }}
       >
-        {/* Settings */}
-        <div className="pt-2">
+        {/* Theme Toggle + Settings */}
+        <div className="pt-2 space-y-0.5">
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            onMouseEnter={() => !isOpen && setThemeTooltip(true)}
+            onMouseLeave={() => setThemeTooltip(false)}
+            className={`
+              relative flex items-center w-full rounded-md transition-all duration-150
+              ${isOpen ? 'px-3 py-2 gap-3' : 'p-2 justify-center'}
+              text-text-muted hover:text-text-main hover:bg-white/5
+            `}
+            title={theme === 'dark' ? 'Chuyển sang chế độ sáng' : 'Chuyển sang chế độ tối'}
+          >
+            {theme === 'dark' ? ThemeIcons.sun : ThemeIcons.moon}
+            {isOpen && (
+              <span className="text-[13px] font-medium">
+                {theme === 'dark' ? 'Chế độ sáng' : 'Chế độ tối'}
+              </span>
+            )}
+            <NavTooltip label={theme === 'dark' ? 'Chế độ sáng' : 'Chế độ tối'} visible={themeTooltip} />
+          </button>
+
+          {/* Settings */}
           <button
             onClick={() => onChangeView('settings')}
             onMouseEnter={() => !isOpen && setSettingsTooltip(true)}
