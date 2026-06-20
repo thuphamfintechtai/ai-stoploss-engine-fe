@@ -152,7 +152,7 @@ const StatCard: React.FC<{
         )}
       </div>
       <div className="space-y-1">
-        <p className="text-micro text-[var(--color-text-dim)] flex items-center gap-1">
+        <div className="text-micro text-[var(--color-text-dim)] flex items-center gap-1">
           {label}
           {tooltip && (
             <Tooltip content={tooltip} position="top">
@@ -164,7 +164,7 @@ const StatCard: React.FC<{
               </span>
             </Tooltip>
           )}
-        </p>
+        </div>
         <p className={`text-title tabular-nums ${trendColor}`}>
           {value}
         </p>
