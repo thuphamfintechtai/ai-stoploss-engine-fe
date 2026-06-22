@@ -72,3 +72,53 @@ export function getPresetIcon(type: PortfolioType | string | null | undefined): 
   if (!type || !(type in PORTFOLIO_PRESETS)) return '📁';
   return PORTFOLIO_PRESETS[type as PortfolioType].icon;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 9 PHS-04 — Data Scope Selector (FE mirror)
+// Source of truth: ai-stoploss-engine-be/services/portfolio/portfolioPresets.js
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type IndicatorSetName = 'DAY' | 'SWING' | 'LONG';
+
+export interface DataScope {
+  timeframe: '5m' | '1D';
+  history_bars: number;
+  indicator_set: IndicatorSetName;
+  extra_sources: readonly string[];
+  prompt_token_budget: number;
+}
+
+export const DATA_SCOPE: Readonly<Record<PortfolioType, DataScope>> = Object.freeze({
+  LONG_TERM: Object.freeze({
+    timeframe: '1D' as const,
+    history_bars: 250,
+    indicator_set: 'LONG' as const,
+    extra_sources: Object.freeze(['valuation', 'sector_metrics', 'macro_quarterly']) as readonly string[],
+    prompt_token_budget: 2000,
+  }),
+  SWING: Object.freeze({
+    timeframe: '1D' as const,
+    history_bars: 60,
+    indicator_set: 'SWING' as const,
+    extra_sources: Object.freeze(['sector_label', 'news_7d']) as readonly string[],
+    prompt_token_budget: 1200,
+  }),
+  DAY_TRADE: Object.freeze({
+    timeframe: '5m' as const,
+    history_bars: 200,
+    indicator_set: 'DAY' as const,
+    extra_sources: Object.freeze(['news_24h']) as readonly string[],
+    prompt_token_budget: 600,
+  }),
+});
+
+/**
+ * Lookup data scope by portfolio type. Invalid input → SWING fallback.
+ * Mirror of BE getDataScope — keep shape in sync.
+ *
+ * Used by PHS-10 DataDepthChip to render text like "5m · 200 bars · Tin 24h".
+ */
+export function getDataScope(type: PortfolioType | string | null | undefined): DataScope {
+  if (!isValidPortfolioType(type)) return DATA_SCOPE.SWING;
+  return DATA_SCOPE[type as PortfolioType];
+}
