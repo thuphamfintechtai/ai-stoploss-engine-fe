@@ -1,10 +1,115 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { aiApi, watchlistApi } from '../services/api';
+import type { AiResponseMeta } from '../services/api';
 import { FinancialTooltip } from './ui/Tooltip';
 import { EmptyState } from './ui/EmptyState';
 import { InfoCard } from './ui/InfoCard';
 import { AiDisclaimer } from './ui/AiDisclaimer';
 import { SkeletonCard } from './ui/SkeletonLoader';
+import { useActivePortfolio } from '../contexts/ActivePortfolioContext';
+import {
+  type PortfolioType,
+  PORTFOLIO_PRESETS,
+  getDataScope,
+  formatDataScopeForDisplay,
+} from '../utils/portfolioPresets';
+
+// ─── PHS-10 UI Components ───────────────────────────────────────────────────
+
+const TYPE_COLORS: Record<PortfolioType, { bg: string; text: string; border: string }> = {
+  LONG_TERM:  { bg: 'rgba(59,130,246,0.12)',  text: '#3B82F6', border: 'rgba(59,130,246,0.3)' },
+  SWING:      { bg: 'rgba(245,158,11,0.12)',  text: '#F59E0B', border: 'rgba(245,158,11,0.3)' },
+  DAY_TRADE:  { bg: 'rgba(239,68,68,0.12)',   text: '#EF4444', border: 'rgba(239,68,68,0.3)' },
+};
+
+/** Badge showing portfolio strategy type used for AI analysis. */
+function TypeBadge({ portfolioType }: { portfolioType: PortfolioType | null | undefined }) {
+  if (!portfolioType || !(portfolioType in PORTFOLIO_PRESETS)) return null;
+  const preset = PORTFOLIO_PRESETS[portfolioType];
+  const colors = TYPE_COLORS[portfolioType];
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-semibold"
+      style={{ background: colors.bg, color: colors.text, border: `1px solid ${colors.border}` }}
+      role="status"
+      aria-label={`Phân tích theo chiến lược ${preset.label}`}
+    >
+      Phân tích cho {preset.label}
+    </span>
+  );
+}
+
+/** Chip showing data scope used for AI analysis: timeframe · bars · sources */
+function DataDepthChip({ dataScope }: {
+  dataScope: { timeframe: string; history_bars: number; extra_sources: readonly string[] | string[] } | null | undefined;
+}) {
+  if (!dataScope) return null;
+  // Normalize readonly to mutable for formatDataScopeForDisplay
+  const scope = {
+    timeframe: dataScope.timeframe as '5m' | '1D',
+    history_bars: dataScope.history_bars,
+    extra_sources: [...dataScope.extra_sources],
+  };
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[9px] text-text-dim"
+      style={{ background: 'var(--color-panel-secondary)', border: '1px solid var(--color-border-subtle)' }}
+      role="note"
+      aria-label={`Dữ liệu phân tích: ${dataScope.timeframe}, ${dataScope.history_bars} bars`}
+    >
+      {formatDataScopeForDisplay(scope)}
+    </span>
+  );
+}
+
+/** Per-type insight card variant showing type-specific technical signals. */
+function InsightCardVariant({ portfolioType, data }: {
+  portfolioType: PortfolioType | null | undefined;
+  data: any;
+}) {
+  if (!portfolioType || !data) return null;
+
+  if (portfolioType === 'DAY_TRADE') {
+    return (
+      <div className="border-l-4 pl-3 mt-2" style={{ borderColor: 'rgba(239,68,68,0.5)' }}>
+        {data.rsi7 != null && (
+          <div className="text-[12px] font-bold text-text-main">RSI(7): {(data.rsi7 as number).toFixed(1)}</div>
+        )}
+        {data.volume_z_score != null && (data.volume_z_score as number) > 2 && (
+          <span className="inline-block px-1.5 py-0.5 rounded text-[9px] bg-warning/20 text-warning">Vol spike</span>
+        )}
+        <span className="text-[9px] text-text-dim ml-1">T+2.5</span>
+      </div>
+    );
+  }
+
+  if (portfolioType === 'LONG_TERM') {
+    const meta = data as AiResponseMeta;
+    return (
+      <div className="border-l-4 pl-3 mt-2" style={{ borderColor: 'rgba(59,130,246,0.5)' }}>
+        {meta.valuation?.pe_ratio != null && (
+          <div className="text-[11px] font-semibold" style={{ color: '#3B82F6' }}>
+            P/E: {meta.valuation.pe_ratio.toFixed(1)}
+          </div>
+        )}
+        {meta.valuation?.is_stale && (
+          <div className="text-[10px] text-warning italic">Dữ liệu cơ bản cũ</div>
+        )}
+        {meta.sectorTrend && (
+          <div className="text-[10px] text-text-muted">
+            Ngành: {meta.sectorTrend.avg_pct_change_1w?.toFixed(1) ?? '—'}%/tuần
+          </div>
+        )}
+        <div className="text-[9px] text-text-dim mt-1">(Khuyến nghị giữ 6-12 tháng)</div>
+      </div>
+    );
+  }
+
+  // SWING: no extra variant by default
+  return null;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 
 interface Props {
   traders?: any[];
@@ -39,6 +144,8 @@ interface AiResult {
   data_insufficient?: boolean;
   recommendation_id?: string | null;
   ai_source?: string;
+  /** PHS-10: meta from BE with dataScope, portfolioType, valuation, sectorTrend */
+  meta?: AiResponseMeta | null;
   generated_at: string;
 }
 
@@ -59,6 +166,9 @@ const AiSourceBadge: React.FC<{ source?: string }> = ({ source }) => {
 };
 
 export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
+  const { activePortfolio } = useActivePortfolio();
+  const portfolioType = activePortfolio?.portfolio_type as PortfolioType | undefined;
+
   const [watchlist, setWatchlist] = useState<{ symbol: string; exchange: string }[]>([]);
   const [results, setResults] = useState<Record<string, AiResult>>({});
   const [analyzing, setAnalyzing] = useState<Record<string, boolean>>({});
@@ -84,7 +194,13 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
     if (analyzing[symbol]) return;
     setAnalyzing(prev => ({ ...prev, [symbol]: true }));
     try {
-      const res = await aiApi.suggestSLTP({ symbol, exchange, side: 'LONG', rr_ratio: 2 });
+      const res = await aiApi.suggestSLTP({
+        symbol,
+        exchange,
+        side: 'LONG',
+        rr_ratio: 2,
+        portfolio_id: activePortfolio?.id, // PHS-10: inject active portfolio_id
+      });
       if (res.data?.success) {
         const d = res.data.data;
         setResults(prev => ({
@@ -102,6 +218,7 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
             data_insufficient: d.data_insufficient,
             recommendation_id: d.recommendation_id ?? null,
             ai_source:         d.ai_source ?? null,
+            meta:              d.meta ?? null, // PHS-10: capture dataScope + portfolioType
             generated_at:      new Date().toISOString(),
           }
         }));
@@ -134,6 +251,13 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
           <div>
             <h2 className="text-[16px] font-bold text-text-main">AI Phân Tích SL/TP</h2>
             <p className="text-[11px] text-text-muted mt-0.5">Gợi ý dừng lỗ và chốt lời cho các mã đang theo dõi</p>
+            {/* PHS-10: TypeBadge + DataDepthChip */}
+            <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+              <TypeBadge portfolioType={portfolioType} />
+              {portfolioType && (
+                <DataDepthChip dataScope={getDataScope(portfolioType)} />
+              )}
+            </div>
           </div>
           <button
             onClick={loadWatchlist}
@@ -325,6 +449,15 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
                 <span className="text-[11px] text-text-dim">Giá hiện tại ({sel.symbol})</span>
                 <span className="text-[14px] font-mono font-bold text-text-main">{fmtPrice(sel.current_price)}</span>
               </div>
+              {/* PHS-10: DataDepthChip from meta.dataScope */}
+              {(sel.meta?.dataScope || portfolioType) && (
+                <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                  <TypeBadge portfolioType={(sel.meta?.portfolioType as PortfolioType) ?? portfolioType} />
+                  <DataDepthChip dataScope={sel.meta?.dataScope ?? getDataScope(portfolioType)} />
+                </div>
+              )}
+              {/* Per-type insight variant */}
+              <InsightCardVariant portfolioType={(sel.meta?.portfolioType as PortfolioType) ?? portfolioType} data={sel.meta} />
             </div>
 
             {/* 3 mức SL/TP */}
