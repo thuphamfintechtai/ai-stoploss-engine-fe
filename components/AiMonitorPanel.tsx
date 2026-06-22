@@ -8,6 +8,34 @@ import { EmptyState } from './ui/EmptyState';
 import { InfoCard } from './ui/InfoCard';
 import { AiDisclaimer } from './ui/AiDisclaimer';
 import { ClampedBadge } from './ui/ClampedBadge';
+import { useActivePortfolio } from '../contexts/ActivePortfolioContext';
+import { type PortfolioType, PORTFOLIO_PRESETS } from '../utils/portfolioPresets';
+
+// ─── PHS-10 TypeBadge ────────────────────────────────────────────────────────
+
+const TYPE_COLORS: Record<PortfolioType, { bg: string; text: string; border: string }> = {
+  LONG_TERM:  { bg: 'rgba(59,130,246,0.12)',  text: '#3B82F6', border: 'rgba(59,130,246,0.3)' },
+  SWING:      { bg: 'rgba(245,158,11,0.12)',  text: '#F59E0B', border: 'rgba(245,158,11,0.3)' },
+  DAY_TRADE:  { bg: 'rgba(239,68,68,0.12)',   text: '#EF4444', border: 'rgba(239,68,68,0.3)' },
+};
+
+function TypeBadge({ portfolioType }: { portfolioType: PortfolioType | null | undefined }) {
+  if (!portfolioType || !(portfolioType in PORTFOLIO_PRESETS)) return null;
+  const preset = PORTFOLIO_PRESETS[portfolioType];
+  const colors = TYPE_COLORS[portfolioType];
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-semibold"
+      style={{ background: colors.bg, color: colors.text, border: `1px solid ${colors.border}` }}
+      role="status"
+      aria-label={`Phân tích theo chiến lược ${preset.label}`}
+    >
+      Phân tích cho {preset.label}
+    </span>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface DynamicSLUpdate {
   symbol: string;
@@ -336,6 +364,9 @@ const REGIME_CONFIG: Record<string, { label: string; color: string; borderColor:
 };
 
 export const AiMonitorPanel: React.FC<Props> = ({ portfolioId, openPositions, onNavigate }) => {
+  const { activePortfolio } = useActivePortfolio();
+  const portfolioType = activePortfolio?.portfolio_type as PortfolioType | undefined;
+
   const [activeTab, setActiveTab] = useState<'current' | 'history'>('current');
   const [result, setResult] = useState<ReviewResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -430,6 +461,12 @@ export const AiMonitorPanel: React.FC<Props> = ({ portfolioId, openPositions, on
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h3 className="text-[13px] font-bold text-text-main mb-1">AI Giám Sát Vị Thế</h3>
+            {/* PHS-10: TypeBadge showing active portfolio strategy */}
+            {portfolioType && (
+              <div className="mb-1">
+                <TypeBadge portfolioType={portfolioType} />
+              </div>
+            )}
             <p className="text-[11px] text-text-muted">
               AI đánh giá toàn bộ vị thế đang mở và đề xuất điều chỉnh <FinancialTooltip term="Stop Loss" />/<FinancialTooltip term="Take Profit" /> tối ưu
             </p>
