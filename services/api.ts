@@ -341,6 +341,32 @@ export interface AnalyzeTrendRequest {
   exchange?: string;
   ohlcv_data?: Array<{ open: number; high: number; low: number; close: number; volume?: number }>;
   indicators?: Record<string, unknown>;
+  /** Phase 9 PHS-10 — BE resolves portfolio_type from portfolio_id for per-type analysis. */
+  portfolio_id?: string;
+}
+
+/**
+ * PHS-10 — Typed meta block returned by BE AI endpoints.
+ * Carries dataScope so FE DataDepthChip can display data used for analysis.
+ */
+export interface AiResponseMeta {
+  dataScope?: {
+    timeframe: string;
+    history_bars: number;
+    extra_sources: string[];
+  };
+  portfolioType?: string;
+  valuation?: {
+    pe_ratio: number | null;
+    eps_ttm: number | null;
+    dividend_yield: number | null;
+    last_updated: string;
+    is_stale: boolean;
+  };
+  sectorTrend?: {
+    avg_pct_change_1w: number | null;
+    sector: string;
+  };
 }
 
 export interface EvaluateRiskRequest {
@@ -438,8 +464,8 @@ export const aiApi = {
     apiClient.get('/ai/evaluations', { params }),
 
   /** Phân tích AI on-demand cho mã trong watchlist */
-  analyzeWatchlistSymbol: (symbol: string, exchange = 'HOSE') =>
-    apiClient.post('/ai/watchlist-analysis', { symbol, exchange }, { timeout: 60000 }),
+  analyzeWatchlistSymbol: (symbol: string, exchange = 'HOSE', portfolio_id?: string) =>
+    apiClient.post('/ai/watchlist-analysis', { symbol, exchange, ...(portfolio_id ? { portfolio_id } : {}) }, { timeout: 60000 }),
 
   /** Lịch sử phân tích AI cho một mã */
   getWatchlistHistory: (symbol: string, exchange = 'HOSE', limit = 20) =>
@@ -450,8 +476,8 @@ export const aiApi = {
     apiClient.post('/ai/position-review', { portfolio_id: portfolioId }, { timeout: 90000 }),
 
   /** Phát hiện chế độ thị trường (BULL/BEAR/SIDEWAYS/VOLATILE) */
-  getMarketRegime: (forceRefresh = false) =>
-    apiClient.post('/ai/market-regime', { force_refresh: forceRefresh }, { timeout: 60000 }),
+  getMarketRegime: (forceRefresh = false, portfolio_id?: string) =>
+    apiClient.post('/ai/market-regime', { force_refresh: forceRefresh, ...(portfolio_id ? { portfolio_id } : {}) }, { timeout: 60000 }),
 
   /** Lịch sử AI review vị thế của portfolio */
   getPositionReviewHistory: (portfolioId: string, limit = 20) =>
