@@ -122,3 +122,31 @@ export function getDataScope(type: PortfolioType | string | null | undefined): D
   if (!isValidPortfolioType(type)) return DATA_SCOPE.SWING;
   return DATA_SCOPE[type as PortfolioType];
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 9 PHS-10 — DataDepthChip display helper
+// ─────────────────────────────────────────────────────────────────────────────
+
+const EXTRA_SOURCE_LABELS: Record<string, string> = {
+  news_24h: 'Tin 24h',
+  news_7d: 'Tin 7 ngày',
+  sector_label: 'Ngành',
+  valuation: 'P/E',
+  sector_metrics: 'Ngành',
+  macro_quarterly: 'Macro',
+};
+
+/**
+ * Format data scope for display in DataDepthChip.
+ * Example: "1D · 60 bars · Ngành" (SWING)
+ *          "5m · 200 bars · Tin 24h" (DAY_TRADE)
+ *          "1D · 250 bars · P/E + Ngành + Macro" (LONG_TERM)
+ */
+export function formatDataScopeForDisplay(scope: Pick<DataScope, 'timeframe' | 'history_bars' | 'extra_sources'>): string {
+  const sourceLabels = [...scope.extra_sources]
+    .map(s => EXTRA_SOURCE_LABELS[s] || s)
+    .filter((v, i, a) => a.indexOf(v) === i) // dedupe
+    .join(' + ');
+
+  return `${scope.timeframe} · ${scope.history_bars} bars · ${sourceLabels}`;
+}
