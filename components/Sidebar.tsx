@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { PortfolioSwitcher } from './portfolio/PortfolioSwitcher';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface Props {
   currentView: string;
@@ -177,14 +178,8 @@ export const Sidebar: React.FC<Props> = ({
   const [settingsTooltip, setSettingsTooltip] = useState(false);
   const [logoutTooltip, setLogoutTooltip] = useState(false);
   const [themeTooltip, setThemeTooltip] = useState(false);
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') ?? 'dark');
-
-  const toggleTheme = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
-    document.documentElement.setAttribute('data-theme', newTheme);
-  };
+  // Phase 10 A-02 — theme từ ThemeContext (SSoT), không tự setItem nữa
+  const { theme, toggleTheme } = useTheme();
 
   const userStr = typeof localStorage !== 'undefined' ? localStorage.getItem('user') : null;
   const user = userStr ? (() => { try { return JSON.parse(userStr); } catch { return null; } })() : null;
@@ -216,7 +211,7 @@ export const Sidebar: React.FC<Props> = ({
         <div
           className="w-7 h-7 rounded-md flex items-center justify-center shrink-0"
           style={{
-            background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
+            background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-active) 100%)',
           }}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">

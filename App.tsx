@@ -9,6 +9,7 @@ import { HomeView } from './components/HomeView';
 import { AuthView } from './components/AuthView';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { ActivePortfolioProvider, useActivePortfolio } from './contexts/ActivePortfolioContext';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { DashboardView } from './components/DashboardView';
 import { TradingTerminal } from './components/TradingTerminal';
 import { PortfolioView } from './components/PortfolioView';
@@ -55,6 +56,10 @@ function calculateSMA(data: any[], period: number) {
 }
 
 // --- Candlestick Chart Component (TradingView Lightweight Charts) ---
+const chartColors = (light: boolean) => light
+  ? { bg: '#FFFFFF', text: '#334155', grid: 'rgba(0,0,0,0.06)', border: 'rgba(0,0,0,0.10)' }
+  : { bg: '#090812', text: '#9CA3AF', grid: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.1)' };
+
 const CandlestickChartLW = ({ data, loading }: { data: any[], loading: boolean }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<any>(null);
@@ -66,17 +71,17 @@ const CandlestickChartLW = ({ data, loading }: { data: any[], loading: boolean }
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
+  // Phase 10 A-02 — subscribe theme từ ThemeContext thay vì poll DOM attribute
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
+
   // Effect 1: Initialize chart on mount
   useEffect(() => {
     if (!chartContainerRef.current) {
       return;
     }
 
-    const isLight = () => document.documentElement.getAttribute('data-theme') === 'light';
-    const chartColors = (light: boolean) => light
-      ? { bg: '#FFFFFF', text: '#334155', grid: 'rgba(0,0,0,0.06)', border: 'rgba(0,0,0,0.10)' }
-      : { bg: '#090812', text: '#9CA3AF', grid: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.1)' };
-    const c = chartColors(isLight());
+    const c = chartColors(isLight);
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
       height: chartContainerRef.current.clientHeight,
@@ -160,24 +165,26 @@ const CandlestickChartLW = ({ data, loading }: { data: any[], loading: boolean }
     };
     window.addEventListener('resize', handleResize);
 
-    // Watch theme changes
-    const themeObserver = new MutationObserver(() => {
-      const cc = chartColors(isLight());
-      chart.applyOptions({
-        layout: { background: { type: ColorType.Solid, color: cc.bg }, textColor: cc.text },
-        grid: { vertLines: { color: cc.grid }, horzLines: { color: cc.grid } },
-        timeScale: { borderColor: cc.border },
-        rightPriceScale: { borderColor: cc.border },
-      });
-    });
-    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-
     return () => {
       window.removeEventListener('resize', handleResize);
-      themeObserver.disconnect();
       chart.remove();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Effect 1b: Re-apply chart colors when theme changes (replaces MutationObserver
+  // — A-02 ThemeContext subscription).
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    const cc = chartColors(isLight);
+    chart.applyOptions({
+      layout: { background: { type: ColorType.Solid, color: cc.bg }, textColor: cc.text },
+      grid: { vertLines: { color: cc.grid }, horzLines: { color: cc.grid } },
+      timeScale: { borderColor: cc.border },
+      rightPriceScale: { borderColor: cc.border },
+    });
+  }, [isLight]);
 
   // Effect 2: Update data when changed
   useEffect(() => {
@@ -1617,9 +1624,11 @@ function App() {
 
   return (
     <AppErrorBoundary onReset={handleLogout}>
-      <ActivePortfolioProvider>
-        <MainApp onLogout={handleLogout} />
-      </ActivePortfolioProvider>
+      <ThemeProvider>
+        <ActivePortfolioProvider>
+          <MainApp onLogout={handleLogout} />
+        </ActivePortfolioProvider>
+      </ThemeProvider>
     </AppErrorBoundary>
   );
 }

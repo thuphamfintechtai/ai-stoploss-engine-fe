@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { authApi, portfolioApi, notificationsApi, priceAlertsApi } from '../services/api';
 import type { PriceAlert, Notification } from '../services/api';
 import { formatNumberVI } from '../constants';
+import { useTheme, type Theme } from '../contexts/ThemeContext';
 
 type SettingsTab = 'profile' | 'portfolio' | 'notifications' | 'alerts' | 'appearance';
 
@@ -649,14 +650,13 @@ const AlertsTab: React.FC = () => {
 // TAB: GIAO DIỆN
 // ══════════════════════════════════════════════════════════════════════════════
 const AppearanceTab: React.FC = () => {
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') ?? 'dark');
+  // Phase 10 A-02 — theme từ ThemeContext (SSoT)
+  const { theme, setTheme } = useTheme();
   const [sidebarDefault, setSidebarDefault] = useState(() => localStorage.getItem('sidebar_default') !== 'closed');
   const [defaultRR, setDefaultRR] = useState(() => localStorage.getItem('default_rr') ?? '2');
 
   const applyTheme = (t: string) => {
-    setTheme(t);
-    localStorage.setItem('theme', t);
-    document.documentElement.setAttribute('data-theme', t);
+    setTheme(t as Theme);
   };
 
   const toggleSidebar = (v: boolean) => {

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface MobileBottomNavProps {
   currentView: string;
@@ -91,14 +92,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   unreadNotifications = 0,
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') ?? 'dark');
-
-  const toggleTheme = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
-    document.documentElement.setAttribute('data-theme', newTheme);
-  };
+  // Phase 10 A-02 — theme từ ThemeContext (SSoT)
+  const { theme, toggleTheme } = useTheme();
 
   const activeId = currentView === 'home' ? 'dashboard' : currentView;
   const isSecondaryActive = SECONDARY_NAV.some(item => item.id === activeId);
