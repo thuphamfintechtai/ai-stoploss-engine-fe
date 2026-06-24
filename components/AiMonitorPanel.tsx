@@ -460,7 +460,7 @@ export const AiMonitorPanel: React.FC<Props> = ({ portfolioId, openPositions, on
       <div className="panel-section p-4">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h3 className="text-[13px] font-bold text-text-main mb-1">AI Giám Sát Vị Thế</h3>
+            <h3 className="text-[13px] font-bold text-text-main mb-1">AI giám sát vị thế</h3>
             {/* PHS-10: TypeBadge showing active portfolio strategy */}
             {portfolioType && (
               <div className="mb-1">

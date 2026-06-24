@@ -643,7 +643,7 @@ export const DashboardView: React.FC<Props> = ({
         <StatCard
           label="Vị thế đang mở"
           value={livePositions.length}
-          subValue={performance?.win_rate ? `Win rate: ${performance.win_rate.toFixed(0)}%` : 'Chưa có giao dịch'}
+          subValue={performance?.win_rate ? `Tỷ lệ thắng: ${performance.win_rate.toFixed(0)}%` : 'Chưa có giao dịch'}
           icon={Icons.chart}
           accentColor="var(--color-warning)"
         />
@@ -717,7 +717,7 @@ export const DashboardView: React.FC<Props> = ({
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--color-accent)] to-[var(--color-secondary)] flex items-center justify-center">
                   <span className="text-white">{Icons.sparkle}</span>
                 </div>
-                <h2 className="text-subheading text-[var(--color-text-main)]">AI Center</h2>
+                <h2 className="text-subheading text-[var(--color-text-main)]">Trợ lý AI</h2>
               </div>
               <button
                 onClick={() => onNavigate('signals')}

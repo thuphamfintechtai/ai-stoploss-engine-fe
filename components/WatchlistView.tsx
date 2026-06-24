@@ -725,8 +725,8 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
             {/* ── Tab switcher ── */}
             <div className="flex gap-0 border-b border-border-subtle shrink-0 px-1">
               {([
-                { id: 'detail', label: 'Chi Tiết & Biểu Đồ' },
-                { id: 'signal', label: 'AI Phân Tích & Tín Hiệu' },
+                { id: 'detail', label: 'Chi tiết & biểu đồ' },
+                { id: 'signal', label: 'AI phân tích & tín hiệu' },
               ] as const).map((t) => (
                 <button
                   key={t.id}

@@ -156,7 +156,7 @@ export const PortfolioHeroCard: React.FC<PortfolioHeroCardProps> = ({
                 <div className="flex items-center justify-between text-[11px]">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-[var(--color-warning)]" />
-                    <span className="text-[var(--color-text-muted)]">Chờ T+2</span>
+                    <span className="text-[var(--color-text-muted)]">Chờ T+2.5</span>
                   </div>
                   <span className="font-medium tabular-nums text-[var(--color-text-main)]">
                     {formatVND(pendingSettlement)}đ
@@ -203,7 +203,7 @@ export const PortfolioHeroCard: React.FC<PortfolioHeroCardProps> = ({
               <div className="flex items-center justify-between text-[11px]">
                 <span className="text-[var(--color-text-muted)]">Tỷ lệ thắng</span>
                 <span className="font-semibold text-[var(--color-text-main)]">
-                  {closedCount > 0 ? '--' : 'N/A'}
+                  {closedCount > 0 ? '--' : '—'}
                 </span>
               </div>
             </div>

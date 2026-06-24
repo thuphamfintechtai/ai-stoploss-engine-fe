@@ -249,7 +249,7 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
       <div className="flex-1 min-w-0 flex flex-col min-h-0">
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <div>
-            <h2 className="text-[16px] font-bold text-text-main">AI Phân Tích SL/TP</h2>
+            <h2 className="text-[16px] font-bold text-text-main">AI phân tích SL/TP</h2>
             <p className="text-[11px] text-text-muted mt-0.5">Gợi ý dừng lỗ và chốt lời cho các mã đang theo dõi</p>
             {/* PHS-10: TypeBadge + DataDepthChip */}
             <div className="flex flex-wrap items-center gap-1.5 mt-1.5">

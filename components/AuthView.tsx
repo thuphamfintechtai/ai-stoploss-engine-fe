@@ -83,7 +83,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
       <div className="w-full max-w-md">
         <div className="bg-panel rounded-2xl border border-border-subtle shadow-[var(--shadow-elevated)] overflow-hidden">
           <div className="px-6 py-5 border-b border-border-subtle bg-background-elevated">
-            <h1 className="text-xl font-semibold text-text-main text-center">AI Stop-Loss Engine</h1>
+            <h1 className="text-xl font-semibold text-text-main text-center">TradeGuard AI</h1>
             <p className="text-sm text-text-muted text-center mt-1">Đăng nhập hoặc đăng ký để tiếp tục</p>
           </div>
 

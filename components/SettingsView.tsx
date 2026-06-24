@@ -751,11 +751,11 @@ export const SettingsView: React.FC<Props> = ({ portfolio, onOpenSetup, onPortfo
   const [tab, setTab] = useState<SettingsTab>('profile');
 
   const TABS: { id: SettingsTab; label: string; icon: React.ReactNode }[] = [
-    { id: 'profile',       label: 'Hồ Sơ',        icon: Icon.user },
-    { id: 'portfolio',     label: 'Portfolio',     icon: Icon.portfolio },
-    { id: 'notifications', label: 'Thông Báo',     icon: Icon.bell },
-    { id: 'alerts',        label: 'Cảnh Báo Giá',  icon: Icon.alert },
-    { id: 'appearance',    label: 'Giao Diện',      icon: Icon.palette },
+    { id: 'profile',       label: 'Hồ sơ',         icon: Icon.user },
+    { id: 'portfolio',     label: 'Danh mục',      icon: Icon.portfolio },
+    { id: 'notifications', label: 'Thông báo',     icon: Icon.bell },
+    { id: 'alerts',        label: 'Cảnh báo giá',  icon: Icon.alert },
+    { id: 'appearance',    label: 'Giao diện',     icon: Icon.palette },
   ];
 
   return (

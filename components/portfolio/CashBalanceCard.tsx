@@ -38,7 +38,7 @@ export const CashBalanceCard: React.FC<CashBalanceCardProps> = ({
       ),
     },
     {
-      label: 'Chờ thanh toán T+2',
+      label: 'Chờ thanh toán T+2.5',
       value: pendingSettlement,
       color: 'text-[var(--color-warning)]',
       icon: (
