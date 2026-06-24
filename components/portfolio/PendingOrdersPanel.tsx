@@ -177,7 +177,7 @@ export const PendingOrdersPanel: React.FC<Props> = ({ portfolioId, onConfirmed }
                   type="number"
                   value={actualPrice}
                   onChange={(e) => setActualPrice(e.target.value)}
-                  className="w-full px-3 py-2 rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-bg)] text-[var(--color-text-main)] text-[12px]"
+                  className="w-full px-3 py-2 rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-background)] text-[var(--color-text-main)] text-[12px]"
                   placeholder="VD: 25000"
                 />
               </div>
@@ -189,7 +189,7 @@ export const PendingOrdersPanel: React.FC<Props> = ({ portfolioId, onConfirmed }
                   type="date"
                   value={actualDate}
                   onChange={(e) => setActualDate(e.target.value)}
-                  className="w-full px-3 py-2 rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-bg)] text-[var(--color-text-main)] text-[12px]"
+                  className="w-full px-3 py-2 rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-background)] text-[var(--color-text-main)] text-[12px]"
                 />
               </div>
               {error && <p className="text-[11px] text-[var(--color-negative)]">{error}</p>}

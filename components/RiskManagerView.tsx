@@ -611,7 +611,7 @@ export const RiskManagerView: React.FC<Props> = ({
                         <XAxis dataKey="day" tick={{ fontSize: 9, fill: 'var(--color-text-muted)' }} tickLine={false} axisLine={false} />
                         <YAxis tick={{ fontSize: 9, fill: 'var(--color-text-muted)' }} tickLine={false} axisLine={false} tickFormatter={(v) => formatNumberVI(v, { maximumFractionDigits: 0 })} width={80} />
                         <Tooltip
-                          contentStyle={{ background: 'var(--color-bg-panel)', border: '1px solid var(--color-border-subtle)', fontSize: 10 }}
+                          contentStyle={{ background: 'var(--color-panel)', border: '1px solid var(--color-border-subtle)', fontSize: 10 }}
                           formatter={(value: number) => formatNumberVI(value, { maximumFractionDigits: 0 })}
                           labelFormatter={(l) => `Ngày ${l}`}
                         />
@@ -774,7 +774,7 @@ export const RiskManagerView: React.FC<Props> = ({
                                   ))}
                                 </Pie>
                                 <Tooltip
-                                  contentStyle={{ background: 'var(--color-bg-panel)', border: '1px solid var(--color-border-subtle)', fontSize: 10 }}
+                                  contentStyle={{ background: 'var(--color-panel)', border: '1px solid var(--color-border-subtle)', fontSize: 10 }}
                                   formatter={(value: number) => [`${value.toFixed(1)}%`, 'Tỷ trọng']}
                                 />
                               </PieChart>

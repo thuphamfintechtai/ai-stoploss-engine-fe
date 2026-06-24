@@ -84,7 +84,7 @@ export const PortfoliosOverviewView: React.FC<Props> = ({ onNavigateToDashboard 
     return (
       <div className="p-6">
         <div className="text-[12px] text-[var(--color-negative)] mb-2">{error}</div>
-        <button onClick={fetchOverview} className="px-3 py-1.5 text-[11px] rounded border border-[var(--color-divider)] hover:bg-[var(--color-hover-bg)]">
+        <button onClick={fetchOverview} className="px-3 py-1.5 text-[11px] rounded border border-[var(--color-divider)] hover:bg-[var(--color-panel-hover)]">
           Thử lại
         </button>
       </div>
@@ -123,7 +123,7 @@ export const PortfoliosOverviewView: React.FC<Props> = ({ onNavigateToDashboard 
           <div className="text-[11px] text-[var(--color-text-muted)]">Tất cả {portfolios.length} danh mục của bạn</div>
         </div>
         <div className="flex gap-2">
-          <button onClick={fetchOverview} className="px-3 py-1.5 text-[11px] rounded border border-[var(--color-divider)] hover:bg-[var(--color-hover-bg)]">
+          <button onClick={fetchOverview} className="px-3 py-1.5 text-[11px] rounded border border-[var(--color-divider)] hover:bg-[var(--color-panel-hover)]">
             Làm mới
           </button>
           <button onClick={() => setCreateOpen(true)} className="px-3 py-1.5 text-[11px] rounded bg-[var(--color-accent)] text-white hover:opacity-90">
@@ -235,7 +235,7 @@ export const PortfoliosOverviewView: React.FC<Props> = ({ onNavigateToDashboard 
                 <tr
                   key={p.id}
                   onClick={() => handleSelectPortfolio(p.id)}
-                  className="border-b border-[var(--color-divider)] hover:bg-[var(--color-hover-bg)] cursor-pointer"
+                  className="border-b border-[var(--color-divider)] hover:bg-[var(--color-panel-hover)] cursor-pointer"
                   title="Click để chuyển sang danh mục này"
                 >
                   <td className="py-2.5 pr-3 font-semibold text-[var(--color-text-main)]">

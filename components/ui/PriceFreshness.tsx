@@ -64,7 +64,7 @@ export const PriceFreshness: React.FC<PriceFreshnessProps> = ({
 
   return (
     <span
-      className={`inline-flex items-center gap-0.5 text-[10px] text-amber-500 ${className}`}
+      className={`inline-flex items-center gap-0.5 text-[10px] text-warning ${className}`}
       title={titleText}
       data-testid="price-freshness"
       role="status"

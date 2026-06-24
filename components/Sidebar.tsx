@@ -142,7 +142,7 @@ const NavItem: React.FC<{
       <span className="relative shrink-0">
         {item.icon}
         {badge !== undefined && badge > 0 && !isOpen && (
-          <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-0.5">
+          <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-negative text-white text-[9px] font-bold flex items-center justify-center px-0.5">
             {badge > 99 ? '99+' : badge}
           </span>
         )}
@@ -152,7 +152,7 @@ const NavItem: React.FC<{
         <>
           <span className="text-[13px] font-medium truncate">{item.label}</span>
           {badge !== undefined && badge > 0 && (
-            <span className="ml-auto min-w-[20px] h-5 rounded-full bg-red-500/20 text-red-400 text-[10px] font-bold flex items-center justify-center px-1.5">
+            <span className="ml-auto min-w-[20px] h-5 rounded-full bg-negative/20 text-negative-text text-[10px] font-bold flex items-center justify-center px-1.5">
               {badge > 99 ? '99+' : badge}
             </span>
           )}

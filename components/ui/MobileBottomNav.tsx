@@ -152,7 +152,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             <span className="relative">
               {isMenuOpen ? Icons.close : Icons.menu}
               {!isMenuOpen && unreadNotifications > 0 && (
-                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500" />
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-negative" />
               )}
             </span>
             <span className="text-[10px] font-medium leading-none">Menu</span>
@@ -222,7 +222,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                       <span className="relative">
                         {item.icon}
                         {hasNotification && (
-                          <span className="absolute -top-1 -right-1.5 min-w-[16px] h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-1">
+                          <span className="absolute -top-1 -right-1.5 min-w-[16px] h-4 rounded-full bg-negative text-white text-[9px] font-bold flex items-center justify-center px-1">
                             {unreadNotifications > 99 ? '99+' : unreadNotifications}
                           </span>
                         )}
