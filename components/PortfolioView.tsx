@@ -14,6 +14,8 @@ import { RealPositionsTable } from './portfolio/RealPositionsTable';
 import { TransactionHistory } from './portfolio/TransactionHistory';
 import { PendingOrdersPanel } from './portfolio/PendingOrdersPanel';
 import { type PortfolioFeeConfig } from '../utils/feeConstants';
+import { Breadcrumbs } from './ui/primitives';
+import { useActivePortfolio } from '../contexts/ActivePortfolioContext';
 
 interface Props {
   portfolioId: string | null;
@@ -112,6 +114,8 @@ export const PortfolioView: React.FC<Props> = ({
   onNavigate,
   onOpenSetup,
 }) => {
+  // Phase 10 B-02 — active portfolio name for Breadcrumbs
+  const { activePortfolio } = useActivePortfolio();
   const [realPositions, setRealPositions] = useState<RealPosition[]>([]);
   const [realPositionsLoading, setRealPositionsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'positions' | 'history'>('positions');
@@ -328,6 +332,14 @@ export const PortfolioView: React.FC<Props> = ({
 
   return (
     <div className="space-y-5 animate-fade-in max-w-[1600px] mx-auto">
+      {/* Phase 10 B-02 — Breadcrumbs: Tổng quan > {Portfolio name} */}
+      <Breadcrumbs
+        items={[
+          { label: 'Tổng quan', onClick: () => onNavigate('overview') },
+          { label: activePortfolio?.name ?? 'Danh mục' },
+        ]}
+      />
+
       {/* ═══ HEADER ═══ */}
       <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-[var(--color-border-subtle)]">
         <div>

@@ -71,16 +71,20 @@ const Icons = {
   ),
 };
 
+// Phase 10 B-01 — canonical labels match Sidebar NAV_ITEMS (no abbrev "Vốn"/"Lệnh").
+// 4 primary slots reserved for top-funnel views; Dashboard demoted to menu sheet.
+
 // Primary nav items (shown directly in bottom bar)
 const PRIMARY_NAV = [
-  { id: 'dashboard', label: 'Tổng quan', icon: Icons.dashboard },
-  { id: 'portfolio', label: 'Vốn', icon: Icons.portfolio },
-  { id: 'terminal', label: 'Lệnh', icon: Icons.terminal },
+  { id: 'overview', label: 'Tổng quan', icon: Icons.dashboard },
+  { id: 'portfolio', label: 'Quản lý vốn', icon: Icons.portfolio },
+  { id: 'terminal', label: 'Đặt lệnh', icon: Icons.terminal },
   { id: 'watchlist', label: 'Theo dõi', icon: Icons.watchlist },
 ];
 
 // Secondary nav items (shown in menu sheet)
 const SECONDARY_NAV = [
+  { id: 'dashboard', label: 'Dashboard', icon: Icons.dashboard },
   { id: 'market', label: 'Bảng giá', icon: Icons.market },
   { id: 'notifications', label: 'Thông báo', icon: Icons.notifications },
   { id: 'settings', label: 'Cài đặt', icon: Icons.settings },

@@ -10,6 +10,7 @@ import { AuthView } from './components/AuthView';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { ActivePortfolioProvider, useActivePortfolio } from './contexts/ActivePortfolioContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { useHashRoute } from './hooks/useHashRoute';
 import { DashboardView } from './components/DashboardView';
 import { TradingTerminal } from './components/TradingTerminal';
 import { PortfolioView } from './components/PortfolioView';
@@ -2412,7 +2413,9 @@ function ToastContainer({ toasts, onDismiss }: { toasts: ToastItem[]; onDismiss:
 }
 
 function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
-  const [currentView, setCurrentView] = useState('home');
+  // Phase 10 B-03 — hash-based routing replaces local view state.
+  // setCurrentView keeps same call signature; navigation now triggered via window.location.hash.
+  const [currentView, setCurrentView] = useHashRoute();
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => localStorage.getItem('sidebar_default') !== 'closed');
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -3248,8 +3251,8 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
           />
         )}
 
-        {/* OLD home view: 'home_legacy' + 'market' (Bảng Giá) */}
-        {(currentView === 'home_legacy' || currentView === 'market') && (
+        {/* Bảng giá (home_legacy view ID retired in Phase 10 B-03 — 'market' only) */}
+        {currentView === 'market' && (
           <div className="w-full animate-fade-in">
             <HomeView
               totalBalance={totalBalance}
@@ -3840,7 +3843,7 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
           </div>
         )}
 
-        {currentView === 'terminal_legacy' && (
+        {(currentView as string) === 'terminal_legacy' && (
           <div className="space-y-8 max-w-[1600px] mx-auto animate-fade-in">
             <div>
               <div className="flex justify-between items-center mb-5">
