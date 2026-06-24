@@ -503,9 +503,7 @@ export const PortfolioView: React.FC<Props> = ({
               realizedPnl={realSummary?.total_realized_pnl ?? 0}
               unrealizedPnl={realSummary?.total_unrealized_pnl ?? 0}
               initialCapital={initialCapital}
-              onOpenAdvanced={() => {
-                console.log('[P5] open RiskAdvancedModal');
-              }}
+              onOpenAdvanced={() => {}}
             />
             <SectorAllocationCard portfolioId={portfolioId} sectors={sectorData} loading={sectorLoading} />
           </div>

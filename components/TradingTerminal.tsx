@@ -214,7 +214,7 @@ export const TradingTerminal: React.FC<Props> = ({
         setChartData(data);
       }
     } catch (e) {
-      console.error('Load chart error:', e);
+      if (import.meta.env.DEV) console.error('Load chart error:', e);
     } finally {
       setLoadingChart(false);
     }
@@ -277,7 +277,7 @@ export const TradingTerminal: React.FC<Props> = ({
         setOrderBook(obRes.value.data.data);
       }
     } catch (e) {
-      console.error('Load symbol data error:', e);
+      if (import.meta.env.DEV) console.error('Load symbol data error:', e);
     } finally {
       setLoadingDetail(false);
       setLoadingSidebar(false);

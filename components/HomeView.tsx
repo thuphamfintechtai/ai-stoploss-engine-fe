@@ -123,7 +123,7 @@ export const HomeView: React.FC<Props> = ({ onNavigate, totalBalance, riskUsed, 
         }
       })
       .catch((e: any) => {
-        if (e?.response?.status !== 503) console.error('Market index detail error:', e);
+        if (import.meta.env.DEV && e?.response?.status !== 503) console.error('Market index detail error:', e);
         setMarketIndexDetailList([]);
       });
     const t = setInterval(() => {
