@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { AlertOctagon, AlertTriangle } from 'lucide-react';
 
 /**
  * PriceFreshness — hiển thị nhãn "Delayed ~Xs" khi tuổi giá vượt threshold.
@@ -54,7 +55,7 @@ export const PriceFreshness: React.FC<PriceFreshnessProps> = ({
         data-testid="price-freshness"
         role="status"
       >
-        <span aria-hidden="true">⛔</span>
+        <AlertOctagon size={12} strokeWidth={1.8} aria-hidden="true" />
         VPBS tạm dừng — giá từ cache
       </span>
     );
@@ -69,7 +70,7 @@ export const PriceFreshness: React.FC<PriceFreshnessProps> = ({
       data-testid="price-freshness"
       role="status"
     >
-      <span aria-hidden="true">⚠</span>
+      <AlertTriangle size={12} strokeWidth={1.8} aria-hidden="true" />
       Delayed ~{ageSeconds}s
     </span>
   );

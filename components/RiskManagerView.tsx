@@ -8,6 +8,7 @@ import { StatCard } from './ui/StatCard';
 import { SkeletonCard } from './ui/SkeletonLoader';
 import { AiDisclaimer } from './ui/AiDisclaimer';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { AlertTriangle } from 'lucide-react';
 
 interface Props {
   portfolioId: string | null;
@@ -326,7 +327,7 @@ export const RiskManagerView: React.FC<Props> = ({
                         }
                         return (
                           <div key={i} className="px-2 py-1 rounded bg-warning/5 border border-warning/20 text-[9px] text-warning/90 flex items-start gap-1.5">
-                            <span className="shrink-0">⚠</span><span>{text}</span>
+                            <AlertTriangle size={12} strokeWidth={1.8} className="inline shrink-0 text-[var(--color-warning)] mt-0.5" aria-hidden="true" /><span>{text}</span>
                           </div>
                         );
                       })}
@@ -488,8 +489,8 @@ export const RiskManagerView: React.FC<Props> = ({
               <span className={`transition-transform ${advancedExpanded ? 'rotate-90' : ''}`}>▶</span>
               Phân Tích Rủi Ro Nâng Cao (VaR, Monte Carlo, Stress Test)
             </span>
-            <span className="text-[10px] text-[var(--color-text-dim)] font-normal" role="note">
-              <span aria-hidden className="text-[var(--color-warning)]">⚠ </span>
+            <span className="text-[10px] text-[var(--color-text-dim)] font-normal inline-flex items-center gap-1" role="note">
+              <AlertTriangle size={12} strokeWidth={1.8} className="inline shrink-0 text-[var(--color-warning)]" aria-hidden="true" />
               Mô phỏng dựa trên giả định lịch sử — thực tế có thể khác. Không phải lời khuyên đầu tư.
             </span>
           </button>
@@ -805,7 +806,7 @@ export const RiskManagerView: React.FC<Props> = ({
                               <p className="text-[10px] font-semibold text-warning uppercase tracking-wider">Cảnh Báo <FinancialTooltip term="Sector Concentration" /></p>
                               {sectorResult.warnings.map((w: any, i: number) => (
                                 <div key={i} className="px-2.5 py-1.5 rounded bg-warning/5 border border-warning/20 text-[9px] text-warning/90 flex items-start gap-1.5">
-                                  <span className="shrink-0">⚠</span><span>{typeof w === 'string' ? w : (w?.message ?? w?.text ?? JSON.stringify(w))}</span>
+                                  <AlertTriangle size={12} strokeWidth={1.8} className="inline shrink-0 text-[var(--color-warning)] mt-0.5" aria-hidden="true" /><span>{typeof w === 'string' ? w : (w?.message ?? w?.text ?? JSON.stringify(w))}</span>
                                 </div>
                               ))}
                             </div>

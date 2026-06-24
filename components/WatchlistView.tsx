@@ -5,6 +5,7 @@ import type { PriceAlert, CreateAlertRequest, AlertCondition, Notification } fro
 import { formatNumberVI, STOCK_PRICE_DISPLAY_SCALE } from '../constants';
 import wsService from '../services/websocket';
 import { SkeletonCard, SkeletonText } from './ui/SkeletonLoader';
+import { Bell, TrendingDown, TrendingUp, Megaphone } from 'lucide-react';
 
 interface WatchItem {
   symbol: string;
@@ -527,8 +528,11 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
                         className={`px-3 py-2 border-b border-border-subtle cursor-pointer hover:bg-white/5 transition-colors ${!n.is_read ? 'bg-accent/5' : ''}`}
                       >
                         <div className="flex items-start gap-2">
-                          <span className="text-[14px] mt-0.5 shrink-0">
-                            {n.type === 'PRICE_ALERT' ? '🔔' : n.type === 'SL_TRIGGERED' ? '🔴' : n.type === 'TP_TRIGGERED' ? '🟢' : '📢'}
+                          <span className="mt-0.5 shrink-0 text-text-muted">
+                            {n.type === 'PRICE_ALERT' ? <Bell size={14} strokeWidth={1.8} />
+                              : n.type === 'SL_TRIGGERED' ? <TrendingDown size={14} strokeWidth={1.8} className="text-negative" />
+                              : n.type === 'TP_TRIGGERED' ? <TrendingUp size={14} strokeWidth={1.8} className="text-positive" />
+                              : <Megaphone size={14} strokeWidth={1.8} />}
                           </span>
                           <div className="flex-1 min-w-0">
                             <p className={`text-[11px] font-semibold truncate ${!n.is_read ? 'text-text-main' : 'text-text-muted'}`}>{n.title}</p>
@@ -1155,8 +1159,9 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setShowAlertModal(false)}>
           <div className="panel-section w-full max-w-sm p-5 rounded-xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-[14px] font-bold text-text-main">
-                🔔 Cảnh báo giá – {alertTarget.symbol}
+              <h3 className="text-[14px] font-bold text-text-main inline-flex items-center gap-1.5">
+                <Bell size={14} strokeWidth={1.8} aria-hidden="true" />
+                Cảnh báo giá – {alertTarget.symbol}
               </h3>
               <button onClick={() => setShowAlertModal(false)} className="text-text-dim hover:text-text-main">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
