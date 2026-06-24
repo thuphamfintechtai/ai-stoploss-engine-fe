@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { authApi } from '../services/api';
 import type { LoginRequest, RegisterRequest } from '../services/api';
+import { Card, CardBody, Alert, TabsCompact } from './ui/primitives';
 
 type Tab = 'login' | 'register';
 
@@ -81,34 +82,25 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
-        <div className="bg-panel rounded-2xl border border-border-subtle shadow-[var(--shadow-elevated)] overflow-hidden">
+        <Card padding="none" className="overflow-hidden">
           <div className="px-6 py-5 border-b border-border-subtle bg-background-elevated">
             <h1 className="text-xl font-semibold text-text-main text-center">TradeGuard AI</h1>
             <p className="text-sm text-text-muted text-center mt-1">Đăng nhập hoặc đăng ký để tiếp tục</p>
           </div>
 
-          <div className="flex border-b border-border-subtle">
-            <button
-              type="button"
-              onClick={() => { setTab('login'); setError(null); }}
-              className={`flex-1 py-3 text-sm font-semibold transition-colors ${tab === 'login' ? 'text-accent border-b-2 border-accent bg-panel' : 'text-text-muted hover:text-text-main'}`}
-            >
-              Đăng nhập
-            </button>
-            <button
-              type="button"
-              onClick={() => { setTab('register'); setError(null); }}
-              className={`flex-1 py-3 text-sm font-semibold transition-colors ${tab === 'register' ? 'text-accent border-b-2 border-accent bg-panel' : 'text-text-muted hover:text-text-main'}`}
-            >
-              Đăng ký
-            </button>
-          </div>
+          <CardBody padding="default">
+            <TabsCompact
+              className="mb-4"
+              tabs={[
+                { value: 'login', label: 'Đăng nhập' },
+                { value: 'register', label: 'Đăng ký' },
+              ]}
+              value={tab}
+              onChange={(value) => { setTab(value as Tab); setError(null); }}
+            />
 
-          <div className="p-6">
             {error && (
-              <div className="mb-4 py-2.5 px-3 rounded-lg bg-negative/10 border border-negative/30 text-sm text-negative">
-                {error}
-              </div>
+              <Alert variant="error" className="mb-4">{error}</Alert>
             )}
 
             {tab === 'login' ? (
@@ -200,8 +192,8 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                 </button>
               </form>
             )}
-          </div>
-        </div>
+          </CardBody>
+        </Card>
       </div>
     </div>
   );
