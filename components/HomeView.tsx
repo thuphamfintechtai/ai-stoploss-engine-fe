@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { marketApi } from '../services/api';
 import { MARKET_INDEX_CODES, formatNumberVI } from '../constants';
+import { SkeletonCard } from './ui/SkeletonLoader';
 
 interface Props {
   totalBalance: number;
@@ -243,7 +244,7 @@ export const HomeView: React.FC<Props> = ({ onNavigate, totalBalance, riskUsed, 
                         ))}
                       </select>
                       {loading && !data && (
-                        <span className="text-text-dim text-[10px]">Đang tải...</span>
+                        <SkeletonCard className="inline-block h-3 w-16" />
                       )}
                     </div>
 
@@ -328,7 +329,11 @@ export const HomeView: React.FC<Props> = ({ onNavigate, totalBalance, riskUsed, 
                 </thead>
                 <tbody>
                   {marketIndexDetailList.length === 0 ? (
-                    <tr><td colSpan={4} className="text-center text-text-dim text-[11px] py-4">Đang tải...</td></tr>
+                    Array.from({ length: 3 }).map((_, i) => (
+                      <tr key={`skeleton-${i}`}>
+                        <td colSpan={4} className="px-3 py-2"><SkeletonCard className="h-4" /></td>
+                      </tr>
+                    ))
                   ) : (
                     marketIndexDetailList.map((row) => {
                       const isUp = row.indexChange != null && row.indexChange >= 0;
@@ -379,9 +384,10 @@ export const HomeView: React.FC<Props> = ({ onNavigate, totalBalance, riskUsed, 
         </div>
         <div className="p-4">
           {newsLoading ? (
-            <div className="flex items-center justify-center gap-2 text-text-dim text-[12px] py-6">
-              <div className="w-3 h-3 border border-accent border-t-transparent rounded-full animate-spin" />
-              Đang tải tin...
+            <div className="space-y-2 py-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <SkeletonCard key={i} className="h-14" />
+              ))}
             </div>
           ) : newsError ? (
             <div className="text-center py-6">

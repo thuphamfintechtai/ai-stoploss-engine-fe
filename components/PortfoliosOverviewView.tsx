@@ -5,6 +5,8 @@ import { useActivePortfolio } from '../contexts/ActivePortfolioContext';
 import { PortfolioType, getPresetLabel } from '../utils/portfolioPresets';
 import { CreatePortfolioModal } from './portfolio/CreatePortfolioModal';
 import { PresetIcon } from './portfolio/PresetIcon';
+import { SkeletonCard } from './ui/SkeletonLoader';
+import { EmptyState, EmptyStateIcon, ErrorState } from './ui/EmptyState';
 
 interface PortfolioOverviewItem {
   id: string;
@@ -77,31 +79,34 @@ export const PortfoliosOverviewView: React.FC<Props> = ({ onNavigateToDashboard 
   };
 
   if (loading) {
-    return <div className="p-6 text-[12px] text-[var(--color-text-muted)] animate-pulse">Đang tải tổng quan...</div>;
+    return (
+      <div className="p-6 space-y-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <SkeletonCard key={i} className="h-24" />
+        ))}
+      </div>
+    );
   }
 
   if (error) {
     return (
       <div className="p-6">
-        <div className="text-[12px] text-[var(--color-negative)] mb-2">{error}</div>
-        <button onClick={fetchOverview} className="px-3 py-1.5 text-[11px] rounded border border-[var(--color-divider)] hover:bg-[var(--color-panel-hover)]">
-          Thử lại
-        </button>
+        <ErrorState message={error} onRetry={fetchOverview} />
       </div>
     );
   }
 
   if (!data || data.portfolios.length === 0) {
     return (
-      <div className="p-6 text-center">
-        <div className="text-[14px] font-semibold text-[var(--color-text-main)] mb-2">Bạn chưa có danh mục nào</div>
-        <div className="text-[12px] text-[var(--color-text-muted)] mb-4">Tạo danh mục đầu tiên để bắt đầu theo dõi rủi ro</div>
-        <button
-          onClick={() => setCreateOpen(true)}
-          className="px-4 py-2 text-[12px] rounded bg-[var(--color-accent)] text-white hover:opacity-90"
-        >
-          + Tạo danh mục đầu tiên
-        </button>
+      <div className="p-6">
+        <EmptyState
+          variant="default"
+          icon={EmptyStateIcon.portfolio}
+          title="Bạn chưa có danh mục nào"
+          description="Tạo danh mục đầu tiên để bắt đầu theo dõi rủi ro."
+          actionLabel="Tạo danh mục đầu tiên"
+          onAction={() => setCreateOpen(true)}
+        />
         {createOpen && <CreatePortfolioModal onClose={() => { setCreateOpen(false); refreshPortfolios(); fetchOverview(); }} />}
       </div>
     );

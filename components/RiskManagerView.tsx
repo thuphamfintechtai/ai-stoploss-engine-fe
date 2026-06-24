@@ -740,10 +740,7 @@ export const RiskManagerView: React.FC<Props> = ({
                   <p className="mt-1 text-text-muted text-[11px]">Quy tắc: Không quá 30-40% vào 1 ngành duy nhất.</p>
                 </InfoCard>
                 {!sectorResult ? (
-                  <div className="flex items-center justify-center py-8 gap-2 text-text-dim text-[12px]">
-                    <div className="w-3 h-3 border border-accent border-t-transparent rounded-full animate-spin" />
-                    Đang tải phân bổ ngành...
-                  </div>
+                  <SkeletonCard className="h-48" />
                 ) : sectorResult.sectors.length === 0 ? (
                   <div className="text-center py-8 text-text-dim text-[12px]">Không đủ dữ liệu phân bổ ngành</div>
                 ) : (

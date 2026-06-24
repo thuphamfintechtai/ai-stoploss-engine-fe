@@ -4,6 +4,7 @@ import { AiDisclaimer } from './ui/AiDisclaimer';
 import { ConfidenceBar } from './ui/ConfidenceBar';
 import { ClampedBadge } from './ui/ClampedBadge';
 import { CandlestickChart } from './charts/CandlestickChart';
+import { SkeletonCard } from './ui/SkeletonLoader';
 import { marketApi, positionApi, orderApi, realPortfolioApi, watchlistApi, aiApi, getPositionSizing } from '../services/api';
 import type { Position, PositionSizingResult } from '../services/api';
 import { STOCK_PRICE_DISPLAY_SCALE, PRICE_FRACTION_OPTIONS, PRICE_LOCALE, formatNumberVI, formatPricePoints } from '../constants';
@@ -754,7 +755,11 @@ export const TradingTerminal: React.FC<Props> = ({
             </div>
             <div className="flex-1 overflow-y-auto dense-scroll">
               {loadingStocks ? (
-                <div className="text-center py-4 text-text-dim text-[10px] animate-pulse">Đang tải...</div>
+                <div className="p-2 space-y-1.5">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <SkeletonCard key={i} className="h-5" />
+                  ))}
+                </div>
               ) : (
                 <table className="w-full">
                   <thead className="sticky top-0 z-10" style={{ background: 'var(--color-panel-secondary)' }}>
@@ -849,7 +854,11 @@ export const TradingTerminal: React.FC<Props> = ({
                   </div>
                 )}
                 {loadingSidebar ? (
-                  <div className="text-center py-6 text-text-dim text-[10px] animate-pulse">Đang tải...</div>
+                  <div className="p-2 space-y-1.5">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <SkeletonCard key={i} className="h-5" />
+                    ))}
+                  </div>
                 ) : (
                   <table className="table-terminal w-full">
                     <thead>
@@ -884,7 +893,11 @@ export const TradingTerminal: React.FC<Props> = ({
             {sidebarTab === 'orderbook' && (
               <>
                 {loadingSidebar ? (
-                  <div className="text-center py-6 text-text-dim text-[10px] animate-pulse">Đang tải...</div>
+                  <div className="p-2 space-y-1.5">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <SkeletonCard key={i} className="h-5" />
+                    ))}
+                  </div>
                 ) : (orderBook?.priceStatistic ?? orderBook?.data?.priceStatistic)?.length > 0 ? (
                   <table className="table-terminal w-full">
                     <thead>

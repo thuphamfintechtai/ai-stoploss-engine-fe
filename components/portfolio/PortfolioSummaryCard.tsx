@@ -1,4 +1,5 @@
 import React from 'react';
+import { SkeletonCard } from '../ui/SkeletonLoader';
 
 interface PortfolioSummaryCardProps {
   totalValue: number;
@@ -83,7 +84,11 @@ export const PortfolioSummaryCard: React.FC<PortfolioSummaryCardProps> = ({
         Tổng quan danh mục
       </h3>
       {loading ? (
-        <div className="text-[11px] text-[var(--color-text-dim)] animate-pulse">Đang tải...</div>
+        <div className="space-y-2">
+          <SkeletonCard className="h-4 w-1/2" />
+          <SkeletonCard className="h-10" />
+          <SkeletonCard className="h-10" />
+        </div>
       ) : (
         <>
           {/* Row 1: Tổng đầu tư + % Lợi nhuận (với totalPnl sub-label — WARNING 6: totalPnl vẫn hiển thị) */}

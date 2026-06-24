@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { marketApi } from '../services/api';
+import { SkeletonCard } from './ui/SkeletonLoader';
+import { EmptyState, EmptyStateIcon } from './ui/EmptyState';
 
 interface Article {
   title: string;
@@ -82,11 +84,26 @@ export const MarketNewsView: React.FC = () => {
       )}
 
       {loading ? (
-        <div className="py-12 text-center text-text-muted text-sm">Đang tải tin tức...</div>
-      ) : articles.length === 0 ? (
-        <div className="py-12 text-center text-text-muted text-sm">
-          {search ? 'Không có tin nào phù hợp.' : 'Chưa có tin tức.'}
+        <div className="space-y-3 py-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonCard key={i} className="h-20" />
+          ))}
         </div>
+      ) : articles.length === 0 ? (
+        search ? (
+          <EmptyState
+            variant="compact"
+            icon={EmptyStateIcon.search}
+            title="Không có tin phù hợp"
+            description="Thử thay đổi từ khoá tìm kiếm."
+          />
+        ) : (
+          <EmptyState
+            variant="compact"
+            icon={EmptyStateIcon.default}
+            title="Chưa có tin tức"
+          />
+        )
       ) : (
         <ul className="space-y-4">
           {articles.map((article, idx) => (
