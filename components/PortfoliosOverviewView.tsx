@@ -177,7 +177,11 @@ export const PortfoliosOverviewView: React.FC<Props> = ({ onNavigateToDashboard 
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div className="text-[11px] text-[var(--color-text-muted)] py-8 text-center">Chưa có giá trị</div>
+            <EmptyState
+              variant="compact"
+              icon={EmptyStateIcon.chart}
+              title="Chưa có giá trị"
+            />
           )}
           {/* Show 3 types breakdown including value=0 for consistency */}
           <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[var(--color-divider)]">

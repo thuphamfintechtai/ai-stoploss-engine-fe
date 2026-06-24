@@ -5,6 +5,7 @@ import type { PriceAlert, CreateAlertRequest, AlertCondition, Notification } fro
 import { formatNumberVI, STOCK_PRICE_DISPLAY_SCALE } from '../constants';
 import wsService from '../services/websocket';
 import { SkeletonCard, SkeletonText } from './ui/SkeletonLoader';
+import { EmptyState, EmptyStateIcon } from './ui/EmptyState';
 import { Bell, TrendingDown, TrendingUp, Megaphone } from 'lucide-react';
 
 interface WatchItem {
@@ -520,7 +521,11 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
                   </div>
                   <div className="max-h-72 overflow-y-auto dense-scroll">
                     {notifications.length === 0 ? (
-                      <p className="text-[11px] text-text-dim text-center py-6">Không có thông báo</p>
+                      <EmptyState
+                        variant="compact"
+                        icon={EmptyStateIcon.notification}
+                        title="Không có thông báo"
+                      />
                     ) : notifications.map((n) => (
                       <div
                         key={n.id}
@@ -883,7 +888,12 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
                           </div>
                         </>
                       ) : (
-                        <p className="text-[11px] text-text-dim">Chưa có kết quả phân tích. Nhấn "Phân tích ngay" để bắt đầu.</p>
+                        <EmptyState
+                          variant="compact"
+                          icon={EmptyStateIcon.chart}
+                          title="Chưa có kết quả phân tích"
+                          description='Nhấn "Phân tích ngay" để bắt đầu.'
+                        />
                       )}
                     </div>
 
@@ -895,7 +905,11 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
                       </div>
                       <div className="flex-1 overflow-y-auto dense-scroll">
                         {aiHistory.length === 0 ? (
-                          <p className="text-[11px] text-text-dim text-center py-6">Chưa có lịch sử</p>
+                          <EmptyState
+                            variant="compact"
+                            icon={EmptyStateIcon.default}
+                            title="Chưa có lịch sử"
+                          />
                         ) : (
                           <div className="divide-y divide-border-subtle">
                             {aiHistory.map((item: any, idx: number) => {

@@ -3,6 +3,7 @@ import { authApi, portfolioApi, notificationsApi, priceAlertsApi } from '../serv
 import type { PriceAlert, Notification } from '../services/api';
 import { formatNumberVI } from '../constants';
 import { useTheme, type Theme } from '../contexts/ThemeContext';
+import { EmptyState, EmptyStateIcon } from './ui/EmptyState';
 
 type SettingsTab = 'profile' | 'portfolio' | 'notifications' | 'alerts' | 'appearance';
 
@@ -260,7 +261,13 @@ const PortfolioTab: React.FC<{ activePortfolio: any; onOpenSetup: () => void; on
       {loading ? (
         <div className="space-y-3">{[1,2].map(i => <div key={i} className="panel-section h-20 animate-pulse" />)}</div>
       ) : portfolios.length === 0 ? (
-        <div className="panel-section p-8 text-center text-text-muted text-sm">Chưa có portfolio nào</div>
+        <div className="panel-section">
+          <EmptyState
+            variant="compact"
+            icon={EmptyStateIcon.portfolio}
+            title="Chưa có portfolio nào"
+          />
+        </div>
       ) : (
         <div className="space-y-3">
           {portfolios.map(p => {
@@ -483,7 +490,11 @@ const NotificationsTab: React.FC = () => {
         {loading ? (
           <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-10 bg-border-subtle rounded animate-pulse" />)}</div>
         ) : filteredRecent.length === 0 ? (
-          <p className="text-sm text-text-muted py-4 text-center">Chưa có thông báo nào</p>
+          <EmptyState
+            variant="compact"
+            icon={EmptyStateIcon.notification}
+            title="Chưa có thông báo nào"
+          />
         ) : (
           <div className="space-y-1.5">
             {filteredRecent.map(n => (
@@ -615,7 +626,13 @@ const AlertsTab: React.FC = () => {
       {loading ? (
         <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="panel-section h-14 animate-pulse" />)}</div>
       ) : alerts.length === 0 ? (
-        <div className="panel-section p-8 text-center text-text-muted text-sm">Chưa có cảnh báo giá nào</div>
+        <div className="panel-section">
+          <EmptyState
+            variant="compact"
+            icon={EmptyStateIcon.notification}
+            title="Chưa có cảnh báo giá nào"
+          />
+        </div>
       ) : (
         <div className="panel-section overflow-hidden">
           <div className="divide-y divide-border-subtle">
