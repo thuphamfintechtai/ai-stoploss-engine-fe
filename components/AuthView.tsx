@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { authApi } from '../services/api';
 import type { LoginRequest, RegisterRequest } from '../services/api';
-import { Card, CardBody, Alert, TabsCompact } from './ui/primitives';
+import { Button, Input, Card, CardBody, Alert, TabsCompact } from './ui/primitives';
 
 type Tab = 'login' | 'register';
 
@@ -105,91 +105,65 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
 
             {tab === 'login' ? (
               <form onSubmit={handleLogin} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">Email</label>
-                  <input
-                    type="email"
-                    value={loginForm.email}
-                    onChange={(e) => setLoginForm((p) => ({ ...p, email: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-background border border-border-subtle rounded-lg text-text-main placeholder:text-text-dim focus:ring-2 focus:ring-accent-subtle focus:border-border-focus outline-none transition-colors"
-                    placeholder="email@example.com"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">Mật khẩu</label>
-                  <input
-                    type="password"
-                    value={loginForm.password}
-                    onChange={(e) => setLoginForm((p) => ({ ...p, password: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-background border border-border-subtle rounded-lg text-text-main placeholder:text-text-dim focus:ring-2 focus:ring-accent-subtle focus:border-border-focus outline-none transition-colors"
-                    placeholder="••••••••"
-                    required
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-3 rounded-lg bg-accent hover:bg-accent-hover active:bg-accent-active text-text-on-primary font-semibold transition-colors disabled:opacity-60 cursor-pointer"
-                >
-                  {loading ? 'Đang xử lý...' : 'Đăng nhập'}
-                </button>
+                <Input
+                  type="email"
+                  label="Email"
+                  value={loginForm.email}
+                  onChange={(e) => setLoginForm((p) => ({ ...p, email: e.target.value }))}
+                  placeholder="email@example.com"
+                  required
+                />
+                <Input
+                  type="password"
+                  label="Mật khẩu"
+                  value={loginForm.password}
+                  onChange={(e) => setLoginForm((p) => ({ ...p, password: e.target.value }))}
+                  placeholder="••••••••"
+                  required
+                />
+                <Button type="submit" variant="primary" size="lg" fullWidth loading={loading}>
+                  Đăng nhập
+                </Button>
               </form>
             ) : (
               <form onSubmit={handleRegister} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">Email</label>
-                  <input
-                    type="email"
-                    value={registerForm.email}
-                    onChange={(e) => setRegisterForm((p) => ({ ...p, email: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-background border border-border-subtle rounded-lg text-text-main placeholder:text-text-dim focus:ring-2 focus:ring-accent-subtle focus:border-border-focus outline-none transition-colors"
-                    placeholder="email@example.com"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">Tên đăng nhập (3–50 ký tự)</label>
-                  <input
-                    type="text"
-                    value={registerForm.username}
-                    onChange={(e) => setRegisterForm((p) => ({ ...p, username: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-background border border-border-subtle rounded-lg text-text-main placeholder:text-text-dim focus:ring-2 focus:ring-accent-subtle focus:border-border-focus outline-none transition-colors"
-                    placeholder="username"
-                    minLength={3}
-                    maxLength={50}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">Họ tên (tùy chọn)</label>
-                  <input
-                    type="text"
-                    value={registerForm.fullName ?? ''}
-                    onChange={(e) => setRegisterForm((p) => ({ ...p, fullName: e.target.value || undefined }))}
-                    className="w-full px-4 py-2.5 bg-background border border-border-subtle rounded-lg text-text-main placeholder:text-text-dim focus:ring-2 focus:ring-accent-subtle focus:border-border-focus outline-none transition-colors"
-                    placeholder="Nguyễn Văn A"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">Mật khẩu (tối thiểu 6 ký tự)</label>
-                  <input
-                    type="password"
-                    value={registerForm.password}
-                    onChange={(e) => setRegisterForm((p) => ({ ...p, password: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-background border border-border-subtle rounded-lg text-text-main placeholder:text-text-dim focus:ring-2 focus:ring-accent-subtle focus:border-border-focus outline-none transition-colors"
-                    placeholder="••••••••"
-                    minLength={6}
-                    required
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-3 rounded-lg bg-accent hover:bg-accent-hover active:bg-accent-active text-text-on-primary font-semibold transition-colors disabled:opacity-60 cursor-pointer"
-                >
-                  {loading ? 'Đang xử lý...' : 'Đăng ký'}
-                </button>
+                <Input
+                  type="email"
+                  label="Email"
+                  value={registerForm.email}
+                  onChange={(e) => setRegisterForm((p) => ({ ...p, email: e.target.value }))}
+                  placeholder="email@example.com"
+                  required
+                />
+                <Input
+                  type="text"
+                  label="Tên đăng nhập (3–50 ký tự)"
+                  value={registerForm.username}
+                  onChange={(e) => setRegisterForm((p) => ({ ...p, username: e.target.value }))}
+                  placeholder="username"
+                  minLength={3}
+                  maxLength={50}
+                  required
+                />
+                <Input
+                  type="text"
+                  label="Họ tên (tùy chọn)"
+                  value={registerForm.fullName ?? ''}
+                  onChange={(e) => setRegisterForm((p) => ({ ...p, fullName: e.target.value || undefined }))}
+                  placeholder="Nguyễn Văn A"
+                />
+                <Input
+                  type="password"
+                  label="Mật khẩu (tối thiểu 6 ký tự)"
+                  value={registerForm.password}
+                  onChange={(e) => setRegisterForm((p) => ({ ...p, password: e.target.value }))}
+                  placeholder="••••••••"
+                  minLength={6}
+                  required
+                />
+                <Button type="submit" variant="primary" size="lg" fullWidth loading={loading}>
+                  Đăng ký
+                </Button>
               </form>
             )}
           </CardBody>
