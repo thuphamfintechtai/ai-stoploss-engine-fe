@@ -1,4 +1,5 @@
 import React from 'react';
+import { Card, CardHeader, CardBody, Button } from '../ui/primitives';
 
 export interface BriefingContent {
   headline: string;
@@ -16,6 +17,15 @@ interface AiBriefingCardProps {
   onViewDetail?: () => void;
 }
 
+/**
+ * AiBriefingCard — narrative AI summary block at top of portfolio view.
+ *
+ * Phase 10-05: Migrated to Card/CardHeader/CardBody/Button primitives (A-01).
+ * Gradient background and brand icon stay inline because `<Card>` doesn't
+ * expose a header-accent gradient slot; that styling is custom in this file.
+ * AiDisclaimer not used here — D-08 is satisfied by the parent view wrapping
+ * the briefing in its own disclaimer surface.
+ */
 export const AiBriefingCard: React.FC<AiBriefingCardProps> = ({
   briefing,
   loading,
@@ -26,63 +36,71 @@ export const AiBriefingCard: React.FC<AiBriefingCardProps> = ({
 
   if (loading) {
     return (
-      <div className="bg-[var(--color-panel)] border border-[var(--color-border-subtle)] rounded-xl p-5 animate-pulse">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-[var(--color-panel-hover)]" />
-          <div>
-            <div className="h-4 w-24 bg-[var(--color-panel-hover)] rounded mb-1" />
-            <div className="h-3 w-16 bg-[var(--color-panel-hover)] rounded" />
+      <Card padding="none" className="animate-pulse">
+        <CardBody>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-8 h-8 rounded-lg bg-[var(--color-panel-hover)]" />
+            <div>
+              <div className="h-4 w-24 bg-[var(--color-panel-hover)] rounded mb-1" />
+              <div className="h-3 w-16 bg-[var(--color-panel-hover)] rounded" />
+            </div>
           </div>
-        </div>
-        <div className="h-4 w-3/4 bg-[var(--color-panel-hover)] rounded mb-2" />
-        <div className="h-3 w-full bg-[var(--color-panel-hover)] rounded" />
-      </div>
+          <div className="h-4 w-3/4 bg-[var(--color-panel-hover)] rounded mb-2" />
+          <div className="h-3 w-full bg-[var(--color-panel-hover)] rounded" />
+        </CardBody>
+      </Card>
     );
   }
 
   const isGemini = briefing?.generated_by === 'gemini';
 
   return (
-    <div className="bg-gradient-to-r from-[var(--color-accent)]/5 via-[var(--color-panel)] to-[var(--color-panel)] border border-[var(--color-accent)]/20 rounded-xl overflow-hidden">
-      {/* Header */}
-      <div className="px-5 py-4 flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--color-accent)] to-[var(--color-secondary)] flex items-center justify-center shadow-lg shadow-[var(--color-accent)]/20">
-            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
-            </svg>
-          </div>
-          <div>
-            <h3 className="text-[14px] font-semibold text-[var(--color-text-main)] flex items-center gap-2">
-              Báo cáo AI
-              {isGemini && (
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[var(--color-accent)]/10 text-[var(--color-accent)] uppercase tracking-wider">
-                  Gemini
-                </span>
+    <Card
+      padding="none"
+      className="bg-gradient-to-r from-[var(--color-accent)]/5 via-[var(--color-panel)] to-[var(--color-panel)] border-[var(--color-accent)]/20 overflow-hidden"
+    >
+      <CardHeader>
+        <div className="flex items-start justify-between gap-4 w-full">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--color-accent)] to-[var(--color-secondary)] flex items-center justify-center shadow-lg shadow-[var(--color-accent)]/20">
+              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-[14px] font-semibold text-[var(--color-text-main)] flex items-center gap-2">
+                Báo cáo AI
+                {isGemini && (
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[var(--color-accent)]/10 text-[var(--color-accent)] uppercase tracking-wider">
+                    Gemini
+                  </span>
+                )}
+              </h3>
+              {briefing?.generated_at && (
+                <p className="text-[11px] text-[var(--color-text-dim)] mt-0.5">
+                  Cập nhật lúc {new Date(briefing.generated_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                </p>
               )}
-            </h3>
-            {briefing?.generated_at && (
-              <p className="text-[11px] text-[var(--color-text-dim)] mt-0.5">
-                Cập nhật lúc {new Date(briefing.generated_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-              </p>
-            )}
+            </div>
           </div>
+
+          {onDismiss && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onDismiss}
+              aria-label="Đóng báo cáo AI"
+              className="!p-1"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </Button>
+          )}
         </div>
+      </CardHeader>
 
-        {onDismiss && (
-          <button
-            onClick={onDismiss}
-            className="text-[var(--color-text-dim)] hover:text-[var(--color-text-muted)] transition-colors p-1"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        )}
-      </div>
-
-      {/* Content */}
-      <div className="px-5 pb-5">
+      <CardBody>
         <p className="text-[14px] font-medium text-[var(--color-text-main)] mb-3 leading-snug">
           {briefing!.headline}
         </p>
@@ -116,17 +134,21 @@ export const AiBriefingCard: React.FC<AiBriefingCardProps> = ({
 
         {/* Actions */}
         {onViewDetail && (
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={onViewDetail}
-            className="text-[11px] font-semibold text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors flex items-center gap-1"
+            className="text-[11px] font-semibold text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] !px-0"
+            rightIcon={
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+              </svg>
+            }
           >
             Xem phân tích chi tiết
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-            </svg>
-          </button>
+          </Button>
         )}
-      </div>
-    </div>
+      </CardBody>
+    </Card>
   );
 };

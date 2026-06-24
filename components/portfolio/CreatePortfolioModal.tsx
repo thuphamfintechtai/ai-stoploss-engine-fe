@@ -8,6 +8,14 @@ import {
 import { portfolioApi } from '../../services/api';
 import { AiDisclaimer } from '../ui/AiDisclaimer';
 import { PresetIcon } from './PresetIcon';
+import {
+  Modal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button,
+  Input,
+} from '../ui/primitives';
 
 interface Props {
   onClose: () => void;
@@ -24,6 +32,10 @@ interface Props {
  * 3. Submit → POST /api/portfolios { name, totalBalance, portfolioType } —
  *    BE auto-fill max_risk_percent + expected_return_percent từ preset (D-03).
  * 4. Refresh context → switch sang portfolio mới.
+ *
+ * Phase 10-05: Migrated to Modal/Button/Input primitives (A-01). 3 preset
+ * cards giữ raw `<button>` vì là custom visual selector (radio-card pattern
+ * không có trong primitives v1).
  */
 export const CreatePortfolioModal: React.FC<Props> = ({ onClose, onCreated }) => {
   const { refreshPortfolios, setActivePortfolioId } = useActivePortfolio();
@@ -73,26 +85,14 @@ export const CreatePortfolioModal: React.FC<Props> = ({ onClose, onCreated }) =>
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-      onClick={onClose}
-    >
-      <div
-        className="rounded-2xl max-w-[520px] w-full p-6 shadow-2xl"
-        style={{
-          background: 'var(--color-panel)',
-          border: '1px solid var(--color-border-standard)',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4">
-          <h2 className="text-[16px] font-bold text-text-main mb-1">Tạo danh mục mới</h2>
-          <p className="text-[12px] text-text-muted">
-            Chọn chiến lược phù hợp — AI sẽ tư vấn SL/TP theo loại bạn chọn
-          </p>
-        </div>
+    <Modal isOpen={true} onClose={onClose} size="md">
+      <ModalHeader onClose={onClose}>Tạo danh mục mới</ModalHeader>
+      <ModalBody>
+        <p className="text-[12px] text-text-muted mb-4">
+          Chọn chiến lược phù hợp — AI sẽ tư vấn SL/TP theo loại bạn chọn
+        </p>
 
-        {/* 3 preset cards */}
+        {/* 3 preset cards — custom visual radio-card selector, primitives don't expose this pattern */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
           {PRESET_KEYS.map((key) => {
             const preset = PORTFOLIO_PRESETS[key];
@@ -130,43 +130,27 @@ export const CreatePortfolioModal: React.FC<Props> = ({ onClose, onCreated }) =>
           })}
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div>
-            <label className="block text-[11px] text-text-muted mb-1">Tên danh mục</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="VD: Danh mục dài hạn 2026"
-              maxLength={255}
-              autoFocus
-              className="w-full px-3 py-2 text-[13px] rounded-md text-text-main outline-none focus:ring-2"
-              style={{
-                background: 'var(--color-panel-secondary)',
-                border: '1px solid var(--color-border-standard)',
-              }}
-            />
-          </div>
-          <div>
-            <label className="block text-[11px] text-text-muted mb-1">
-              Số dư khởi tạo (VND)
-            </label>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={totalBalance}
-              onChange={(e) => {
-                const raw = e.target.value.replace(/[^0-9]/g, '');
-                setTotalBalance(raw ? Number(raw).toLocaleString('vi-VN') : '');
-              }}
-              placeholder="100.000.000"
-              className="w-full px-3 py-2 text-[13px] rounded-md text-text-main outline-none focus:ring-2"
-              style={{
-                background: 'var(--color-panel-secondary)',
-                border: '1px solid var(--color-border-standard)',
-              }}
-            />
-          </div>
+        <form id="create-portfolio-form" onSubmit={handleSubmit} className="space-y-3">
+          <Input
+            type="text"
+            label="Tên danh mục"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="VD: Danh mục dài hạn 2026"
+            maxLength={255}
+            autoFocus
+          />
+          <Input
+            type="text"
+            inputMode="numeric"
+            label="Số dư khởi tạo (VND)"
+            value={totalBalance}
+            onChange={(e) => {
+              const raw = e.target.value.replace(/[^0-9]/g, '');
+              setTotalBalance(raw ? Number(raw).toLocaleString('vi-VN') : '');
+            }}
+            placeholder="100.000.000"
+          />
 
           {error && (
             <div
@@ -180,31 +164,24 @@ export const CreatePortfolioModal: React.FC<Props> = ({ onClose, onCreated }) =>
               {error}
             </div>
           )}
-
-          <div className="flex gap-2 justify-end pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={submitting}
-              className="px-4 py-2 text-[12px] rounded-md text-text-muted hover:text-text-main transition-colors"
-              style={{ border: '1px solid var(--color-border-standard)' }}
-            >
-              Huỷ
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-4 py-2 text-[12px] rounded-md font-semibold text-white transition-opacity disabled:opacity-50"
-              style={{ background: 'var(--color-accent)' }}
-            >
-              {submitting ? 'Đang tạo...' : 'Tạo danh mục'}
-            </button>
-          </div>
         </form>
         <div className="mt-3">
           <AiDisclaimer compact />
         </div>
-      </div>
-    </div>
+      </ModalBody>
+      <ModalFooter>
+        <Button variant="ghost" onClick={onClose} disabled={submitting}>
+          Huỷ
+        </Button>
+        <Button
+          variant="primary"
+          type="submit"
+          form="create-portfolio-form"
+          loading={submitting}
+        >
+          Tạo danh mục
+        </Button>
+      </ModalFooter>
+    </Modal>
   );
 };
