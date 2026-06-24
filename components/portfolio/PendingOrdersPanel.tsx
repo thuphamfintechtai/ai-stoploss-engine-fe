@@ -100,6 +100,7 @@ export const PendingOrdersPanel: React.FC<Props> = ({ portfolioId, onConfirmed }
           onClick={load}
           className="text-[10px] text-[var(--color-text-dim)] hover:text-[var(--color-text-main)]"
           title="Làm mới"
+          aria-label="Làm mới lệnh chờ"
         >
           ⟳
         </button>

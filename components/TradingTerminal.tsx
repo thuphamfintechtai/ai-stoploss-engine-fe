@@ -1111,6 +1111,7 @@ export const TradingTerminal: React.FC<Props> = ({
                 <button
                   onClick={() => { setShowOrderModal(false); setOrderMsg(null); }}
                   className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 text-text-dim hover:text-text-main text-[14px] transition-colors"
+                  aria-label="Đóng cửa sổ đặt lệnh"
                 >✕</button>
               </div>
 
@@ -1278,6 +1279,7 @@ export const TradingTerminal: React.FC<Props> = ({
                         onClick={() => setQuantityInput('')}
                         className="px-2 py-1.5 rounded-lg bg-background border border-border-subtle text-[9px] font-bold text-text-dim hover:text-negative/70 hover:border-negative/30 transition-colors"
                         title="Xóa"
+                        aria-label="Xoá số lượng"
                       >✕</button>
                     </div>
                   )}
@@ -1406,7 +1408,7 @@ export const TradingTerminal: React.FC<Props> = ({
                                     : 'Swing'}
                                 </span>
                               )}
-                              <button onClick={() => { setAiSuggestions(null); setAiSuggestError(''); }} className="text-[9px] text-text-dim">✕</button>
+                              <button onClick={() => { setAiSuggestions(null); setAiSuggestError(''); }} className="text-[9px] text-text-dim" aria-label="Đóng gợi ý AI">✕</button>
                             </div>
                           </div>
                           {/* AIT-04: ConfidenceBar — chỉ render khi BE có confidence_score Gemini */}

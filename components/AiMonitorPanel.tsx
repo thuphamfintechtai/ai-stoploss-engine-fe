@@ -532,7 +532,7 @@ export const AiMonitorPanel: React.FC<Props> = ({ portfolioId, openPositions, on
       {error && (
         <div className="panel-section p-3 border border-negative/30 bg-negative/5 text-[12px] text-negative flex items-center justify-between">
           <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-text-dim hover:text-text-muted ml-3 shrink-0">✕</button>
+          <button onClick={() => setError(null)} className="text-text-dim hover:text-text-muted ml-3 shrink-0" aria-label="Đóng thông báo lỗi">✕</button>
         </div>
       )}
 

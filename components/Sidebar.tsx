@@ -130,6 +130,8 @@ const NavItem: React.FC<{
       onClick={onClick}
       onMouseEnter={() => !isOpen && setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
+      aria-label={item.label}
+      aria-current={isActive ? 'page' : undefined}
       className={`
         relative flex items-center w-full rounded-md transition-all duration-150 ease-out
         ${isOpen ? 'px-3 py-2 gap-3' : 'p-2 justify-center'}
@@ -308,6 +310,8 @@ export const Sidebar: React.FC<Props> = ({
             onClick={() => onChangeView('settings')}
             onMouseEnter={() => !isOpen && setSettingsTooltip(true)}
             onMouseLeave={() => setSettingsTooltip(false)}
+            aria-label="Cài đặt"
+            aria-current={activeId === 'settings' ? 'page' : undefined}
             className={`
               relative flex items-center w-full rounded-md transition-all duration-150
               ${isOpen ? 'px-3 py-2 gap-3' : 'p-2 justify-center'}
