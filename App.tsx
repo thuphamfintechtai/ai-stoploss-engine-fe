@@ -19,6 +19,7 @@ import { AiSignalsView } from './components/AiSignalsView';
 import { NotificationsView } from './components/NotificationsView';
 import { SettingsView } from './components/SettingsView';
 import { MobileBottomNav } from './components/ui/MobileBottomNav';
+import { ConfirmDialog } from './components/ui/ConfirmDialog';
 import { OnboardingWizard } from './components/OnboardingWizard';
 import { analyzeTrader } from './services/geminiService';
 import { portfolioApi, positionApi, realPortfolioApi, marketApi, authApi } from './services/api';
@@ -1658,6 +1659,8 @@ function PortfolioSetupModalStandalone({
   const [localExpectedReturn, setLocalExpectedReturn] = useState(initialExpectedReturn ?? 0);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // Phase 10 C-02 — replace native window.confirm with ConfirmDialog
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Cập nhật state local khi props đổi (vd. mở lại modal với giá trị mới)
   useEffect(() => {
@@ -1684,9 +1687,14 @@ function PortfolioSetupModalStandalone({
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!onDelete || !portfolioId) return;
-    if (!confirm('Bạn có chắc muốn xóa danh mục này? Dữ liệu liên quan có thể bị ảnh hưởng.')) return;
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!onDelete) return;
+    setShowDeleteConfirm(false);
     setDeleting(true);
     try {
       await Promise.resolve(onDelete());
@@ -1817,6 +1825,19 @@ function PortfolioSetupModalStandalone({
           )}
         </div>
       </div>
+
+      {/* Phase 10 C-02 — branded confirm replaces native window.confirm */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        variant="danger"
+        title="Xóa danh mục"
+        message="Bạn có chắc muốn xóa danh mục này? Dữ liệu liên quan có thể bị ảnh hưởng."
+        confirmLabel="Xóa danh mục"
+        cancelLabel="Huỷ"
+        loading={deleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }
@@ -2396,6 +2417,9 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [wsDisconnected, setWsDisconnected] = useState(false);
+  // Phase 10 C-02 — replace native window.confirm for close-position flow
+  const [closePositionConfirm, setClosePositionConfirm] = useState<{ position: PositionType } | null>(null);
+  const [closingPosition, setClosingPosition] = useState(false);
 
   // Onboarding wizard — show once for new users
   const [showOnboarding, setShowOnboarding] = useState(() => {
@@ -2734,6 +2758,26 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
     if (portfolio?.id) loadPositions();
   }, [portfolio?.id]);
 
+  // Phase 10 C-02 — close-position confirm flow (replaces native window.confirm)
+  const handleConfirmClosePosition = async () => {
+    if (!closePositionConfirm || !portfolio) return;
+    const pos = closePositionConfirm.position;
+    setClosingPosition(true);
+    try {
+      await positionApi.close(portfolio.id, pos.id, {
+        reason: 'CLOSED_MANUAL',
+        use_market_price: true,
+      });
+      setClosePositionConfirm(null);
+      await loadPositions();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Đóng lệnh thất bại.');
+      setClosePositionConfirm(null);
+    } finally {
+      setClosingPosition(false);
+    }
+  };
+
   async function loadData() {
     try {
       setLoading(true);
@@ -3031,6 +3075,23 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
             alert(msg);
           }
         } : undefined}
+      />
+
+      {/* Phase 10 C-02 — close-position confirm (replaces native window.confirm) */}
+      <ConfirmDialog
+        isOpen={closePositionConfirm !== null}
+        variant="warning"
+        title="Đóng vị thế"
+        message={
+          closePositionConfirm
+            ? `Đóng lệnh ${closePositionConfirm.position.symbol} theo giá thị trường hiện tại (VPBS)?`
+            : ''
+        }
+        confirmLabel="Đóng vị thế"
+        cancelLabel="Huỷ"
+        loading={closingPosition}
+        onConfirm={handleConfirmClosePosition}
+        onCancel={() => setClosePositionConfirm(null)}
       />
 
       <TradingModal
@@ -4046,18 +4107,7 @@ function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) {
                             <td className="px-4 py-2.5 text-center">
                               {isOpen && (
                                 <button
-                                  onClick={async () => {
-                                    if (!confirm(`Đóng lệnh ${pos.symbol} theo giá thị trường hiện tại (VPBS)?`)) return;
-                                    try {
-                                      await positionApi.close(portfolio!.id, pos.id, {
-                                        reason: 'CLOSED_MANUAL',
-                                        use_market_price: true,
-                                      });
-                                      await loadPositions();
-                                    } catch (e: any) {
-                                      alert(e?.response?.data?.message || 'Đóng lệnh thất bại.');
-                                    }
-                                  }}
+                                  onClick={() => setClosePositionConfirm({ position: pos })}
                                   className="text-[10px] border border-[#A63D3D] text-negative hover:bg-[#A63D3D] hover:text-white px-2 py-1 rounded font-semibold transition-colors"
                                 >
                                   Đóng

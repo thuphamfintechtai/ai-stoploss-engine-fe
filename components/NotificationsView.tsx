@@ -4,6 +4,7 @@ import type { Notification } from '../services/api';
 import wsService from '../services/websocket';
 import { FinancialTooltip } from './ui/Tooltip';
 import { EmptyState } from './ui/EmptyState';
+import { ConfirmDialog } from './ui/ConfirmDialog';
 
 interface Props {
   onUnreadCountChange?: (count: number) => void;
@@ -316,6 +317,9 @@ export const NotificationsView: React.FC<Props> = ({ onUnreadCountChange, onNavi
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+  // Phase 10 C-02 — replace native window.confirm with ConfirmDialog
+  const [showClearReadConfirm, setShowClearReadConfirm] = useState(false);
+  const [clearingRead, setClearingRead] = useState(false);
   const LIMIT = 20;
 
   const loadNotifications = useCallback(async (pageNum = 0, replace = true) => {
@@ -390,12 +394,19 @@ export const NotificationsView: React.FC<Props> = ({ onUnreadCountChange, onNavi
     }
   };
 
-  const handleDeleteRead = async () => {
-    if (!window.confirm('Xoá tất cả thông báo đã đọc?')) return;
+  const handleDeleteRead = () => {
+    setShowClearReadConfirm(true);
+  };
+
+  const handleConfirmClearRead = async () => {
+    setClearingRead(true);
     try {
       await notificationsApi.deleteRead();
       await loadNotifications(0, true);
-    } catch { /* ignore */ }
+    } catch { /* ignore */ } finally {
+      setClearingRead(false);
+      setShowClearReadConfirm(false);
+    }
   };
 
   const loadMore = () => {
@@ -604,6 +615,19 @@ export const NotificationsView: React.FC<Props> = ({ onUnreadCountChange, onNavi
           </>
         )}
       </div>
+
+      {/* Phase 10 C-02 — branded confirm replaces native window.confirm */}
+      <ConfirmDialog
+        isOpen={showClearReadConfirm}
+        variant="warning"
+        title="Xoá thông báo đã đọc"
+        message="Xoá tất cả thông báo đã đọc?"
+        confirmLabel="Xoá tất cả"
+        cancelLabel="Huỷ"
+        loading={clearingRead}
+        onConfirm={handleConfirmClearRead}
+        onCancel={() => setShowClearReadConfirm(false)}
+      />
     </div>
   );
 };
