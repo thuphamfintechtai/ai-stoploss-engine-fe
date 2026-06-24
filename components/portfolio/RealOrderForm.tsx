@@ -1,9 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { realPortfolioApi } from '../../services/api';
 import { useMarketRules } from '../../hooks/useMarketRules';
 import { OrderFieldError } from './OrderFieldError';
 import { ERRORS } from '../../utils/vnStockRules';
 import { resolveFeeRates, type PortfolioFeeConfig } from '../../utils/feeConstants';
+import { ORDER_FORM_ERRORS } from '../../utils/orderFormErrors';
+import { Button, Input, Select } from '../ui/primitives';
 
 interface RealOrderFormProps {
   portfolioId: string;
@@ -17,6 +19,12 @@ const today = () => new Date().toISOString().split('T')[0];
 
 const formatVND = (value: number) =>
   value.toLocaleString('vi-VN', { maximumFractionDigits: 0 });
+
+const EXCHANGE_OPTIONS = [
+  { value: 'HOSE', label: 'HOSE' },
+  { value: 'HNX', label: 'HNX' },
+  { value: 'UPCOM', label: 'UPCOM' },
+];
 
 export const RealOrderForm: React.FC<RealOrderFormProps> = ({
   portfolioId,
@@ -39,6 +47,13 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [collapsed, setCollapsed] = useState(false);
+
+  // C-05 field-level focus on submit error
+  const symbolRef = useRef<HTMLInputElement>(null);
+  const exchangeRef = useRef<HTMLSelectElement>(null);
+  const quantityRef = useRef<HTMLInputElement>(null);
+  const priceRef = useRef<HTMLInputElement>(null);
+  const dateRef = useRef<HTMLInputElement>(null);
 
   const rules = useMarketRules(exchange);
 
@@ -77,13 +92,34 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
     setError('');
     setSuccess('');
 
-    if (!symbol.trim()) { setError('Vui lòng nhập mã chứng khoán'); return; }
-    if (!exchange) { setError('Vui lòng chọn sàn'); return; }
-    if (qty <= 0) { setError('Số lượng phải lớn hơn 0'); return; }
-    if (price <= 0) { setError('Giá khớp phải lớn hơn 0'); return; }
-    if (!filledDate) { setError('Vui lòng chọn ngày khớp'); return; }
+    // C-05: typed error constants + field-level focus on first invalid input
+    if (!symbol.trim()) {
+      setError(ORDER_FORM_ERRORS.MISSING_SYMBOL);
+      symbolRef.current?.focus();
+      return;
+    }
+    if (!exchange) {
+      setError(ORDER_FORM_ERRORS.MISSING_EXCHANGE);
+      exchangeRef.current?.focus();
+      return;
+    }
+    if (qty <= 0) {
+      setError(ORDER_FORM_ERRORS.INVALID_QUANTITY);
+      quantityRef.current?.focus();
+      return;
+    }
+    if (price <= 0) {
+      setError(ORDER_FORM_ERRORS.INVALID_PRICE);
+      priceRef.current?.focus();
+      return;
+    }
+    if (!filledDate) {
+      setError(ORDER_FORM_ERRORS.MISSING_DATE);
+      dateRef.current?.focus();
+      return;
+    }
     if (hasFieldError) {
-      setError('Vui lòng sửa các lỗi quy tắc sàn trước khi gửi lệnh');
+      setError(ORDER_FORM_ERRORS.RULE_ERROR_PRESENT);
       return;
     }
 
@@ -125,13 +161,11 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
     }
   };
 
-  const inputCls =
-    'w-full bg-[var(--color-background)] text-[var(--color-text-main)] text-[12px] font-mono rounded-md px-3 py-2 border border-[var(--color-border-subtle)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-subtle)] transition-colors placeholder:text-[var(--color-text-disabled)]';
-
   const labelCls =
     'block text-[10px] font-medium text-[var(--color-text-muted)] mb-1 uppercase tracking-wider';
 
   if (collapsed) {
+    // Custom expand-toggle — primitives don't expose this full-bleed icon-row pattern in Phase 10
     return (
       <button
         onClick={() => setCollapsed(false)}
@@ -152,7 +186,7 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
 
   return (
     <div className="panel-section">
-      {/* Header */}
+      {/* Header — custom collapse toggle, primitives don't expose this pattern in Phase 10 */}
       <button
         onClick={() => setCollapsed(true)}
         className="w-full px-4 py-3 flex items-center justify-between border-b border-[var(--color-divider)] hover:bg-[var(--color-panel-hover)] transition-colors cursor-pointer"
@@ -167,30 +201,24 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
         {/* Row 1: Mã CK + Sàn */}
         <div className="grid grid-cols-[1fr_100px] gap-2 items-end">
           {/* Mã CK */}
-          <div>
-            <label className={labelCls}>Mã CK</label>
-            <input
-              type="text"
-              value={symbol}
-              onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-              placeholder="VNM"
-              className={`${inputCls} uppercase`}
-            />
-          </div>
+          <Input
+            ref={symbolRef}
+            type="text"
+            label="Mã CK"
+            value={symbol}
+            onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+            placeholder="VNM"
+            className="uppercase"
+          />
 
           {/* Sàn */}
-          <div>
-            <label className={labelCls}>Sàn</label>
-            <select
-              value={exchange}
-              onChange={(e) => setExchange(e.target.value as 'HOSE' | 'HNX' | 'UPCOM')}
-              className={inputCls}
-            >
-              <option value="HOSE">HOSE</option>
-              <option value="HNX">HNX</option>
-              <option value="UPCOM">UPCOM</option>
-            </select>
-          </div>
+          <Select
+            ref={exchangeRef}
+            label="Sàn"
+            value={exchange}
+            onChange={(e) => setExchange(e.target.value as 'HOSE' | 'HNX' | 'UPCOM')}
+            options={EXCHANGE_OPTIONS}
+          />
         </div>
 
         {/* Session indicator (informational — không gate submit) */}
@@ -204,55 +232,52 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
         {/* Row 2: SL + Giá + Ngày */}
         <div className="grid grid-cols-2 xl:grid-cols-3 gap-2">
           <div>
-            <label className={labelCls}>Số lượng</label>
-            <input
+            <Input
+              ref={quantityRef}
               type="number"
+              label="Số lượng"
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
               min={100}
               step={100}
               placeholder="100"
-              className={inputCls}
               aria-invalid={qtyError !== null}
+              error={qtyError !== null}
             />
             <OrderFieldError message={qtyError} />
           </div>
           <div>
-            <label className={labelCls}>Giá khớp (VND)</label>
-            <input
+            <Input
+              ref={priceRef}
               type="number"
+              label="Giá khớp (VND)"
               value={filledPrice}
               onChange={(e) => setFilledPrice(e.target.value)}
               min={0}
               step={dynamicTickStep}
               placeholder="72500"
-              className={inputCls}
               aria-invalid={priceError !== null}
+              error={priceError !== null}
             />
             <OrderFieldError message={priceError} />
           </div>
-          <div>
-            <label className={labelCls}>Stop Loss (VND)</label>
-            <input
-              type="number"
-              value={stopLoss}
-              onChange={(e) => setStopLoss(e.target.value)}
-              min={0}
-              step={dynamicTickStep}
-              placeholder="Tuỳ chọn"
-              className={inputCls}
-            />
-          </div>
-          <div>
-            <label className={labelCls}>Ngày khớp</label>
-            <input
-              type="date"
-              value={filledDate}
-              onChange={(e) => setFilledDate(e.target.value)}
-              max={today()}
-              className={inputCls}
-            />
-          </div>
+          <Input
+            type="number"
+            label="Stop Loss (VND)"
+            value={stopLoss}
+            onChange={(e) => setStopLoss(e.target.value)}
+            min={0}
+            step={dynamicTickStep}
+            placeholder="Tuỳ chọn"
+          />
+          <Input
+            ref={dateRef}
+            type="date"
+            label="Ngày khớp"
+            value={filledDate}
+            onChange={(e) => setFilledDate(e.target.value)}
+            max={today()}
+          />
         </div>
 
         {/* Summary inline */}
@@ -272,7 +297,7 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
           </div>
         )}
 
-        {/* D-05 MAP-01: Radio trạng thái lệnh */}
+        {/* D-05 MAP-01: Radio trạng thái lệnh — Custom segmented control, primitives don't expose this pattern in Phase 10 */}
         <div>
             <label className={labelCls}>Trạng thái lệnh</label>
             <div className="inline-flex rounded-md overflow-hidden border border-[var(--color-border-subtle)] h-[34px]">
@@ -304,23 +329,21 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
 
         {/* Row 3: Ghi chú + Submit */}
         <div className="grid grid-cols-[1fr_auto] gap-2 items-end">
-          <div>
-            <label className={labelCls}>Ghi chú</label>
-            <input
-              type="text"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Tùy chọn..."
-              className={inputCls}
-            />
-          </div>
-          <button
+          <Input
+            type="text"
+            label="Ghi chú"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Tùy chọn..."
+          />
+          <Button
             type="submit"
-            disabled={loading || hasFieldError}
-            className="h-[34px] px-5 rounded-md text-[12px] font-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-[var(--color-positive)] hover:brightness-110"
+            variant="success"
+            disabled={hasFieldError}
+            loading={loading}
           >
-            {loading ? '...' : 'Ghi nhận MUA'}
-          </button>
+            Ghi nhận MUA
+          </Button>
         </div>
 
         {/* Messages */}
