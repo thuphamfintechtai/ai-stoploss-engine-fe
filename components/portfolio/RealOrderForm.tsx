@@ -162,7 +162,7 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
   };
 
   const labelCls =
-    'block text-[10px] font-medium text-[var(--color-text-muted)] mb-1 uppercase tracking-wider';
+    'block text-micro font-medium text-[var(--color-text-muted)] mb-1';
 
   if (collapsed) {
     // Custom expand-toggle — primitives don't expose this full-bleed icon-row pattern in Phase 10
@@ -175,7 +175,7 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
           <svg className="w-4 h-4 text-[var(--color-accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
-          <span className="text-[13px] font-semibold text-[var(--color-text-main)]">Ghi nhận lệnh MUA</span>
+          <span className="text-body font-semibold text-[var(--color-text-main)]">Ghi nhận lệnh MUA</span>
         </div>
         <svg className="w-4 h-4 text-[var(--color-text-dim)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
@@ -191,7 +191,7 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
         onClick={() => setCollapsed(true)}
         className="w-full px-4 py-3 flex items-center justify-between border-b border-[var(--color-divider)] hover:bg-[var(--color-panel-hover)] transition-colors cursor-pointer"
       >
-        <span className="text-[13px] font-semibold text-[var(--color-text-main)]">Ghi nhận lệnh MUA</span>
+        <span className="text-body font-semibold text-[var(--color-text-main)]">Ghi nhận lệnh MUA</span>
         <svg className="w-4 h-4 text-[var(--color-text-dim)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
         </svg>
@@ -222,7 +222,7 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
         </div>
 
         {/* Session indicator (informational — không gate submit) */}
-        <div className="text-[10px] text-[var(--color-text-dim)] px-1">
+        <div className="text-micro text-[var(--color-text-dim)] px-1">
           Phiên hiện tại: <span className="font-mono">{rules.session}</span>
           {!rules.isOpen && (
             <span className="ml-2 text-[var(--color-warning)]">• Thị trường đóng cửa</span>
@@ -282,7 +282,7 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
 
         {/* Summary inline */}
         {totalValue > 0 && (
-          <div className="flex items-center gap-4 text-[10px] px-1">
+          <div className="flex items-center gap-4 text-micro px-1">
             <span className="text-[var(--color-text-dim)]">
               Giá trị: <span className="text-[var(--color-text-main)] font-mono">{formatVND(totalValue)}</span>
             </span>
@@ -304,7 +304,7 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
               <button
                 type="button"
                 onClick={() => setOrderStatus('FILLED')}
-                className={`px-3 text-[11px] font-bold transition-all ${
+                className={`px-3 text-caption font-bold transition-all ${
                   orderStatus === 'FILLED'
                     ? 'bg-[var(--color-accent)] text-white'
                     : 'bg-[var(--color-background)] text-[var(--color-text-dim)] hover:text-[var(--color-accent)]'
@@ -313,7 +313,7 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
               <button
                 type="button"
                 onClick={() => setOrderStatus('PENDING')}
-                className={`px-3 text-[11px] font-bold transition-all border-l border-[var(--color-border-subtle)] ${
+                className={`px-3 text-caption font-bold transition-all border-l border-[var(--color-border-subtle)] ${
                   orderStatus === 'PENDING'
                     ? 'bg-[var(--color-warning)] text-white'
                     : 'bg-[var(--color-background)] text-[var(--color-text-dim)] hover:text-[var(--color-warning)]'
@@ -321,7 +321,7 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
               >Chờ khớp</button>
             </div>
             {orderStatus === 'PENDING' && (
-              <p className="text-[10px] text-[var(--color-text-dim)] mt-1">
+              <p className="text-micro text-[var(--color-text-dim)] mt-1">
                 Lệnh limit đã đặt trên broker, chưa khớp — tiền sẽ được lock.
               </p>
             )}
@@ -348,10 +348,10 @@ export const RealOrderForm: React.FC<RealOrderFormProps> = ({
 
         {/* Messages */}
         {error && (
-          <p className="text-[var(--color-negative)] text-[10px] px-1">{error}</p>
+          <p className="text-[var(--color-negative)] text-micro px-1">{error}</p>
         )}
         {success && (
-          <p className="text-[var(--color-positive)] text-[10px] px-1">{success}</p>
+          <p className="text-[var(--color-positive)] text-micro px-1">{success}</p>
         )}
       </form>
     </div>

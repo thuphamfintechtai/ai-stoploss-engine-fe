@@ -34,14 +34,14 @@ interface MetricProps {
 
 const Metric: React.FC<MetricProps> = ({ label, value, subValue, valueClass, subValueClass }) => (
   <div>
-    <div className="text-[10px] text-[var(--color-text-muted)] mb-0.5 uppercase tracking-wider">
+    <div className="text-micro text-[var(--color-text-muted)] mb-0.5">
       {label}
     </div>
-    <div className={`text-[14px] font-bold tabular-nums ${valueClass ?? 'text-[var(--color-text-main)]'}`}>
+    <div className={`text-subheading font-bold tabular-nums ${valueClass ?? 'text-[var(--color-text-main)]'}`}>
       {value}
     </div>
     {subValue !== undefined && (
-      <div className={`text-[11px] font-medium tabular-nums mt-0.5 ${subValueClass ?? 'text-[var(--color-text-dim)]'}`}>
+      <div className={`text-caption font-medium tabular-nums mt-0.5 ${subValueClass ?? 'text-[var(--color-text-dim)]'}`}>
         {subValue}
       </div>
     )}
@@ -57,13 +57,13 @@ interface PnlCardProps {
 
 const PnlCard: React.FC<PnlCardProps> = ({ label, tooltip, icon, value }) => (
   <div title={tooltip}>
-    <div className="flex items-center gap-1 text-[10px] text-[var(--color-text-muted)] mb-0.5 uppercase tracking-wider">
+    <div className="flex items-center gap-1 text-micro text-[var(--color-text-muted)] mb-0.5">
       <span aria-hidden>{icon}</span>
       <span>{label}</span>
     </div>
-    <div className={`text-[14px] font-bold tabular-nums ${pnlColor(value)}`}>
+    <div className={`text-subheading font-bold tabular-nums ${pnlColor(value)}`}>
       {pnlPrefix(value)}{formatVND(value)}{' '}
-      <span className="text-[10px] font-normal">đ</span>
+      <span className="text-micro font-normal">đ</span>
     </div>
   </div>
 );
@@ -80,7 +80,7 @@ export const PortfolioSummaryCard: React.FC<PortfolioSummaryCardProps> = ({
 }) => {
   return (
     <div className="panel-section p-4">
-      <h3 className="text-[13px] font-semibold text-[var(--color-text-main)] mb-3">
+      <h3 className="text-body font-semibold text-[var(--color-text-main)] mb-3">
         Tổng quan danh mục
       </h3>
       {loading ? (
@@ -121,15 +121,15 @@ export const PortfolioSummaryCard: React.FC<PortfolioSummaryCardProps> = ({
               value={unrealizedPnl}
             />
             <div>
-              <div className="text-[10px] text-[var(--color-text-muted)] mb-0.5 uppercase tracking-wider">
+              <div className="text-micro text-[var(--color-text-muted)] mb-0.5">
                 Vị thế
               </div>
-              <div className="text-[14px] font-bold text-[var(--color-text-main)]">
+              <div className="text-subheading font-bold text-[var(--color-text-main)]">
                 <span className="text-[var(--color-accent)]">{positionCount}</span>
-                <span className="text-[var(--color-text-dim)] text-[10px] font-normal"> đang mở</span>
+                <span className="text-[var(--color-text-dim)] text-micro font-normal"> đang mở</span>
                 {' / '}
                 <span className="text-[var(--color-text-muted)]">{closedCount}</span>
-                <span className="text-[var(--color-text-dim)] text-[10px] font-normal"> đã đóng</span>
+                <span className="text-[var(--color-text-dim)] text-micro font-normal"> đã đóng</span>
               </div>
             </div>
           </div>

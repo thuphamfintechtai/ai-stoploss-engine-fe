@@ -145,7 +145,7 @@ const NavItem: React.FC<{
       <span className="relative shrink-0">
         {item.icon}
         {badge !== undefined && badge > 0 && !isOpen && (
-          <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-negative text-white text-[9px] font-bold flex items-center justify-center px-0.5">
+          <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-negative text-white text-micro font-bold flex items-center justify-center px-0.5">
             {badge > 99 ? '99+' : badge}
           </span>
         )}
@@ -153,9 +153,9 @@ const NavItem: React.FC<{
 
       {isOpen && (
         <>
-          <span className="text-[13px] font-medium truncate">{item.label}</span>
+          <span className="text-body font-medium truncate">{item.label}</span>
           {badge !== undefined && badge > 0 && (
-            <span className="ml-auto min-w-[20px] h-5 rounded-full bg-negative/20 text-negative-text text-[10px] font-bold flex items-center justify-center px-1.5">
+            <span className="ml-auto min-w-[20px] h-5 rounded-full bg-negative/20 text-negative-text text-micro font-bold flex items-center justify-center px-1.5">
               {badge > 99 ? '99+' : badge}
             </span>
           )}
@@ -223,7 +223,7 @@ export const Sidebar: React.FC<Props> = ({
 
         {isOpen && (
           <div className="min-w-0 flex-1">
-            <span className="text-[13px] font-bold tracking-tight text-text-main">
+            <span className="text-body font-bold tracking-tight text-text-main">
               TradeGuard
             </span>
           </div>
@@ -293,7 +293,7 @@ export const Sidebar: React.FC<Props> = ({
           >
             {theme === 'dark' ? ThemeIcons.sun : ThemeIcons.moon}
             {isOpen && (
-              <span className="text-[13px] font-medium">
+              <span className="text-body font-medium">
                 {theme === 'dark' ? 'Chế độ sáng' : 'Chế độ tối'}
               </span>
             )}
@@ -317,7 +317,7 @@ export const Sidebar: React.FC<Props> = ({
             `}
           >
             {Icons.settings}
-            {isOpen && <span className="text-[13px] font-medium">Cài đặt</span>}
+            {isOpen && <span className="text-body font-medium">Cài đặt</span>}
             <NavTooltip label="Cài đặt" visible={settingsTooltip} />
           </button>
         </div>
@@ -331,7 +331,7 @@ export const Sidebar: React.FC<Props> = ({
           style={{ background: 'var(--color-panel-secondary)' }}
         >
           <div
-            className="w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-bold shrink-0"
+            className="w-7 h-7 rounded-md flex items-center justify-center text-caption font-bold shrink-0"
             style={{
               background: 'var(--color-accent-subtle)',
               color: 'var(--color-accent)',
@@ -344,10 +344,10 @@ export const Sidebar: React.FC<Props> = ({
           {isOpen && (
             <>
               <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-semibold text-text-main truncate leading-tight">
+                <p className="text-body-sm font-semibold text-text-main truncate leading-tight">
                   {displayName}
                 </p>
-                <p className="text-[10px] text-positive flex items-center gap-1 mt-0.5">
+                <p className="text-micro text-positive flex items-center gap-1 mt-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-positive inline-block animate-pulse" />
                   Online
                 </p>
