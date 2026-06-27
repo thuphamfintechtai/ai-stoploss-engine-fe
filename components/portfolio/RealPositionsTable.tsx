@@ -228,6 +228,147 @@ const InlineCloseForm: React.FC<{
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Memoized position row — D-04 perf: only re-renders when position data or
+// expansion state changes. Default shallow comparison covers most cases.
+// ─────────────────────────────────────────────────────────────────────────────
+interface PositionRowProps {
+  pos: RealPosition;
+  portfolioId: string;
+  portfolio?: PortfolioFeeConfig | null;
+  isExpanded: boolean;
+  onToggleExpand: (id: string) => void;
+  onPositionClosed: () => void;
+  ageMs: number;
+}
+
+const PositionRowInner: React.FC<PositionRowProps> = ({
+  pos,
+  portfolioId,
+  portfolio,
+  isExpanded,
+  onToggleExpand,
+  onPositionClosed,
+  ageMs,
+}) => {
+  const pnl = pos.unrealized_pnl ?? 0;
+  const hasPnl = pos.current_price != null;
+  const pnlPct = pos.current_price != null && Number(pos.entry_price) > 0
+    ? ((Number(pos.current_price) - Number(pos.entry_price)) / Number(pos.entry_price)) * 100
+    : null;
+
+  return (
+    <React.Fragment>
+      <tr
+        className={`border-b border-[var(--color-divider)] transition-colors ${
+          isExpanded ? 'bg-[var(--color-panel-hover)]' : 'hover:bg-[var(--color-panel-hover)]'
+        }`}
+      >
+        <td className="px-3 py-2.5">
+          <div className="flex flex-col">
+            <span className="font-bold text-[var(--color-text-main)] font-mono text-[13px]">
+              {pos.symbol}
+            </span>
+            <span className="lg:hidden text-[10px] text-[var(--color-text-dim)] mt-0.5">
+              {pos.exchange} · {Number(pos.quantity).toLocaleString()} CP
+            </span>
+            <span className="md:hidden text-[10px] text-[var(--color-text-dim)]">
+              {formatDate(pos.created_at)}
+            </span>
+          </div>
+        </td>
+        <td className="hidden lg:table-cell px-3 py-2.5">
+          <span className="text-[var(--color-text-muted)] text-[11px]">{pos.exchange}</span>
+        </td>
+        <td className="px-3 py-2.5 text-right font-mono">
+          <div className="flex flex-col items-end gap-0.5">
+            <span className="text-[var(--color-text-muted)] text-[11px]">
+              {formatVND(Number(pos.entry_price))}
+            </span>
+            {pos.current_price != null ? (
+              <div className="inline-flex items-center gap-1">
+                <span className="text-[var(--color-text-main)] font-semibold">
+                  {formatVND(Number(pos.current_price))}
+                </span>
+                <PriceFreshness
+                  ageMs={ageMs}
+                  staleReason={(pos as any).stale_reason}
+                />
+              </div>
+            ) : (
+              <span className="text-[var(--color-text-disabled)]">—</span>
+            )}
+          </div>
+        </td>
+        <td className="hidden sm:table-cell px-3 py-2.5 text-right font-mono text-[var(--color-text-muted)]">
+          {Number(pos.quantity).toLocaleString()}
+        </td>
+        <td className="px-3 py-2.5 text-right font-mono">
+          {hasPnl ? (
+            <div className="flex flex-col items-end">
+              <span
+                className={`font-semibold ${
+                  pnl >= 0 ? 'text-[var(--color-positive)]' : 'text-[var(--color-negative)]'
+                }`}
+              >
+                {pnl >= 0 ? '+' : ''}
+                {formatVND(pnl)}
+              </span>
+              {pnlPct != null && (
+                <span
+                  className={`text-[10px] ${
+                    pnl >= 0 ? 'text-[var(--color-positive)]' : 'text-[var(--color-negative)]'
+                  }`}
+                >
+                  {pnlPct >= 0 ? '+' : ''}
+                  {pnlPct.toFixed(2)}%
+                </span>
+              )}
+            </div>
+          ) : (
+            <span className="text-[var(--color-text-disabled)]">—</span>
+          )}
+        </td>
+        <td className="hidden md:table-cell px-3 py-2.5 text-[var(--color-text-muted)] text-[11px]">
+          {formatDate(pos.created_at)}
+        </td>
+        <td className="px-3 py-2.5 text-right">
+          <button
+            onClick={() => onToggleExpand(pos.id)}
+            className={`text-[10px] font-semibold px-2.5 py-1.5 rounded transition-colors whitespace-nowrap ${
+              isExpanded
+                ? 'bg-[var(--color-text-dim)] text-white'
+                : 'bg-[var(--color-negative-bg)] text-[var(--color-negative)] hover:bg-[var(--color-negative)] hover:text-white'
+            }`}
+            title={isExpanded ? 'Đóng form' : 'Ghi nhận đã bán vị thế này'}
+          >
+            {isExpanded ? 'Hủy' : 'Bán'}
+          </button>
+        </td>
+      </tr>
+      {isExpanded && (
+        <tr className="border-b border-[var(--color-border-subtle)]">
+          <td colSpan={7} className="p-0">
+            <InlineCloseForm
+              position={pos}
+              portfolioId={portfolioId}
+              portfolio={portfolio}
+              onCancel={() => onToggleExpand(pos.id)}
+              onSuccess={() => {
+                onToggleExpand(pos.id);
+                onPositionClosed();
+              }}
+            />
+          </td>
+        </tr>
+      )}
+    </React.Fragment>
+  );
+};
+
+/** D-04: Memoized row — skips re-render when position data and UI state are stable. */
+const PositionRow = React.memo(PositionRowInner);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main table component
 // ─────────────────────────────────────────────────────────────────────────────
 export const RealPositionsTable: React.FC<RealPositionsTableProps> = ({
@@ -263,8 +404,6 @@ export const RealPositionsTable: React.FC<RealPositionsTableProps> = ({
     );
   }
 
-  const COL_COUNT = 7;
-
   return (
     <div className="overflow-x-auto -mx-4 -my-4">
       <table className="table-terminal w-full text-[12px]">
@@ -292,121 +431,18 @@ export const RealPositionsTable: React.FC<RealPositionsTableProps> = ({
           </tr>
         </thead>
         <tbody>
-          {positions.map((pos) => {
-            const pnl = pos.unrealized_pnl ?? 0;
-            const hasPnl = pos.current_price != null;
-            const pnlPct = pos.current_price != null && Number(pos.entry_price) > 0
-              ? ((Number(pos.current_price) - Number(pos.entry_price)) / Number(pos.entry_price)) * 100
-              : null;
-            const isExpanded = expandedId === pos.id;
-            return (
-              <React.Fragment key={pos.id}>
-                <tr
-                  className={`border-b border-[var(--color-divider)] transition-colors ${
-                    isExpanded ? 'bg-[var(--color-panel-hover)]' : 'hover:bg-[var(--color-panel-hover)]'
-                  }`}
-                >
-                  <td className="px-3 py-2.5">
-                    <div className="flex flex-col">
-                      <span className="font-bold text-[var(--color-text-main)] font-mono text-[13px]">
-                        {pos.symbol}
-                      </span>
-                      <span className="lg:hidden text-[10px] text-[var(--color-text-dim)] mt-0.5">
-                        {pos.exchange} · {Number(pos.quantity).toLocaleString()} CP
-                      </span>
-                      <span className="md:hidden text-[10px] text-[var(--color-text-dim)]">
-                        {formatDate(pos.created_at)}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="hidden lg:table-cell px-3 py-2.5">
-                    <span className="text-[var(--color-text-muted)] text-[11px]">{pos.exchange}</span>
-                  </td>
-                  <td className="px-3 py-2.5 text-right font-mono">
-                    <div className="flex flex-col items-end gap-0.5">
-                      <span className="text-[var(--color-text-muted)] text-[11px]">
-                        {formatVND(Number(pos.entry_price))}
-                      </span>
-                      {pos.current_price != null ? (
-                        <div className="inline-flex items-center gap-1">
-                          <span className="text-[var(--color-text-main)] font-semibold">
-                            {formatVND(Number(pos.current_price))}
-                          </span>
-                          <PriceFreshness
-                            ageMs={ageFor(pos.symbol)}
-                            staleReason={(pos as any).stale_reason}
-                          />
-                        </div>
-                      ) : (
-                        <span className="text-[var(--color-text-disabled)]">—</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="hidden sm:table-cell px-3 py-2.5 text-right font-mono text-[var(--color-text-muted)]">
-                    {Number(pos.quantity).toLocaleString()}
-                  </td>
-                  <td className="px-3 py-2.5 text-right font-mono">
-                    {hasPnl ? (
-                      <div className="flex flex-col items-end">
-                        <span
-                          className={`font-semibold ${
-                            pnl >= 0 ? 'text-[var(--color-positive)]' : 'text-[var(--color-negative)]'
-                          }`}
-                        >
-                          {pnl >= 0 ? '+' : ''}
-                          {formatVND(pnl)}
-                        </span>
-                        {pnlPct != null && (
-                          <span
-                            className={`text-[10px] ${
-                              pnl >= 0 ? 'text-[var(--color-positive)]' : 'text-[var(--color-negative)]'
-                            }`}
-                          >
-                            {pnlPct >= 0 ? '+' : ''}
-                            {pnlPct.toFixed(2)}%
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-[var(--color-text-disabled)]">—</span>
-                    )}
-                  </td>
-                  <td className="hidden md:table-cell px-3 py-2.5 text-[var(--color-text-muted)] text-[11px]">
-                    {formatDate(pos.created_at)}
-                  </td>
-                  <td className="px-3 py-2.5 text-right">
-                    <button
-                      onClick={() => setExpandedId(isExpanded ? null : pos.id)}
-                      className={`text-[10px] font-semibold px-2.5 py-1.5 rounded transition-colors whitespace-nowrap ${
-                        isExpanded
-                          ? 'bg-[var(--color-text-dim)] text-white'
-                          : 'bg-[var(--color-negative-bg)] text-[var(--color-negative)] hover:bg-[var(--color-negative)] hover:text-white'
-                      }`}
-                      title={isExpanded ? 'Đóng form' : 'Ghi nhận đã bán vị thế này'}
-                    >
-                      {isExpanded ? 'Hủy' : 'Bán'}
-                    </button>
-                  </td>
-                </tr>
-                {isExpanded && (
-                  <tr className="border-b border-[var(--color-border-subtle)]">
-                    <td colSpan={COL_COUNT} className="p-0">
-                      <InlineCloseForm
-                        position={pos}
-                        portfolioId={portfolioId}
-                        portfolio={portfolio}
-                        onCancel={() => setExpandedId(null)}
-                        onSuccess={() => {
-                          setExpandedId(null);
-                          onPositionClosed();
-                        }}
-                      />
-                    </td>
-                  </tr>
-                )}
-              </React.Fragment>
-            );
-          })}
+          {positions.map((pos) => (
+            <PositionRow
+              key={pos.id}
+              pos={pos}
+              portfolioId={portfolioId}
+              portfolio={portfolio}
+              isExpanded={expandedId === pos.id}
+              onToggleExpand={(id) => setExpandedId(prev => prev === id ? null : id)}
+              onPositionClosed={onPositionClosed}
+              ageMs={ageFor(pos.symbol)}
+            />
+          ))}
         </tbody>
       </table>
     </div>

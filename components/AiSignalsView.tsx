@@ -175,6 +175,8 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [applyingId, setApplyingId] = useState<string | null>(null);
+  // C-03: optimistic apply tracking — applied rec IDs shown immediately
+  const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
 
   const loadWatchlist = useCallback(async () => {
     setLoading(true);
@@ -228,12 +230,32 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
     finally { setAnalyzing(prev => ({ ...prev, [symbol]: false })); }
   };
 
+  // C-03: optimistic apply — UI updates immediately, rolls back on API failure
   const handleApply = async (recId: string, level: string) => {
     setApplyingId(recId);
+    // Optimistic: mark as applied before API call
+    setAppliedIds(prev => new Set([...prev, recId]));
     try {
       await aiApi.applyRecommendation(recId, level as any);
-    } catch { /* ignore */ }
-    finally { setApplyingId(null); }
+      // Confirmed — optimistic state stays
+    } catch (err: any) {
+      // Rollback optimistic state
+      setAppliedIds(prev => {
+        const next = new Set(prev);
+        next.delete(recId);
+        return next;
+      });
+      // Surface toast for rollback feedback
+      window.dispatchEvent(new CustomEvent('toast:show', {
+        detail: {
+          title: 'Áp dụng thất bại',
+          message: err?.message ?? 'Vui lòng thử lại',
+          severity: 'WARNING',
+        },
+      }));
+    } finally {
+      setApplyingId(null);
+    }
   };
 
   const sel = selected ? results[selected] : null;
@@ -522,14 +544,22 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
                   Đặt Lệnh
                 </button>
               </div>
-              {/* Apply recommendation để tracking */}
+              {/* C-03: Apply recommendation với optimistic UI */}
               {sel.recommendation_id && !sel.data_insufficient && (
                 <button
                   onClick={() => handleApply(sel.recommendation_id!, sel.recommended ?? 'moderate')}
-                  disabled={applyingId === sel.recommendation_id}
-                  className="w-full py-1.5 rounded border border-border-standard text-[9px] text-text-dim hover:text-text-muted transition-colors disabled:opacity-40"
+                  disabled={applyingId === sel.recommendation_id || appliedIds.has(sel.recommendation_id!)}
+                  className={`w-full py-1.5 rounded border text-[9px] transition-colors disabled:opacity-40 ${
+                    appliedIds.has(sel.recommendation_id!)
+                      ? 'border-positive/40 text-positive bg-positive/5'
+                      : 'border-border-standard text-text-dim hover:text-text-muted'
+                  }`}
                 >
-                  {applyingId === sel.recommendation_id ? 'Đang lưu...' : 'Đánh dấu đã áp dụng gợi ý'}
+                  {applyingId === sel.recommendation_id
+                    ? 'Đang lưu...'
+                    : appliedIds.has(sel.recommendation_id!)
+                    ? 'Đã áp dụng'
+                    : 'Đánh dấu đã áp dụng gợi ý'}
                 </button>
               )}
               <div className="text-[9px] text-text-dim text-center">

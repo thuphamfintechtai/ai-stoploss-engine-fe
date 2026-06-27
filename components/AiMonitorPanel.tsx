@@ -415,11 +415,14 @@ export const AiMonitorPanel: React.FC<Props> = ({ portfolioId, openPositions, on
     }
   }, [portfolioId]);
 
+  // C-03: optimistic apply — mark position as applied immediately, rollback on failure
   const applyRecommendation = useCallback(async (rec: PositionReview) => {
     if (!portfolioId) return;
     const pos = openPositions.find(p => p.id === rec.position_id);
     if (!pos) return;
 
+    // Optimistic: mark applied immediately before API call
+    setApplied(prev => new Set([...prev, rec.position_id]));
     setApplying(rec.position_id);
     try {
       if (rec.action === 'EXIT') {
@@ -432,14 +435,28 @@ export const AiMonitorPanel: React.FC<Props> = ({ portfolioId, openPositions, on
           await positionApi.update(portfolioId, rec.position_id, updateBody);
         }
       }
-      setApplied(prev => new Set([...prev, rec.position_id]));
+      // Confirmed — optimistic state stays
 
       // Tăng applied_count trong DB nếu có reviewId
       if (result?.id) {
         aiApi.markReviewApplied(result.id).catch(() => {});
       }
     } catch (e: any) {
+      // Rollback optimistic state
+      setApplied(prev => {
+        const next = new Set(prev);
+        next.delete(rec.position_id);
+        return next;
+      });
       setError(`Không thể áp dụng: ${e?.response?.data?.message || e.message}`);
+      // Surface toast for rollback feedback
+      window.dispatchEvent(new CustomEvent('toast:show', {
+        detail: {
+          title: 'Áp dụng thất bại',
+          message: e?.response?.data?.message || e.message || 'Vui lòng thử lại',
+          severity: 'WARNING',
+        },
+      }));
     } finally {
       setApplying(null);
     }

@@ -24,6 +24,7 @@ import { ToastContainer } from './ui/ToastContainer';
 import type { ToastItem } from './ui/ToastContainer';
 import { OpenPositionModal } from './portfolio/OpenPositionModal';
 import { PortfolioSetupModalStandalone } from './portfolio/PortfolioSetupModalStandalone';
+import { Banner } from './ui/primitives';
 import { analyzeTrader } from '../services/geminiService';
 import { portfolioApi, positionApi, realPortfolioApi, marketApi, authApi } from '../services/api';
 import type { Position as PositionType, CreatePositionRequest } from '../services/api';
@@ -89,7 +90,8 @@ export function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) 
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => localStorage.getItem('sidebar_default') !== 'closed');
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
-  const [wsDisconnected, setWsDisconnected] = useState(false);
+  // C-04: wsConnected tracks real-time connection state (true=connected, false=disconnected)
+  const [wsConnected, setWsConnected] = useState(true);
   // Phase 10 C-02 — replace native window.confirm for close-position flow
   const [closePositionConfirm, setClosePositionConfirm] = useState<{ position: PositionType } | null>(null);
   const [closingPosition, setClosingPosition] = useState(false);
@@ -230,16 +232,28 @@ export function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) 
     };
   }, [activePortfolioId]);
 
-  // Listen WebSocket disconnect/reconnect events để hiện banner
+  // C-04: Listen WebSocket disconnect/reconnect events để hiện banner
   useEffect(() => {
-    const handleWsDisconnected = () => setWsDisconnected(true);
-    const handleWsReconnected = () => setWsDisconnected(false);
+    const handleWsDisconnected = () => setWsConnected(false);
+    const handleWsReconnected = () => setWsConnected(true);
     window.addEventListener('ws:disconnected', handleWsDisconnected);
     window.addEventListener('ws:reconnected', handleWsReconnected);
     return () => {
       window.removeEventListener('ws:disconnected', handleWsDisconnected);
       window.removeEventListener('ws:reconnected', handleWsReconnected);
     };
+  }, []);
+
+  // C-03: Listen for toast:show CustomEvents dispatched by child components (e.g. optimistic rollback)
+  useEffect(() => {
+    const handleToastShow = (e: Event) => {
+      const { title, message, severity } = (e as CustomEvent).detail ?? {};
+      const id = `toast_${++toastIdCounter}`;
+      setToasts(prev => [...prev.slice(-4), { id, title: title ?? 'Thông báo', message: message ?? '', severity: severity ?? 'INFO' }]);
+      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 6000);
+    };
+    window.addEventListener('toast:show', handleToastShow);
+    return () => window.removeEventListener('toast:show', handleToastShow);
   }, []);
 
   // Load stocks when on home (tổng quan) so "Tất cả mã chứng khoán" has data
@@ -676,23 +690,16 @@ export function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) 
   return (
     <div className="flex min-h-screen overflow-hidden font-sans text-text-main bg-panel selection:bg-accent/10">
 
-      {/* Banner mất kết nối WebSocket */}
-      {wsDisconnected && (
-        <div
-          className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-center gap-2 px-4 py-2 text-[12px] font-semibold text-white"
-          style={{ background: '#d97706' }}
-        >
-          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-          </svg>
-          Mất kết nối server. Đang thử kết nối lại... Dữ liệu có thể không được cập nhật.
-          <button
-            onClick={() => setWsDisconnected(false)}
-            className="ml-2 text-white/70 hover:text-white"
-            aria-label="Đóng banner"
+      {/* C-04: Banner mất kết nối WebSocket — persistent when wsConnected === false */}
+      {!wsConnected && (
+        <div className="fixed top-0 left-0 right-0 z-[9999]">
+          <Banner
+            variant="warning"
+            className="rounded-none"
+            onClose={() => setWsConnected(true)}
           >
-            ✕
-          </button>
+            Mất kết nối thời gian thực — đang thử lại...
+          </Banner>
         </div>
       )}
 
