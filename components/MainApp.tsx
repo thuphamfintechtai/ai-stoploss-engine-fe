@@ -1,20 +1,22 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useRef, useCallback } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar, ComposedChart } from 'recharts';
 import { TraderProfile, AiAnalysis } from '../types';
 import { RiskProgressBar } from './RiskProgressBar';
 import { TraderCard } from './TraderCard';
 import { Sidebar } from './Sidebar';
 import { HomeView } from './HomeView';
-import { DashboardView } from './DashboardView';
-import { TradingTerminal } from './TradingTerminal';
+// Phase 10 D-02 — lazy-load 4 largest views for bundle splitting
+const DashboardView = lazy(() => import('./DashboardView').then(m => ({ default: m.DashboardView })));
+const TradingTerminal = lazy(() => import('./TradingTerminal').then(m => ({ default: m.TradingTerminal })));
 import { PortfolioView } from './PortfolioView';
 import { PortfoliosOverviewView } from './PortfoliosOverviewView';
-import { WatchlistView } from './WatchlistView';
+const WatchlistView = lazy(() => import('./WatchlistView').then(m => ({ default: m.WatchlistView })));
 import { AiSignalsView } from './AiSignalsView';
 import { NotificationsView } from './NotificationsView';
-import { SettingsView } from './SettingsView';
+const SettingsView = lazy(() => import('./SettingsView')); // has default export
 import { MobileBottomNav } from './ui/MobileBottomNav';
 import { ConfirmDialog } from './ui/ConfirmDialog';
+import { SkeletonView } from './ui/SkeletonView';
 import { OnboardingWizard } from './OnboardingWizard';
 import { TradingModal } from './trading/TradingModal';
 import { ChartModal } from './trading/ChartModal';
@@ -836,6 +838,9 @@ export function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) 
       <ToastContainer toasts={toasts} onDismiss={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
 
       <MobileBottomNav currentView={currentView} onChangeView={setCurrentView} unreadNotifications={unreadNotifications} />
+
+      {/* ── Phase 10 D-02: Suspense wraps all lazy-loaded view chunks ── */}
+      <Suspense fallback={<SkeletonView />}>
 
       {/* ── NEW FULL-SCREEN VIEWS (no padding) ── */}
       {(currentView === 'terminal') && (
@@ -1811,6 +1816,8 @@ export function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) 
 
       </main>
       )} {/* end currentView !== 'terminal' */}
+
+      </Suspense> {/* end Phase 10 D-02 lazy Suspense */}
 
       {/* --- AI Report Modal (Fintech style) --- */}
       {insightContent && insightTrader && (
