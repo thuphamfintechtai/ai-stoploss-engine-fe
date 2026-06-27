@@ -7,6 +7,7 @@ import wsService from '../services/websocket';
 import { SkeletonCard, SkeletonText } from './ui/SkeletonLoader';
 import { EmptyState, EmptyStateIcon } from './ui/EmptyState';
 import { Bell, TrendingDown, TrendingUp, Megaphone } from 'lucide-react';
+import { useDebounce } from '../hooks/useDebounce';
 
 interface WatchItem {
   symbol: string;
@@ -77,6 +78,10 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
   });
   const [alertSaving, setAlertSaving] = useState(false);
   const [alertError, setAlertError] = useState('');
+
+  // ─── Symbol filter (D-03 debounced) ───────────────────────────────────
+  const [filterInput, setFilterInput] = useState('');
+  const debouncedFilter = useDebounce(filterInput, 200);
 
   // ─── Tab state ─────────────────────────────────────────────────────────
   const [detailTab, setDetailTab] = useState<'detail' | 'signal'>('detail');
@@ -554,6 +559,15 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
             </div>
           </div>
 
+          {/* Symbol filter input (D-03) */}
+          <input
+            value={filterInput}
+            onChange={(e) => setFilterInput(e.target.value.toUpperCase())}
+            placeholder="Lọc mã CK..."
+            className="w-full bg-panel border border-border-standard rounded px-2 py-1.5 text-[12px] text-text-main placeholder-text-muted outline-none focus:border-accent font-mono mb-1.5"
+            aria-label="Lọc danh sách theo dõi"
+          />
+
           {/* Add symbol input */}
           <div className="flex gap-1.5">
             <input
@@ -594,7 +608,7 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
                 </tr>
               </thead>
               <tbody>
-                {watchlist.map((item) => {
+                {watchlist.filter(item => !debouncedFilter || item.symbol.includes(debouncedFilter)).map((item) => {
                   const q = quotes[item.symbol];
                   const isSelected = selectedSymbol?.symbol === item.symbol;
                   const chgPct = q?.changePercent ?? 0;

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { marketApi } from '../services/api';
 import { SkeletonCard } from './ui/SkeletonLoader';
 import { EmptyState, EmptyStateIcon } from './ui/EmptyState';
+import { useDebounce } from '../hooks/useDebounce';
 
 interface Article {
   title: string;
@@ -23,6 +24,8 @@ export const MarketNewsView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  // D-03: debounce 200ms — auto-fetch after user stops typing
+  const debouncedSearch = useDebounce(searchInput, 200);
 
   const fetchNews = (params?: { limit?: number; search?: string }) => {
     setLoading(true);
@@ -46,12 +49,22 @@ export const MarketNewsView: React.FC = () => {
 
   useEffect(() => {
     fetchNews({ limit: 30 });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Auto-fetch when debounced search term changes (D-03)
+  useEffect(() => {
+    const term = debouncedSearch.trim();
+    setSearch(term);
+    fetchNews({ limit: 30, search: term || undefined });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setSearch(searchInput.trim());
-    fetchNews({ limit: 30, search: searchInput.trim() || undefined });
+    const term = searchInput.trim();
+    setSearch(term);
+    fetchNews({ limit: 30, search: term || undefined });
   };
 
   return (
