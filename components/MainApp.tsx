@@ -55,7 +55,7 @@ function ExplainIcon({ text }: { text: string }) {
       </button>
       {show && (
         <span
-          className="absolute left-0 bottom-full mb-1 w-64 p-2.5 text-left text-xs font-normal text-text-main bg-panel border border-border-standard rounded-lg shadow-lg z-[110] pointer-events-none"
+          className="absolute left-0 bottom-full mb-1 w-64 p-2.5 text-left text-xs font-normal text-text-main bg-panel border border-border-standard rounded-lg shadow-lg z-tooltip pointer-events-none"
           role="tooltip"
         >
           {text}
@@ -692,7 +692,7 @@ export function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) 
 
       {/* C-04: Banner mất kết nối WebSocket — persistent when wsConnected === false */}
       {!wsConnected && (
-        <div className="fixed top-0 left-0 right-0 z-[9999]">
+        <div className="fixed top-0 left-0 right-0 z-toast">
           <Banner
             variant="warning"
             className="rounded-none"
@@ -786,7 +786,7 @@ export function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) 
 
       {/* Modal chi tiết trái phiếu */}
       {bondDetailSymbol != null && (
-        <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/50 p-4" onClick={() => setBondDetailSymbol(null)}>
+        <div className="fixed inset-0 z-modal flex items-center justify-center bg-black/50 p-4" onClick={() => setBondDetailSymbol(null)}>
           <div className="bg-panel rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 border-b border-border-standard bg-panel">
               <h2 className="text-lg font-semibold text-text-main">Chi tiết trái phiếu — {bondDetailSymbol}</h2>
@@ -1015,7 +1015,7 @@ export function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) 
                     </div>
                   </div>
                   {marketTableFullscreen && typeof document !== 'undefined' && createPortal(
-                    <div className="fixed inset-0 z-[9999] flex flex-col">
+                    <div className="fixed inset-0 z-modal flex flex-col">
                       <div className="absolute inset-0 bg-black/50" onClick={() => setMarketTableFullscreen(false)} aria-hidden />
                       <div className="absolute inset-2 sm:inset-4 flex flex-col bg-panel rounded-xl shadow-2xl overflow-hidden z-10">
                         <div className="flex items-center justify-between px-4 py-2 border-b border-border-standard bg-panel shrink-0">
@@ -1033,8 +1033,8 @@ export function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) 
                               </button>
                               {indexDropdownOpen && (
                                 <>
-                                  <div className="fixed inset-0 z-[10040]" onClick={() => setIndexDropdownOpen(false)} aria-hidden />
-                                  <div className="absolute right-0 top-full mt-1.5 z-[10050] w-[300px] max-h-[60vh] overflow-y-auto rounded-xl bg-panel border border-border-standard shadow-xl py-2">
+                                  <div className="fixed inset-0 z-modal-backdrop" onClick={() => setIndexDropdownOpen(false)} aria-hidden />
+                                  <div className="absolute right-0 top-full mt-1.5 z-popover w-[300px] max-h-[60vh] overflow-y-auto rounded-xl bg-panel border border-border-standard shadow-xl py-2">
                                     <div className="px-3 py-2 border-b border-border-standard flex gap-2 flex-wrap">
                                       <button type="button" onClick={() => { setIndexCodes(['VNXALL']); setIndexDropdownOpen(false); }} className="text-xs font-medium text-accent hover:bg-accent-hover px-2 py-1.5 rounded">Mặc định</button>
                                       <button type="button" onClick={() => { setIndexCodes(MARKET_INDEX_CODES_BANG_GIA.filter((x) => !isSingleOnlyIndexCode(x.code)).map((x) => x.code)); setIndexDropdownOpen(false); }} className="text-xs font-medium text-text-muted hover:bg-panel px-2 py-1.5 rounded">Tất cả chỉ số</button>
@@ -1828,7 +1828,7 @@ export function MainApp({ onLogout }: { onLogout: () => void | Promise<void> }) 
 
       {/* --- AI Report Modal (Fintech style) --- */}
       {insightContent && insightTrader && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#111827]/50 animate-fade-in">
+        <div className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-[#111827]/50 animate-fade-in">
           <div className="bg-panel border border-border-standard rounded-lg w-full max-w-2xl shadow-card-hover flex flex-col max-h-[90vh] overflow-hidden">
             {/* Header */}
             <div className="p-5 border-b border-border-standard flex justify-between items-start bg-[#FAFAFA]">

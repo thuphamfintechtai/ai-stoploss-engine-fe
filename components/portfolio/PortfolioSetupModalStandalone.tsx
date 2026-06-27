@@ -79,7 +79,7 @@ export function PortfolioSetupModalStandalone({
   const riskColor = localRisk <= 2 ? 'text-positive' : localRisk <= 5 ? 'text-accent' : 'text-negative';
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fade-in" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}>
+    <div className="fixed inset-0 z-modal flex items-center justify-center p-4 animate-fade-in" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}>
       <div className="w-full max-w-md flex flex-col" style={{ background: 'var(--color-panel)', border: '1px solid var(--color-border-standard)', borderRadius: 10, boxShadow: '0 20px 60px rgba(0,0,0,0.8)' }}>
 
         {/* Header */}

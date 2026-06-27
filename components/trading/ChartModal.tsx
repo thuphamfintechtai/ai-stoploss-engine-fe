@@ -23,7 +23,7 @@ export const ChartModal = ({ isOpen, onClose, symbol, exchange, data, loading, s
   const priceChangePercent = previousPrice > 0 ? (priceChange / previousPrice) * 100 : 0;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 z-modal flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-panel rounded-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="p-6 border-b border-border-standard space-y-4">

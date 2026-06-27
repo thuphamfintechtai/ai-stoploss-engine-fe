@@ -141,7 +141,7 @@ export const TradingModal = ({ isOpen, onClose, symbol, exchange, data, loading,
   const timeframes = ['1m', '1d', '1w', '1M'];
 
   return (
-    <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-[#111827]/50 animate-fade-in p-4">
+    <div className="fixed inset-0 z-modal flex items-center justify-center bg-[#111827]/50 animate-fade-in p-4">
       <div className="w-full max-w-7xl h-[90vh] bg-panel rounded-lg overflow-hidden flex flex-col shadow-2xl border border-border-standard">
         {/* Header */}
         <div className="bg-panel border-b border-border-standard px-6 py-4">

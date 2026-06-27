@@ -222,7 +222,7 @@ export function OpenPositionModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 animate-fade-in">
+    <div className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-black/40 animate-fade-in">
       <div className="bg-panel rounded-2xl w-full max-w-lg shadow-xl overflow-hidden h-[90vh] max-h-[90vh] flex flex-col">
         <div className="px-5 py-4 flex justify-between items-center flex-shrink-0 border-b border-border-standard/80">
           <h2 className="text-xl font-semibold text-text-main">
