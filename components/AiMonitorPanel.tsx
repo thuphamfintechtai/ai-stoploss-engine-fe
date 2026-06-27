@@ -14,9 +14,9 @@ import { type PortfolioType, PORTFOLIO_PRESETS } from '../utils/portfolioPresets
 // ─── PHS-10 TypeBadge ────────────────────────────────────────────────────────
 
 const TYPE_COLORS: Record<PortfolioType, { bg: string; text: string; border: string }> = {
-  LONG_TERM:  { bg: 'rgba(59,130,246,0.12)',  text: '#3B82F6', border: 'rgba(59,130,246,0.3)' },
-  SWING:      { bg: 'rgba(245,158,11,0.12)',  text: '#F59E0B', border: 'rgba(245,158,11,0.3)' },
-  DAY_TRADE:  { bg: 'rgba(239,68,68,0.12)',   text: '#EF4444', border: 'rgba(239,68,68,0.3)' },
+  LONG_TERM:  { bg: 'rgba(59,130,246,0.12)',  text: 'var(--portfolio-type-long-term)',  border: 'rgba(59,130,246,0.3)' },
+  SWING:      { bg: 'rgba(245,158,11,0.12)',  text: 'var(--portfolio-type-swing)',      border: 'rgba(245,158,11,0.3)' },
+  DAY_TRADE:  { bg: 'rgba(239,68,68,0.12)',   text: 'var(--portfolio-type-day-trade)',  border: 'rgba(239,68,68,0.3)' },
 };
 
 function TypeBadge({ portfolioType }: { portfolioType: PortfolioType | null | undefined }) {

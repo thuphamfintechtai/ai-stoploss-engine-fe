@@ -184,7 +184,7 @@ const MarketIndexCard: React.FC<{ data: IndexData }> = ({ data }) => {
   const isUp = data.change >= 0;
   const refVal = data.value - data.change;
   const total = data.advancing + data.declining + data.unchanged;
-  const color = isUp ? '#22C55E' : '#EF4444';
+  const color = isUp ? 'var(--chart-positive)' : 'var(--chart-negative)';
 
   return (
     <div className="bg-[var(--color-panel)] border border-[var(--color-border-subtle)] rounded-xl p-4 hover:border-[var(--color-border-standard)] transition-all">

@@ -18,12 +18,12 @@ interface SectorAllocationCardProps {
 const formatVND = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 0 });
 
 const SECTOR_COLORS = [
-  { bg: 'bg-blue-500', bar: '#3B82F6' },
+  { bg: 'bg-blue-500', bar: 'var(--sector-1)' },
   { bg: 'bg-emerald-500', bar: '#10B981' },
-  { bg: 'bg-amber-500', bar: '#F59E0B' },
+  { bg: 'bg-amber-500', bar: 'var(--sector-4)' },
   { bg: 'bg-rose-500', bar: '#F43F5E' },
-  { bg: 'bg-violet-500', bar: '#8B5CF6' },
-  { bg: 'bg-cyan-500', bar: '#06B6D4' },
+  { bg: 'bg-violet-500', bar: 'var(--sector-5)' },
+  { bg: 'bg-cyan-500', bar: 'var(--sector-7)' },
 ];
 
 const CONCENTRATION_THRESHOLD = 30;
