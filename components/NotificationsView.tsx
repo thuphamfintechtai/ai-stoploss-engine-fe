@@ -167,7 +167,7 @@ function ActionButtons({ notif, onNavigate, onDismiss }: {
           )}
           <button
             onClick={handleDismissWithTracking}
-            className="text-[10px] px-2 py-1 rounded border border-border-standard text-text-dim hover:text-text-muted hover:bg-white/5 transition-colors"
+            className="text-[10px] px-2 py-1 rounded border border-border-standard text-text-dim hover:text-text-muted hover:bg-panel-hover transition-colors"
           >
             Bỏ qua
           </button>
@@ -195,7 +195,7 @@ function ActionButtons({ notif, onNavigate, onDismiss }: {
         </button>
         <button
           onClick={(e: React.MouseEvent) => { e.stopPropagation(); onDismiss(); }}
-          className="text-[10px] px-2 py-1 rounded border border-border-standard text-text-dim hover:text-text-muted hover:bg-white/5 transition-colors"
+          className="text-[10px] px-2 py-1 rounded border border-border-standard text-text-dim hover:text-text-muted hover:bg-panel-hover transition-colors"
         >
           Bỏ qua
         </button>
@@ -208,7 +208,7 @@ function ActionButtons({ notif, onNavigate, onDismiss }: {
       <div className="flex items-center gap-1.5 mt-2 flex-wrap">
         <button
           onClick={(e: React.MouseEvent) => { e.stopPropagation(); onNavigate?.('portfolio'); }}
-          className="text-[10px] px-2 py-1 rounded border border-border-standard text-text-muted hover:bg-white/5 transition-colors"
+          className="text-[10px] px-2 py-1 rounded border border-border-standard text-text-muted hover:bg-panel-hover transition-colors"
         >
           Xem danh mục →
         </button>
@@ -237,7 +237,7 @@ function ActionButtons({ notif, onNavigate, onDismiss }: {
         )}
         <button
           onClick={(e: React.MouseEvent) => { e.stopPropagation(); onDismiss(); }}
-          className="text-[10px] px-2 py-1 rounded border border-border-standard text-text-dim hover:text-text-muted hover:bg-white/5 transition-colors"
+          className="text-[10px] px-2 py-1 rounded border border-border-standard text-text-dim hover:text-text-muted hover:bg-panel-hover transition-colors"
         >
           Đã biết
         </button>
@@ -476,14 +476,14 @@ export const NotificationsView: React.FC<Props> = ({ onUnreadCountChange, onNavi
             className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
               activeTab === tab.id
                 ? 'bg-accent/15 text-accent'
-                : 'text-text-muted hover:text-text-main hover:bg-white/5'
+                : 'text-text-muted hover:text-text-main hover:bg-panel-hover'
             }`}
           >
             {tab.icon}
             {tab.label}
             {counts[tab.id] > 0 && (
               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                activeTab === tab.id ? 'bg-accent/20 text-accent' : 'bg-white/10 text-text-muted'
+                activeTab === tab.id ? 'bg-accent/20 text-accent' : 'bg-panel-hover text-text-muted'
               }`}>
                 {counts[tab.id]}
               </span>
@@ -527,7 +527,7 @@ export const NotificationsView: React.FC<Props> = ({ onUnreadCountChange, onNavi
                     group relative flex gap-3 p-3 rounded-lg border transition-all cursor-default
                     ${notif.is_read
                       ? `border-border-standard bg-transparent ${sev.bg}`
-                      : `border ${sev.border} bg-white/[0.03] ${sev.bg}`
+                      : `border ${sev.border} bg-panel-hover/20 ${sev.bg}`
                     }
                     ${isUrgent ? 'ring-1 ring-negative/20' : ''}
                   `}
@@ -607,7 +607,7 @@ export const NotificationsView: React.FC<Props> = ({ onUnreadCountChange, onNavi
               <button
                 onClick={loadMore}
                 disabled={loading}
-                className="w-full py-2.5 text-[12px] text-text-muted hover:text-text-main border border-border-standard rounded-lg hover:bg-white/5 transition-colors"
+                className="w-full py-2.5 text-[12px] text-text-muted hover:text-text-main border border-border-standard rounded-lg hover:bg-panel-hover transition-colors"
               >
                 {loading ? 'Đang tải...' : 'Xem thêm'}
               </button>

@@ -67,7 +67,7 @@ export const MarketNewsView: React.FC = () => {
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           placeholder="Tìm tin (VD: VN30, ngân hàng...)"
-          className="flex-1 px-4 py-2.5 border border-border-standard rounded-lg text-sm focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] outline-none"
+          className="flex-1 px-4 py-2.5 border border-border-standard rounded-lg text-sm focus:ring-2 focus:ring-accent/20 focus:border-accent outline-none"
         />
         <button
           type="submit"
@@ -112,7 +112,7 @@ export const MarketNewsView: React.FC = () => {
                 href={cleanArticleUrl(article.url)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block p-4 rounded-lg border border-border-standard bg-panel hover:border-[#1E3A5F]/40 hover:bg-panel transition-colors"
+                className="block p-4 rounded-lg border border-border-standard bg-panel hover:border-accent/40 hover:bg-panel transition-colors"
               >
                 <p className="text-sm font-medium text-text-main leading-snug">{article.title}</p>
                 {article.description && (

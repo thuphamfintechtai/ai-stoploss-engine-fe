@@ -17,9 +17,9 @@ import {
 // ─── PHS-10 UI Components ───────────────────────────────────────────────────
 
 const TYPE_COLORS: Record<PortfolioType, { bg: string; text: string; border: string }> = {
-  LONG_TERM:  { bg: 'rgba(59,130,246,0.12)',  text: '#3B82F6', border: 'rgba(59,130,246,0.3)' },
-  SWING:      { bg: 'rgba(245,158,11,0.12)',  text: '#F59E0B', border: 'rgba(245,158,11,0.3)' },
-  DAY_TRADE:  { bg: 'rgba(239,68,68,0.12)',   text: '#EF4444', border: 'rgba(239,68,68,0.3)' },
+  LONG_TERM:  { bg: 'rgba(59,130,246,0.12)',  text: 'var(--portfolio-type-long-term)',  border: 'rgba(59,130,246,0.3)' },
+  SWING:      { bg: 'rgba(245,158,11,0.12)',  text: 'var(--portfolio-type-swing)',      border: 'rgba(245,158,11,0.3)' },
+  DAY_TRADE:  { bg: 'rgba(239,68,68,0.12)',   text: 'var(--portfolio-type-day-trade)',  border: 'rgba(239,68,68,0.3)' },
 };
 
 /** Badge showing portfolio strategy type used for AI analysis. */
@@ -88,7 +88,7 @@ function InsightCardVariant({ portfolioType, data }: {
     return (
       <div className="border-l-4 pl-3 mt-2" style={{ borderColor: 'rgba(59,130,246,0.5)' }}>
         {meta.valuation?.pe_ratio != null && (
-          <div className="text-[11px] font-semibold" style={{ color: '#3B82F6' }}>
+          <div className="text-[11px] font-semibold text-accent">
             P/E: {meta.valuation.pe_ratio.toFixed(1)}
           </div>
         )}
@@ -261,7 +261,7 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
           </div>
           <button
             onClick={loadWatchlist}
-            className="p-1.5 rounded text-text-dim hover:text-text-main hover:bg-white/5 transition-colors"
+            className="p-1.5 rounded text-text-dim hover:text-text-main hover:bg-panel-hover transition-colors"
             title="Tải lại watchlist"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -428,7 +428,7 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">Điểm Kỹ Thuật</span>
                   <span className={`text-[13px] font-bold ${scoreCls(sel.technical_score)}`}>{sel.technical_score}/100</span>
                 </div>
-                <div className="h-2 rounded-full bg-white/10 overflow-hidden mb-1">
+                <div className="h-2 rounded-full bg-panel-hover overflow-hidden mb-1">
                   <div
                     className={`h-full rounded-full transition-all ${sel.technical_score >= 70 ? 'bg-positive' : sel.technical_score >= 50 ? 'bg-warning' : 'bg-negative'}`}
                     style={{ width: `${sel.technical_score}%` }}

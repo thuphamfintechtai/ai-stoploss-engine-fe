@@ -616,11 +616,11 @@ export const RiskManagerView: React.FC<Props> = ({
                           formatter={(value: number) => formatNumberVI(value, { maximumFractionDigits: 0 })}
                           labelFormatter={(l) => `Ngày ${l}`}
                         />
-                        <Area type="monotone" dataKey="p95" stroke="#22C55E" fill="#22C55E" fillOpacity={0.1} strokeWidth={1} />
-                        <Area type="monotone" dataKey="p75" stroke="#22C55E" fill="#22C55E" fillOpacity={0.2} strokeWidth={1} />
-                        <Area type="monotone" dataKey="p50" stroke="#3B82F6" fill="none" strokeWidth={2} strokeDasharray="4 2" />
-                        <Area type="monotone" dataKey="p25" stroke="#EF4444" fill="#EF4444" fillOpacity={0.2} strokeWidth={1} />
-                        <Area type="monotone" dataKey="p5" stroke="#EF4444" fill="#EF4444" fillOpacity={0.1} strokeWidth={1} />
+                        <Area type="monotone" dataKey="p95" stroke="var(--chart-positive)" fill="var(--chart-positive)" fillOpacity={0.1} strokeWidth={1} />
+                        <Area type="monotone" dataKey="p75" stroke="var(--chart-positive)" fill="var(--chart-positive)" fillOpacity={0.2} strokeWidth={1} />
+                        <Area type="monotone" dataKey="p50" stroke="var(--chart-neutral)" fill="none" strokeWidth={2} strokeDasharray="4 2" />
+                        <Area type="monotone" dataKey="p25" stroke="var(--chart-negative)" fill="var(--chart-negative)" fillOpacity={0.2} strokeWidth={1} />
+                        <Area type="monotone" dataKey="p5" stroke="var(--chart-negative)" fill="var(--chart-negative)" fillOpacity={0.1} strokeWidth={1} />
                       </AreaChart>
                     </ResponsiveContainer>
                     <div className="flex flex-wrap gap-3 text-[9px] text-text-muted">
@@ -746,7 +746,11 @@ export const RiskManagerView: React.FC<Props> = ({
                 ) : (
                   <>
                     {(() => {
-                      const SECTOR_COLORS = ['#3B82F6', '#EF4444', '#22C55E', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316', '#6B7280'];
+                      const SECTOR_COLORS = [
+                        'var(--sector-1)', 'var(--sector-2)', 'var(--sector-3)',
+                        'var(--sector-4)', 'var(--sector-5)', 'var(--sector-6)',
+                        'var(--sector-7)', 'var(--sector-8)', 'var(--sector-9)',
+                      ];
                       const pieData = sectorResult.sectors.map((s, i) => ({
                         name: s.sectorLabel || s.sector,
                         value: s.percent,

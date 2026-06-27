@@ -138,7 +138,7 @@ const NavItem: React.FC<{
         ${isOpen ? 'px-3 py-2 gap-3' : 'p-2 justify-center'}
         ${isActive
           ? 'text-accent bg-accent/10'
-          : 'text-text-muted hover:text-text-main hover:bg-white/5'
+          : 'text-text-muted hover:text-text-main hover:bg-panel-hover'
         }
       `}
     >
@@ -287,7 +287,7 @@ export const Sidebar: React.FC<Props> = ({
             className={`
               relative flex items-center w-full rounded-md transition-all duration-150
               ${isOpen ? 'px-3 py-2 gap-3' : 'p-2 justify-center'}
-              text-text-muted hover:text-text-main hover:bg-white/5
+              text-text-muted hover:text-text-main hover:bg-panel-hover
             `}
             title={theme === 'dark' ? 'Chuyển sang chế độ sáng' : 'Chuyển sang chế độ tối'}
           >
@@ -312,7 +312,7 @@ export const Sidebar: React.FC<Props> = ({
               ${isOpen ? 'px-3 py-2 gap-3' : 'p-2 justify-center'}
               ${activeId === 'settings'
                 ? 'text-accent bg-accent/10'
-                : 'text-text-muted hover:text-text-main hover:bg-white/5'
+                : 'text-text-muted hover:text-text-main hover:bg-panel-hover'
               }
             `}
           >

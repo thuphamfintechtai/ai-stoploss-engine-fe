@@ -614,7 +614,7 @@ export const TradingTerminal: React.FC<Props> = ({
               className={`px-2.5 h-7 rounded text-[10px] font-bold tracking-wide transition-colors ${
                 timeframe === tf
                   ? 'text-accent bg-accent/15'
-                  : 'text-text-dim hover:text-text-main hover:bg-white/5'
+                  : 'text-text-dim hover:text-text-main hover:bg-panel-hover'
               }`}
             >
               {tf}
@@ -693,7 +693,7 @@ export const TradingTerminal: React.FC<Props> = ({
         <div className="flex items-center border-l border-border-standard h-full px-3 shrink-0">
           <button
             onClick={() => setShowLeftPanel(!showLeftPanel)}
-            className={`p-1.5 rounded transition-colors ${showLeftPanel ? 'text-accent bg-accent/10' : 'text-text-dim hover:text-text-main hover:bg-white/5'}`}
+            className={`p-1.5 rounded transition-colors ${showLeftPanel ? 'text-accent bg-accent/10' : 'text-text-dim hover:text-text-main hover:bg-panel-hover'}`}
             title="Ẩn/hiện danh sách mã"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -779,7 +779,7 @@ export const TradingTerminal: React.FC<Props> = ({
                         <tr
                           key={s.symbol}
                           onClick={() => handleSymbolSelect(s.symbol, s.exchange ?? '')}
-                          className={`cursor-pointer transition-colors border-b border-border-subtle/30 ${isActive ? 'bg-accent/10' : 'hover:bg-white/[0.04]'}`}
+                          className={`cursor-pointer transition-colors border-b border-border-subtle/30 ${isActive ? 'bg-accent/10' : 'hover:bg-panel-hover'}`}
                         >
                           <td className={`px-2 py-1 text-[11px] font-bold ${isActive ? 'text-accent' : 'text-text-main'}`}>{s.symbol}</td>
                           <td className={`px-2 py-1 text-right text-[10px] font-mono ${priceColorCls(close, ref)}`}>
@@ -1123,7 +1123,7 @@ export const TradingTerminal: React.FC<Props> = ({
                 <span className="text-[11px] font-semibold text-text-dim">Đặt lệnh</span>
                 <button
                   onClick={() => { setShowOrderModal(false); setOrderMsg(null); }}
-                  className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 text-text-dim hover:text-text-main text-[14px] transition-colors"
+                  className="w-6 h-6 flex items-center justify-center rounded hover:bg-panel-hover text-text-dim hover:text-text-main text-[14px] transition-colors"
                   aria-label="Đóng cửa sổ đặt lệnh"
                 >✕</button>
               </div>
@@ -1319,7 +1319,7 @@ export const TradingTerminal: React.FC<Props> = ({
                 <div className="rounded-xl border border-border-subtle overflow-hidden">
                   <button
                     onClick={() => setShowRiskPanel(!showRiskPanel)}
-                    className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-white/3 transition-colors"
+                    className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-panel-hover transition-colors"
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-[9px] font-bold uppercase tracking-wider text-text-dim">Quan ly rui ro <FinancialTooltip term="Stop Loss" /> / <FinancialTooltip term="Take Profit" /></span>

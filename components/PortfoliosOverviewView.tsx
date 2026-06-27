@@ -33,9 +33,9 @@ interface OverviewData {
 }
 
 const TYPE_COLORS: Record<string, string> = {
-  LONG_TERM: '#3b82f6',
-  SWING: '#f59e0b',
-  DAY_TRADE: '#ef4444',
+  LONG_TERM: 'var(--portfolio-type-long-term)',
+  SWING: 'var(--portfolio-type-swing)',
+  DAY_TRADE: 'var(--portfolio-type-day-trade)',
 };
 
 const formatVND = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 0 });
