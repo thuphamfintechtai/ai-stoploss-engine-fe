@@ -3,6 +3,7 @@ import { portfolioApi, realPortfolioApi, getSectorConcentration } from '../servi
 import type { Position, RealPosition } from '../services/api';
 import wsService from '../services/websocket';
 import { EmptyState } from './ui/EmptyState';
+import { SkeletonCard } from './ui/SkeletonLoader';
 import { PortfolioHeroCard } from './portfolio/PortfolioHeroCard';
 import { PortfolioHealthCard } from './portfolio/PortfolioHealthCard';
 import { SectorAllocationCard, type SectorAllocation } from './portfolio/SectorAllocationCard';
@@ -118,6 +119,8 @@ export const PortfolioView: React.FC<Props> = ({
   const { activePortfolio } = useActivePortfolio();
   const [realPositions, setRealPositions] = useState<RealPosition[]>([]);
   const [realPositionsLoading, setRealPositionsLoading] = useState(false);
+  // Phase 10 D-05 — skeleton-on-fetch: true until first data load completes
+  const [initialLoading, setInitialLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'positions' | 'history'>('positions');
 
   const priceReceivedAtRef = useRef<Record<string, number>>({});
@@ -235,6 +238,7 @@ export const PortfolioView: React.FC<Props> = ({
       setRealPositionsLoading(false);
       setSummaryLoading(false);
       setSectorLoading(false);
+      setInitialLoading(false);
     }
   }, [portfolioId, totalBalance]);
 
@@ -395,7 +399,16 @@ export const PortfolioView: React.FC<Props> = ({
         />
       )}
 
-      {portfolioId && (
+      {portfolioId && initialLoading && (
+        /* Phase 10 D-05 — skeleton-on-fetch: show during initial data load */
+        <div className="space-y-3">
+          <SkeletonCard className="h-32" />  {/* summary card placeholder */}
+          <SkeletonCard className="h-48" />  {/* positions table placeholder */}
+          <SkeletonCard className="h-24" />  {/* AI briefing placeholder */}
+        </div>
+      )}
+
+      {portfolioId && !initialLoading && (
         <>
           {/* ═══ QUICK STATS GRID — 3 cards (P&L moved to Hero) ═══ */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
