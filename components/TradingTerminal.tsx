@@ -1442,7 +1442,7 @@ export const TradingTerminal: React.FC<Props> = ({
                               <span className="text-[9px] text-amber-300/80 leading-relaxed">{aiSuggestions.clamp_warning}</span>
                             </div>
                           )}
-                          <div className="grid grid-cols-3 gap-1.5">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
                             {['aggressive', 'moderate', 'conservative'].map((type) => {
                               const s = aiSuggestions.suggestions?.find((x: any) => x.type === type);
                               if (!s) return null;
@@ -1474,7 +1474,7 @@ export const TradingTerminal: React.FC<Props> = ({
                               {aiSuggestions.data_quality?.days_used && (
                                 <p className="text-[7px] text-text-dim px-2.5 pt-1.5">Dữ liệu: {aiSuggestions.data_quality.days_used} ngày giao dịch</p>
                               )}
-                              <table className="w-full text-[8px] mt-1">
+                              <div className="overflow-x-auto"><table className="w-full text-[8px] mt-1">
                                 <thead>
                                   <tr className="text-text-dim">
                                     <th className="px-2.5 py-0.5 text-left font-semibold">Mức giá</th>
@@ -1493,7 +1493,7 @@ export const TradingTerminal: React.FC<Props> = ({
                                     </tr>
                                   ))}
                                 </tbody>
-                              </table>
+                              </table></div>
                             </div>
                           )}
 
