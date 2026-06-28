@@ -178,6 +178,12 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
   // C-03: optimistic apply tracking — applied rec IDs shown immediately
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
 
+  // History state — counts for badge, expanded symbol, cached data, per-symbol loading
+  const [historyCounts, setHistoryCounts] = useState<Record<string, number>>({});
+  const [expandedHistory, setExpandedHistory] = useState<string | null>(null);
+  const [historyData, setHistoryData] = useState<Record<string, any[]>>({});
+  const [loadingHistory, setLoadingHistory] = useState<Record<string, boolean>>({});
+
   const loadWatchlist = useCallback(async () => {
     setLoading(true);
     try {
@@ -186,6 +192,21 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
         ? wlRes.data.data.map((i: any) => ({ symbol: i.symbol, exchange: i.exchange }))
         : [];
       setWatchlist(wl);
+      // Fetch history counts for all symbols in parallel (for badge display)
+      if (wl.length > 0) {
+        const counts: Record<string, number> = {};
+        await Promise.all(
+          wl.map(async (item) => {
+            try {
+              const res = await aiApi.countRecommendations(item.symbol, item.exchange);
+              if (res.data?.success) {
+                counts[item.symbol] = res.data.count;
+              }
+            } catch { /* ignore */ }
+          })
+        );
+        setHistoryCounts(counts);
+      }
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }, []);
@@ -228,6 +249,30 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
       }
     } catch { /* ignore */ }
     finally { setAnalyzing(prev => ({ ...prev, [symbol]: false })); }
+  };
+
+  // Toggle history panel for a symbol — lazy-loads on first expand
+  const toggleHistory = async (symbol: string, exchange: string) => {
+    if (expandedHistory === symbol) {
+      setExpandedHistory(null);
+      return;
+    }
+
+    setExpandedHistory(symbol);
+    if (!historyData[symbol]) {
+      setLoadingHistory(prev => ({ ...prev, [symbol]: true }));
+      try {
+        const res = await aiApi.listRecommendations({ symbol, exchange, limit: 10 });
+        if (res.data?.success) {
+          setHistoryData(prev => ({ ...prev, [symbol]: res.data.data }));
+          // Update count from fresh data
+          setHistoryCounts(prev => ({ ...prev, [symbol]: res.data.count }));
+        }
+      } catch { /* ignore */ }
+      finally {
+        setLoadingHistory(prev => ({ ...prev, [symbol]: false }));
+      }
+    }
   };
 
   // C-03: optimistic apply — UI updates immediately, rolls back on API failure
@@ -386,36 +431,170 @@ export const AiSignalsView: React.FC<Props> = ({ onNavigate }) => {
                           <span className="text-[9px] text-text-dim">
                             {new Date(res.generated_at).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                           </span>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); analyzeSymbol(item.symbol, item.exchange); }}
-                            disabled={isAn}
-                            className="text-[9px] text-accent hover:underline disabled:opacity-50 flex items-center gap-1"
-                          >
-                            {isAn && <span className="w-2.5 h-2.5 border border-accent border-t-transparent rounded-full animate-spin" />}
-                            Phân tích lại
-                          </button>
+                          <div className="flex items-center gap-2">
+                            {(historyCounts[item.symbol] ?? 0) > 0 && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); toggleHistory(item.symbol, item.exchange); }}
+                                className="text-[9px] text-text-muted hover:text-text-main flex items-center gap-1"
+                              >
+                                <span>Lịch sử ({historyCounts[item.symbol]})</span>
+                                <svg className={`w-3 h-3 transition-transform ${expandedHistory === item.symbol ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </button>
+                            )}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); analyzeSymbol(item.symbol, item.exchange); }}
+                              disabled={isAn}
+                              className="text-[9px] text-accent hover:underline disabled:opacity-50 flex items-center gap-1"
+                            >
+                              {isAn && <span className="w-2.5 h-2.5 border border-accent border-t-transparent rounded-full animate-spin" />}
+                              Phân tích lại
+                            </button>
+                          </div>
                         </div>
+
+                        {/* Expandable history section */}
+                        {expandedHistory === item.symbol && (
+                          <div className="mt-2 pt-2 border-t border-border-subtle">
+                            {loadingHistory[item.symbol] ? (
+                              <div className="flex items-center justify-center py-2">
+                                <span className="w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                              </div>
+                            ) : historyData[item.symbol]?.length ? (
+                              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                                {historyData[item.symbol].map((hrec: any) => {
+                                  const hsugg = hrec.suggestions?.[0];
+                                  const statusColors: Record<string, string> = {
+                                    APPLIED:   'bg-positive/20 text-positive',
+                                    IGNORED:   'bg-text-dim/20 text-text-dim',
+                                    EXPIRED:   'bg-warning/20 text-warning',
+                                    GENERATED: 'bg-accent/20 text-accent',
+                                  };
+                                  const statusLabels: Record<string, string> = {
+                                    APPLIED:   'Đã áp dụng',
+                                    IGNORED:   'Bỏ qua',
+                                    EXPIRED:   'Hết hạn',
+                                    GENERATED: 'Mới',
+                                  };
+                                  return (
+                                    <div key={hrec.id} className="p-2 rounded bg-surface/50 border border-border-subtle">
+                                      <div className="flex items-center justify-between mb-1">
+                                        <span className="text-[9px] text-text-dim">
+                                          {new Date(hrec.created_at).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                                        </span>
+                                        <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${statusColors[hrec.status] ?? 'bg-text-dim/10 text-text-dim'}`}>
+                                          {statusLabels[hrec.status] ?? hrec.status}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2 text-[9px]">
+                                        <span className={`font-semibold ${scoreCls(hrec.technical_score)}`}>
+                                          {hrec.technical_score ?? '—'}/100
+                                        </span>
+                                        {hsugg && (
+                                          <>
+                                            <span className="text-negative">SL {fmtPrice(hsugg.stop_loss_vnd)}</span>
+                                            <span className="text-positive">TP {fmtPrice(hsugg.take_profit_vnd)}</span>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <p className="text-[9px] text-text-dim text-center py-2">Không có lịch sử</p>
+                            )}
+                          </div>
+                        )}
                       </>
                     ) : (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); analyzeSymbol(item.symbol, item.exchange); }}
-                        disabled={isAn}
-                        className="flex items-center justify-center gap-1.5 py-2 rounded-md bg-accent/10 text-accent font-semibold text-[11px] hover:bg-accent/20 transition-colors disabled:opacity-50 border border-accent/20"
-                      >
-                        {isAn ? (
-                          <>
-                            <span className="w-3.5 h-3.5 border-2 border-accent border-t-transparent rounded-full animate-spin shrink-0" />
-                            <span>Đang phân tích...</span>
-                          </>
-                        ) : (
-                          <>
-                            <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                      <>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); analyzeSymbol(item.symbol, item.exchange); }}
+                          disabled={isAn}
+                          className="flex items-center justify-center gap-1.5 py-2 rounded-md bg-accent/10 text-accent font-semibold text-[11px] hover:bg-accent/20 transition-colors disabled:opacity-50 border border-accent/20"
+                        >
+                          {isAn ? (
+                            <>
+                              <span className="w-3.5 h-3.5 border-2 border-accent border-t-transparent rounded-full animate-spin shrink-0" />
+                              <span>Đang phân tích...</span>
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                              </svg>
+                              <span>Phân tích AI SL/TP</span>
+                            </>
+                          )}
+                        </button>
+                        {/* History button for not-yet-analyzed symbols that have past history */}
+                        {(historyCounts[item.symbol] ?? 0) > 0 && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleHistory(item.symbol, item.exchange); }}
+                            className="text-[9px] text-text-muted hover:text-text-main flex items-center justify-center gap-1 mt-1"
+                          >
+                            <span>Lịch sử ({historyCounts[item.symbol]})</span>
+                            <svg className={`w-3 h-3 transition-transform ${expandedHistory === item.symbol ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                             </svg>
-                            <span>Phân tích AI SL/TP</span>
-                          </>
+                          </button>
                         )}
-                      </button>
+                        {/* Expandable history section for not-yet-analyzed symbols */}
+                        {expandedHistory === item.symbol && (
+                          <div className="mt-2 pt-2 border-t border-border-subtle">
+                            {loadingHistory[item.symbol] ? (
+                              <div className="flex items-center justify-center py-2">
+                                <span className="w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                              </div>
+                            ) : historyData[item.symbol]?.length ? (
+                              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                                {historyData[item.symbol].map((hrec: any) => {
+                                  const hsugg = hrec.suggestions?.[0];
+                                  const statusColors: Record<string, string> = {
+                                    APPLIED:   'bg-positive/20 text-positive',
+                                    IGNORED:   'bg-text-dim/20 text-text-dim',
+                                    EXPIRED:   'bg-warning/20 text-warning',
+                                    GENERATED: 'bg-accent/20 text-accent',
+                                  };
+                                  const statusLabels: Record<string, string> = {
+                                    APPLIED:   'Đã áp dụng',
+                                    IGNORED:   'Bỏ qua',
+                                    EXPIRED:   'Hết hạn',
+                                    GENERATED: 'Mới',
+                                  };
+                                  return (
+                                    <div key={hrec.id} className="p-2 rounded bg-surface/50 border border-border-subtle">
+                                      <div className="flex items-center justify-between mb-1">
+                                        <span className="text-[9px] text-text-dim">
+                                          {new Date(hrec.created_at).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                                        </span>
+                                        <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${statusColors[hrec.status] ?? 'bg-text-dim/10 text-text-dim'}`}>
+                                          {statusLabels[hrec.status] ?? hrec.status}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2 text-[9px]">
+                                        <span className={`font-semibold ${scoreCls(hrec.technical_score)}`}>
+                                          {hrec.technical_score ?? '—'}/100
+                                        </span>
+                                        {hsugg && (
+                                          <>
+                                            <span className="text-negative">SL {fmtPrice(hsugg.stop_loss_vnd)}</span>
+                                            <span className="text-positive">TP {fmtPrice(hsugg.take_profit_vnd)}</span>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <p className="text-[9px] text-text-dim text-center py-2">Không có lịch sử</p>
+                            )}
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 );

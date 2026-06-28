@@ -490,9 +490,13 @@ export const aiApi = {
   markReviewDismissed: (reviewId: string) =>
     apiClient.patch(`/ai/position-review-history/${reviewId}/dismissed`),
 
-  /** Lấy danh sách AI recommendations của user */
-  listRecommendations: (params?: { limit?: number }) =>
+  /** Lấy danh sách AI recommendations của user (optionally filtered by symbol) */
+  listRecommendations: (params?: { symbol?: string; exchange?: string; limit?: number }) =>
     apiClient.get('/ai/recommendations', { params }),
+
+  /** Đếm số recommendations cho một symbol (for history badge) */
+  countRecommendations: (symbol: string, exchange = 'HOSE') =>
+    apiClient.get('/ai/recommendations/count', { params: { symbol, exchange } }),
 
   /** Chi tiết một recommendation */
   getRecommendation: (id: string) =>
