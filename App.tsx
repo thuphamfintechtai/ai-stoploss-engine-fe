@@ -4,6 +4,7 @@ import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { ActivePortfolioProvider } from './contexts/ActivePortfolioContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { MainApp } from './components/MainApp';
+import { MarketHealthBanner } from './components/ui/MarketHealthBanner';
 import { authApi } from './services/api';
 
 function App() {
@@ -43,6 +44,7 @@ function App() {
   return (
     <AppErrorBoundary onReset={handleLogout}>
       <ThemeProvider>
+        <MarketHealthBanner />
         <ActivePortfolioProvider>
           <MainApp onLogout={handleLogout} />
         </ActivePortfolioProvider>

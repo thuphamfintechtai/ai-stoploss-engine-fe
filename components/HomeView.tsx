@@ -3,6 +3,7 @@ import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, ReferenceLine } fro
 import { marketApi } from '../services/api';
 import { MARKET_INDEX_CODES, formatNumberVI } from '../constants';
 import { SkeletonCard } from './ui/SkeletonLoader';
+import { useMarketHealth } from '../hooks/useMarketHealth';
 
 interface Props {
   totalBalance: number;
@@ -79,8 +80,12 @@ export const HomeView: React.FC<Props> = ({ onNavigate, totalBalance, riskUsed, 
   const [newsLoading, setNewsLoading] = useState(false);
   const [newsError, setNewsError] = useState<string | null>(null);
 
+  // Circuit breaker for VPBS market data
+  const { shouldSkipRequest, recordSuccess, recordFailure } = useMarketHealth();
+
   const fetchIndices = useCallback(async (codes: string[]) => {
     if (!codes.length) return;
+    if (shouldSkipRequest()) return; // Circuit breaker: skip if open
     setLoading(true);
     setError(null);
     try {
@@ -93,12 +98,17 @@ export const HomeView: React.FC<Props> = ({ onNavigate, totalBalance, riskUsed, 
         }
       });
       setIndexData((prev) => ({ ...prev, ...next }));
+      recordSuccess(); // Circuit breaker: record success
     } catch (e: any) {
-      setError(e?.message ?? 'Không tải được dữ liệu chỉ số');
+      const status = e?.response?.status;
+      if (status >= 500) {
+        recordFailure(e?.message ?? 'VPBS API error');
+      }
+      setError(e?.message ?? 'Khong tai duoc du lieu chi so');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [shouldSkipRequest, recordSuccess, recordFailure]);
 
   useEffect(() => {
     fetchIndices(cardCodes);
@@ -106,48 +116,42 @@ export const HomeView: React.FC<Props> = ({ onNavigate, totalBalance, riskUsed, 
     return () => clearInterval(t);
   }, [cardCodes.join(','), fetchIndices]);
 
+  // Helper to parse market index detail response
+  const parseMarketIndexDetail = (raw: any[]): MarketIndexDetailRow[] =>
+    raw.map((d: any) => ({
+      indexCode: (d.indexCode ?? d.code ?? '').toString().trim(),
+      indexValue: d.indexValue != null ? Number(d.indexValue) : null,
+      indexChange: d.indexChange != null ? Number(d.indexChange) : null,
+      sumVolume: d.sumVolume != null ? Number(d.sumVolume) : null,
+      sumValue: d.sumValue != null ? Number(d.sumValue) : null,
+      advances: Number(d.advances) || 0,
+      declines: Number(d.declines) || 0,
+      noChange: Number(d.noChange) || 0,
+    }));
+
+  const fetchMarketIndexDetail = useCallback(async () => {
+    if (shouldSkipRequest()) return; // Circuit breaker: skip if open
+    try {
+      const res = await marketApi.getMarketIndexDetail({ indexCode: MARKET_INDEX_DETAIL_CODES });
+      const raw = (res.data as any)?.data;
+      if (Array.isArray(raw)) {
+        setMarketIndexDetailList(parseMarketIndexDetail(raw));
+      }
+      recordSuccess(); // Circuit breaker: record success
+    } catch (e: any) {
+      const status = e?.response?.status;
+      if (status >= 500) {
+        recordFailure(e?.message ?? 'VPBS API error');
+      }
+      setMarketIndexDetailList([]);
+    }
+  }, [shouldSkipRequest, recordSuccess, recordFailure]);
+
   useEffect(() => {
-    marketApi.getMarketIndexDetail({ indexCode: MARKET_INDEX_DETAIL_CODES })
-      .then((res) => {
-        const raw = (res.data as any)?.data;
-        if (Array.isArray(raw)) {
-          setMarketIndexDetailList(raw.map((d: any) => ({
-            indexCode: (d.indexCode ?? d.code ?? '').toString().trim(),
-            indexValue: d.indexValue != null ? Number(d.indexValue) : null,
-            indexChange: d.indexChange != null ? Number(d.indexChange) : null,
-            sumVolume: d.sumVolume != null ? Number(d.sumVolume) : null,
-            sumValue: d.sumValue != null ? Number(d.sumValue) : null,
-            advances: Number(d.advances) || 0,
-            declines: Number(d.declines) || 0,
-            noChange: Number(d.noChange) || 0,
-          })));
-        }
-      })
-      .catch((e: any) => {
-        if (import.meta.env.DEV && e?.response?.status !== 503) console.error('Market index detail error:', e);
-        setMarketIndexDetailList([]);
-      });
-    const t = setInterval(() => {
-      marketApi.getMarketIndexDetail({ indexCode: MARKET_INDEX_DETAIL_CODES })
-        .then((res) => {
-          const raw = (res.data as any)?.data;
-          if (Array.isArray(raw)) {
-            setMarketIndexDetailList(raw.map((d: any) => ({
-              indexCode: (d.indexCode ?? d.code ?? '').toString().trim(),
-              indexValue: d.indexValue != null ? Number(d.indexValue) : null,
-              indexChange: d.indexChange != null ? Number(d.indexChange) : null,
-              sumVolume: d.sumVolume != null ? Number(d.sumVolume) : null,
-              sumValue: d.sumValue != null ? Number(d.sumValue) : null,
-              advances: Number(d.advances) || 0,
-              declines: Number(d.declines) || 0,
-              noChange: Number(d.noChange) || 0,
-            })));
-          }
-        })
-        .catch(() => {});
-    }, 60000);
+    fetchMarketIndexDetail();
+    const t = setInterval(fetchMarketIndexDetail, 60000);
     return () => clearInterval(t);
-  }, []);
+  }, [fetchMarketIndexDetail]);
 
   const fetchNews = useCallback(() => {
     setNewsLoading(true);

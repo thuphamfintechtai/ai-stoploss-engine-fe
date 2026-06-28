@@ -8,6 +8,7 @@ import { SkeletonCard, SkeletonText } from './ui/SkeletonLoader';
 import { EmptyState, EmptyStateIcon } from './ui/EmptyState';
 import { Bell, TrendingDown, TrendingUp, Megaphone } from 'lucide-react';
 import { useDebounce } from '../hooks/useDebounce';
+import { useMarketHealth } from '../hooks/useMarketHealth';
 
 interface WatchItem {
   symbol: string;
@@ -54,6 +55,9 @@ const CONDITION_LABELS: Record<AlertCondition, string> = {
 };
 
 export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) => {
+  // ─── Circuit breaker for VPBS market data ───────────────────────────────
+  const { shouldSkipRequest, recordSuccess, recordFailure } = useMarketHealth();
+
   // ─── Watchlist state ───────────────────────────────────────────────────
   const [watchlist, setWatchlist] = useState<WatchItem[]>(() => {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
@@ -228,6 +232,8 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
   // ─── FETCH QUOTES (polling dự phòng) ──────────────────────────────────
 
   const fetchQuotes = useCallback(async () => {
+    if (shouldSkipRequest()) return; // Circuit breaker: skip if open
+    let hadSuccess = false;
     for (const item of watchlist) {
       try {
         const res = await marketApi.getPrice(item.symbol, item.exchange ? { exchange: item.exchange } : undefined);
@@ -247,10 +253,18 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
               volume: Number(d.volume ?? 0),
             },
           }));
+          hadSuccess = true;
         }
-      } catch { /* ignore */ }
+      } catch (e: any) {
+        const status = e?.response?.status;
+        if (status >= 500) {
+          recordFailure(e?.message ?? 'VPBS API error');
+          break; // Stop loop on 5xx — circuit breaker will handle
+        }
+      }
     }
-  }, [watchlist]);
+    if (hadSuccess) recordSuccess();
+  }, [watchlist, shouldSkipRequest, recordSuccess, recordFailure]);
 
   useEffect(() => {
     fetchQuotes();
