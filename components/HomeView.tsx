@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { marketApi } from '../services/api';
+import { getCachedIntradayIndices, getCachedMarketIndexDetail } from '../services/marketDataCache';
 import { MARKET_INDEX_CODES, formatNumberVI } from '../constants';
 import { SkeletonCard } from './ui/SkeletonLoader';
 import { useMarketHealth } from '../hooks/useMarketHealth';
@@ -89,8 +90,8 @@ export const HomeView: React.FC<Props> = ({ onNavigate, totalBalance, riskUsed, 
     setLoading(true);
     setError(null);
     try {
-      const res = await marketApi.getIntradayIndices(codes);
-      const list = (res.data as any)?.data ?? [];
+      const { data, fromCache, stale } = await getCachedIntradayIndices(codes);
+      const list = (data as any)?.data ?? [];
       const next: Record<string, ReturnType<typeof normalizeIndexData>> = {};
       list.forEach((item: any) => {
         if (item.success && item.indexCode) {
@@ -98,7 +99,8 @@ export const HomeView: React.FC<Props> = ({ onNavigate, totalBalance, riskUsed, 
         }
       });
       setIndexData((prev) => ({ ...prev, ...next }));
-      recordSuccess(); // Circuit breaker: record success
+      if (!fromCache) recordSuccess(); // Circuit breaker: record success only on fresh fetch
+      if (stale) setError('Du lieu chi so co the khong cap nhat'); // Warn user about stale data
     } catch (e: any) {
       const status = e?.response?.status;
       if (status >= 500) {
@@ -132,12 +134,12 @@ export const HomeView: React.FC<Props> = ({ onNavigate, totalBalance, riskUsed, 
   const fetchMarketIndexDetail = useCallback(async () => {
     if (shouldSkipRequest()) return; // Circuit breaker: skip if open
     try {
-      const res = await marketApi.getMarketIndexDetail({ indexCode: MARKET_INDEX_DETAIL_CODES });
-      const raw = (res.data as any)?.data;
+      const { data, fromCache } = await getCachedMarketIndexDetail({ indexCode: MARKET_INDEX_DETAIL_CODES });
+      const raw = (data as any)?.data;
       if (Array.isArray(raw)) {
         setMarketIndexDetailList(parseMarketIndexDetail(raw));
       }
-      recordSuccess(); // Circuit breaker: record success
+      if (!fromCache) recordSuccess(); // Circuit breaker: record success only on fresh fetch
     } catch (e: any) {
       const status = e?.response?.status;
       if (status >= 500) {

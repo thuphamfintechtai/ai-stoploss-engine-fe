@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { CandlestickChart } from './charts/CandlestickChart';
 import { marketApi, watchlistApi, priceAlertsApi, notificationsApi, aiApi } from '../services/api';
+import { getCachedPrice } from '../services/marketDataCache';
 import type { PriceAlert, CreateAlertRequest, AlertCondition, Notification } from '../services/api';
 import { formatNumberVI, STOCK_PRICE_DISPLAY_SCALE } from '../constants';
 import wsService from '../services/websocket';
@@ -233,12 +234,12 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
 
   const fetchQuotes = useCallback(async () => {
     if (shouldSkipRequest()) return; // Circuit breaker: skip if open
-    let hadSuccess = false;
+    let hadFreshSuccess = false;
     for (const item of watchlist) {
       try {
-        const res = await marketApi.getPrice(item.symbol, item.exchange ? { exchange: item.exchange } : undefined);
-        if (res.data?.success && res.data.data) {
-          const d = res.data.data;
+        const { data: res, fromCache } = await getCachedPrice(item.symbol, item.exchange ? { exchange: item.exchange } : undefined);
+        if (res?.success && res.data) {
+          const d = res.data;
           const rawClose = Number(d.closePrice ?? d.price ?? 0);
           const close = rawClose * STOCK_PRICE_DISPLAY_SCALE;
           const ref = Number(d.open ?? d.reference ?? 0) * STOCK_PRICE_DISPLAY_SCALE;
@@ -253,7 +254,7 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
               volume: Number(d.volume ?? 0),
             },
           }));
-          hadSuccess = true;
+          if (!fromCache) hadFreshSuccess = true;
         }
       } catch (e: any) {
         const status = e?.response?.status;
@@ -263,7 +264,7 @@ export const WatchlistView: React.FC<Props> = ({ onNavigate, onOpenTrading }) =>
         }
       }
     }
-    if (hadSuccess) recordSuccess();
+    if (hadFreshSuccess) recordSuccess();
   }, [watchlist, shouldSkipRequest, recordSuccess, recordFailure]);
 
   useEffect(() => {
